@@ -610,7 +610,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 </style>
 
 <style id="v2319-mobile-status-controls">
-/* Version 2.3.19 — actually compact mobile/iPad lesson status controls. */
+/* Version 2.3.20 — actually compact mobile/iPad lesson status controls. */
 @media (hover:none) and (pointer:coarse), (max-width:900px){
   .lessonStatusBar{
     left:4px!important;right:4px!important;bottom:2px!important;top:auto!important;
@@ -642,6 +642,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
   .lessonStatusAll .lessonStatusShort{font-weight:800!important;}
 }
 </style>
+<style id="v2320-multi-day-lessons">.lessonHeaderActions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.lessonMultiBadge{position:absolute;right:6px;top:5px;font-size:10px;line-height:1;z-index:2;pointer-events:none}.lessonCell.lessonMultiDay{box-shadow:inset 0 0 0 1px rgba(95,159,183,.22)}.multiDayLessonModal{max-height:88vh;overflow:auto}.multiDayDates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.multiDayDates label{display:flex;flex-direction:column;gap:5px;font-size:13px}.multiDayDates input{width:100%;box-sizing:border-box}.multiDayExisting{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line,#d8dee8)}.multiDayExisting:last-child{border-bottom:0}@media(max-width:700px){.lessonHeaderActions{width:100%;justify-content:center}.lessonHeaderActions button{font-size:12px;padding:5px 8px}.multiDayDates{grid-template-columns:1fr}.multiDayExisting{align-items:flex-start}}</style>
 </head>
 <body>
 <div id="root"></div>
@@ -772,6 +773,13 @@ function ensureLessonPlans(){
   });
   data.lessonPlanHiddenClassIds=Array.isArray(data.lessonPlanHiddenClassIds)?[...new Set(data.lessonPlanHiddenClassIds)]:[];
   data.lessonPlanSyncGroups=Array.isArray(data.lessonPlanSyncGroups)?data.lessonPlanSyncGroups:[];
+  data.lessonPlanMultiDayLessons=Array.isArray(data.lessonPlanMultiDayLessons)?data.lessonPlanMultiDayLessons:[];
+  data.lessonPlanMultiDayLessons=data.lessonPlanMultiDayLessons.map((m,i)=>({
+    id:m.id||`mdl_${Date.now()}_${i}`, rowId:String(m.rowId||''), startDate:String(m.startDate||''),
+    endDate:String(m.endDate||m.startDate||''), text:String(m.text||''), planned:!!m.planned,
+    created:!!m.created, posted:!!m.posted,
+    overwrittenEntries:m.overwrittenEntries&&typeof m.overwrittenEntries==='object'?m.overwrittenEntries:{}
+  })).filter(m=>m.rowId&&m.startDate&&m.endDate&&m.startDate<=m.endDate);
 }
 
 function ensureClassFields(){
@@ -1342,43 +1350,53 @@ function lessonRowMeetsOnDay(row,weekday){
   return (row.classIds||[]).some(id=>classMeetsOnWeekday(data.classes.find(c=>c.id===id),weekday));
 }
 function lessonRowScheduleLabel(row,weekday){return row.period?`Period ${row.period}`:'';}
-function lessonPlanEntry(rowId,date){ensureLessonPlans();const e=data.lessonPlans.entries?.[rowId]?.[date]||{};return {text:e.text||'',planned:!!e.planned,created:!!e.created,posted:!!e.posted};}
+function lessonDateInRange(date,startDate,endDate){return !!date&&!!startDate&&!!endDate&&date>=startDate&&date<=endDate;}
+function findMultiDayLesson(rowId,date){ensureLessonPlans();return data.lessonPlanMultiDayLessons.find(m=>m.rowId===rowId&&lessonDateInRange(date,m.startDate,m.endDate))||null;}
+function lessonPlanEntry(rowId,date){
+  ensureLessonPlans();const multi=findMultiDayLesson(rowId,date);
+  if(multi)return {text:multi.text||'',planned:!!multi.planned,created:!!multi.created,posted:!!multi.posted,multiId:multi.id};
+  const e=data.lessonPlans.entries?.[rowId]?.[date]||{};
+  return {text:e.text||'',planned:!!e.planned,created:!!e.created,posted:!!e.posted};
+}
+function lessonDateRangeLabel(startDate,endDate){
+  const a=new Date(startDate+'T12:00:00'),b=new Date(endDate+'T12:00:00');
+  const fmt=d=>d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  return startDate===endDate?fmt(a):`${fmt(a)}–${fmt(b)}`;
+}
+function multiDayVisibleOnWeek(multi,dates){return (dates||[]).some(d=>lessonDateInRange(isoDate(d),multi.startDate,multi.endDate));}
+function multiDayDatesForRow(multi,row){
+  const out=[];let d=new Date(multi.startDate+'T12:00:00'),end=new Date(multi.endDate+'T12:00:00');
+  for(let guard=0;d<=end&&guard<400;guard++,d.setDate(d.getDate()+1)){
+    const date=isoDate(d),weekday=d.getDay()||7;
+    if(weekday<=5&&lessonRowAvailableOnDate(row,date,weekday))out.push(date);
+  }
+  return out;
+}
+
 function lessonPlanTodoHTML(rows,dates){
-  const items=[];
-  for(const row of rows||[])for(let i=0;i<(dates||[]).length;i++){
-    const d=dates[i],date=isoDate(d),weekday=i+1;let available=false;
-    try{available=lessonRowAvailableOnDate(row,date,weekday)}catch(e){available=true}
-    if(!available)continue;
-    const entry=lessonPlanEntry(row.id,date),text=(entry.text||'').trim();
-    if(!text)continue;
-    const missing=['planned','created','posted'].filter(k=>!entry[k]);
-    if(missing.length)items.push({
-      row,date,text,missing,
-      day:d.toLocaleDateString(undefined,{weekday:'short',month:'numeric',day:'numeric'})
-    });
+  const items=[];const seenMulti=new Set();
+  for(const row of rows||[]){
+    const multiLessons=(data.lessonPlanMultiDayLessons||[]).filter(m=>m.rowId===row.id&&!seenMulti.has(m.id));
+    for(const multi of multiLessons){
+      if(!multiDayVisibleOnWeek(multi,dates))continue;
+      const covered=multiDayDatesForRow(multi,row);if(!covered.length)continue;
+      if(!(multi.planned&&multi.created&&multi.posted)&&String(multi.text||'').trim()){
+        seenMulti.add(multi.id);items.push({row,text:multi.text,missing:['planned','created','posted'].filter(k=>!multi[k]),multi:true,day:lessonDateRangeLabel(multi.startDate,multi.endDate)});
+      }
+    }
+    for(let i=0;i<(dates||[]).length;i++){
+      const d=dates[i],date=isoDate(d),weekday=i+1;let available=false;
+      try{available=lessonRowAvailableOnDate(row,date,weekday)}catch(e){available=true}
+      if(!available||findMultiDayLesson(row.id,date))continue;
+      const entry=lessonPlanEntry(row.id,date),text=(entry.text||'').trim();if(!text)continue;
+      const missing=['planned','created','posted'].filter(k=>!entry[k]);
+      if(missing.length)items.push({row,text,missing,day:d.toLocaleDateString(undefined,{weekday:'short',month:'numeric',day:'numeric'})});
+    }
   }
   if(!items.length)return `<section class="card lessonTodoCard"><div class="lessonTodoHeader"><h3>✓ Still Needs to Be Done</h3><span class="lessonTodoCount">All caught up</span></div><div class="lessonTodoDone">Every entered lesson plan for this week is fully checked off.</div></section>`;
-
-  const grouped=new Map();
-  items.forEach(item=>{
-    const key=item.row.id;
-    if(!grouped.has(key))grouped.set(key,{name:item.row.name,items:[]});
-    grouped.get(key).items.push(item);
-  });
-  const groups=[...grouped.values()];
-  const lessonCount=items.length;
-  return `<section class="card lessonTodoCard">
-    <div class="lessonTodoHeader">
-      <h3>☐ Still Needs to Be Done</h3>
-      <span class="lessonTodoCount">${lessonCount} lesson${lessonCount===1?'':'s'} still need${lessonCount===1?'s':''} attention</span>
-    </div>
-    <div class="lessonTodoList">
-      ${groups.map(group=>`<div class="lessonTodoGroup">
-        <div class="lessonTodoGroupTitle">${esc(group.name)}</div>
-        <ul>${group.items.map(item=>`<li><b>${esc(item.day)}:</b> ${esc(item.text)}</li>`).join('')}</ul>
-      </div>`).join('')}
-    </div>
-  </section>`;
+  const grouped=new Map();items.forEach(item=>{const key=item.row.id;if(!grouped.has(key))grouped.set(key,{name:item.row.name,items:[]});grouped.get(key).items.push(item);});
+  const groups=[...grouped.values()],lessonCount=items.length;
+  return `<section class="card lessonTodoCard"><div class="lessonTodoHeader"><h3>☐ Still Needs to Be Done</h3><span class="lessonTodoCount">${lessonCount} lesson${lessonCount===1?'':'s'} still need${lessonCount===1?'s':''} attention</span></div><div class="lessonTodoList">${groups.map(group=>`<div class="lessonTodoGroup"><div class="lessonTodoGroupTitle">${esc(group.name)}</div><ul>${group.items.map(item=>`<li><b>${esc(item.day)}:</b> ${esc(item.text)}</li>`).join('')}</ul></div>`).join('')}</div></section>`;
 }
 
 function maybeAutoAdvanceLessonWeek(){
@@ -1435,17 +1453,20 @@ function lessonplans(){
         if(!available) return `<td class="lessonCell lessonUnavailable"><span>—</span></td>`;
         try{ state=lessonSubState(row,date,weekday); }catch(e){ state='none'; }
         const entry=lessonPlanEntry(row.id,date);
+        const multi=findMultiDayLesson(row.id,date);
         const all=entry.planned&&entry.created&&entry.posted;
         const hasText=!!String(entry.text||'').trim();
         const cls=state==='all'?' lessonSubDay':state==='partial'?' lessonPartialDay':'';
         const completionClass=hasText?(all?' lessonComplete':' lessonIncomplete'):'';
-        return `<td class="lessonCell${cls}${completionClass}"><textarea placeholder="Type lesson plan..." onfocus="window.lessonPlanTextareaFocus(this)" oninput="window.lessonPlanTextareaInput(this,'${row.id}','${date}')" onblur="window.lessonPlanTextareaBlur(this)">${esc(entry.text)}</textarea><div class="lessonStatusBar"><label class="lessonStatus lessonStatusAll"><input type="checkbox" ${all?'checked':''} onchange="window.updateLessonStatusAll('${row.id}','${date}',this.checked)"><span class="lessonStatusLong">All</span><span class="lessonStatusShort">A</span></label><label class="lessonStatus"><input type="checkbox" ${entry.planned?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','planned',this.checked)"><span class="lessonStatusLong">Planned</span><span class="lessonStatusShort">P</span></label><label class="lessonStatus"><input type="checkbox" ${entry.created?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','created',this.checked)"><span class="lessonStatusLong">Created</span><span class="lessonStatusShort">C</span></label><label class="lessonStatus"><input type="checkbox" ${entry.posted?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','posted',this.checked)"><span class="lessonStatusLong">Posted</span><span class="lessonStatusShort">P</span></label></div></td>`;
+        const multiClass=multi?' lessonMultiDay':'';
+        const multiTitle=multi?` title="Linked multi-day lesson: ${esc(lessonDateRangeLabel(multi.startDate,multi.endDate))}"`:'';
+        return `<td class="lessonCell${cls}${completionClass}${multiClass}"${multiTitle}><textarea placeholder="Type lesson plan..." onfocus="window.lessonPlanTextareaFocus(this)" oninput="window.lessonPlanTextareaInput(this,'${row.id}','${date}')" onblur="window.lessonPlanTextareaBlur(this)">${esc(entry.text)}</textarea>${multi?`<span class="lessonMultiBadge">🔗</span>`:''}<div class="lessonStatusBar"><label class="lessonStatus lessonStatusAll"><input type="checkbox" ${all?'checked':''} onchange="window.updateLessonStatusAll('${row.id}','${date}',this.checked)"><span class="lessonStatusLong">All</span><span class="lessonStatusShort">A</span></label><label class="lessonStatus"><input type="checkbox" ${entry.planned?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','planned',this.checked)"><span class="lessonStatusLong">Planned</span><span class="lessonStatusShort">P</span></label><label class="lessonStatus"><input type="checkbox" ${entry.created?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','created',this.checked)"><span class="lessonStatusLong">Created</span><span class="lessonStatusShort">C</span></label><label class="lessonStatus"><input type="checkbox" ${entry.posted?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','posted',this.checked)"><span class="lessonStatusLong">Posted</span><span class="lessonStatusShort">P</span></label></div></td>`;
       }).join('');
       return `<tr>${title}${cells}</tr>`;
     }).join('');
 
     const todoCard=lessonPlanTodoHTML(rows,dates);
-    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>`;
+    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions"><button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>`;
   }catch(err){
     console.error('Lesson Plans error:',err);
     return `<header><div><h2>Lesson Plans</h2><p>Something went wrong while loading this page.</p></div></header><section class="card"><p><b>The rest of your dashboard is safe.</b></p><p class="small">${esc(err?.message||String(err))}</p><button onclick="window.openLessonPlanManager()">Open Lesson Plan Customize</button></section>`;
@@ -1470,19 +1491,17 @@ window.hideLessonPlanClassRow=rowId=>{
 // Version 2.3.4: typing should never fight the user by re-rendering on every keystroke.
 let lessonPlanSaveTimer=null;
 window.updateLessonPlanLive=(rowId,date,value)=>{
-  ensureLessonPlans();
-  data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};
-  data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:"",done:false};
-  data.lessonPlans.entries[rowId][date].text=String(value||"");
-  clearTimeout(lessonPlanSaveTimer);
-  lessonPlanSaveTimer=setTimeout(()=>save(),650);
+  ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);
+  if(multi)multi.text=String(value||"");
+  else{data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:"",done:false};data.lessonPlans.entries[rowId][date].text=String(value||"");}
+  clearTimeout(lessonPlanSaveTimer);lessonPlanSaveTimer=setTimeout(()=>save(),650);
 };
 window.updateLessonStatusAll=(rowId,date,checked)=>{
-  ensureLessonPlans();
+  ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);
+  if(multi){multi.planned=!!checked;multi.created=!!checked;multi.posted=!!checked;save();render();return;}
   data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};
   const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:"",planned:false,created:false,posted:false};
-  e.planned=!!checked; e.created=!!checked; e.posted=!!checked; e.all=!!checked;
-  save();render();
+  e.planned=!!checked;e.created=!!checked;e.posted=!!checked;e.all=!!checked;save();render();
 };
 window.flushLessonPlanLive=()=>{
   if(lessonPlanSaveTimer){clearTimeout(lessonPlanSaveTimer);lessonPlanSaveTimer=null;}
@@ -1509,6 +1528,29 @@ window.moveLessonPlanRow=(rowId,direction)=>{
   save();render();
 };
 
+function multiDayRowOptions(){return lessonPlanRows().map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');}
+window.multiDayLessonListHTML=()=>{ensureLessonPlans();const list=data.lessonPlanMultiDayLessons||[];if(!list.length)return '<p class="small">No multi-day lessons yet.</p>';return list.map(m=>{const row=lessonPlanRows().find(r=>r.id===m.rowId);return `<div class="multiDayExisting"><div><b>${esc(row?.name||'Unknown row')}</b><div class="small">${esc(lessonDateRangeLabel(m.startDate,m.endDate))} · ${esc(m.text||'(no text)')}</div><div class="small">${m.planned&&m.created&&m.posted?'✓ Complete':'Still in progress'}</div></div><button type="button" class="danger" onclick="window.deleteMultiDayLesson('${m.id}')">Unlink</button></div>`;}).join('');};
+window.openMultiDayLessonModal=()=>{
+  ensureLessonPlans();ensureClassFields();document.querySelector('#multiDayLessonModal')?.remove();const dates=lessonWeekDates(),start=isoDate(dates[0]),end=isoDate(dates[2]),rows=lessonPlanRows();
+  if(!rows.length){alert('Add at least one Lesson Plans row first.');return;}
+  document.body.insertAdjacentHTML('beforeend',`<div id="multiDayLessonModal" class="modalbg"><div class="modal lessonPlanModal multiDayLessonModal"><h3>🔗 Create Multi-Day Lesson</h3><p class="small">Create one lesson that spans multiple school days. It can cross from one week into another. The lesson text and Planned / Created / Posted status are shared across every covered day.</p><label><b>Planning row</b><select id="mdlRow" style="width:100%;margin-top:5px">${multiDayRowOptions()}</select></label><div class="multiDayDates"><label><b>Starts</b><input id="mdlStart" type="date" value="${start}"></label><label><b>Ends</b><input id="mdlEnd" type="date" value="${end}"></label></div><label style="display:block;margin-top:12px"><b>Lesson</b><textarea id="mdlText" placeholder="e.g., Work on Project" style="width:100%;min-height:90px;margin-top:5px"></textarea></label><p class="small" style="margin-top:8px">Only days when this planning row is actually available will display the lesson. Weekends and non-meeting days are skipped.</p><div id="mdlWarning" class="small" style="color:#9a6700"></div><div style="margin-top:16px"><button class="primary" type="button" onclick="window.saveMultiDayLesson()">Create Linked Lesson</button> <button type="button" onclick="window.closeMultiDayLessonModal()">Cancel</button></div><hr class="lessonPlanDivider"><h4>Existing Multi-Day Lessons</h4><div id="mdlExistingList">${window.multiDayLessonListHTML()}</div></div></div>`);
+};
+window.closeMultiDayLessonModal=()=>document.querySelector('#multiDayLessonModal')?.remove();
+window.saveMultiDayLesson=()=>{
+  ensureLessonPlans();const rowId=document.querySelector('#mdlRow')?.value||'',start=document.querySelector('#mdlStart')?.value||'',end=document.querySelector('#mdlEnd')?.value||'',text=document.querySelector('#mdlText')?.value.trim()||'',warn=document.querySelector('#mdlWarning');
+  if(!rowId||!start||!end||!text){if(warn)warn.textContent='Choose a row, start date, end date, and enter a lesson.';return;}
+  if(end<start){if(warn)warn.textContent='The end date must be on or after the start date.';return;}
+  const row=lessonPlanRows().find(r=>r.id===rowId);if(!row){if(warn)warn.textContent='That planning row no longer exists.';return;}
+  const covered=[];let d=new Date(start+'T12:00:00'),last=new Date(end+'T12:00:00');for(let guard=0;d<=last&&guard<400;guard++,d.setDate(d.getDate()+1)){const date=isoDate(d),weekday=d.getDay()||7;if(weekday<=5&&lessonRowAvailableOnDate(row,date,weekday))covered.push(date);}
+  if(!covered.length){if(warn)warn.textContent='That date range does not contain any available school days for this planning row.';return;}
+  const overlap=(data.lessonPlanMultiDayLessons||[]).find(m=>m.rowId===rowId&&m.startDate<=end&&m.endDate>=start);if(overlap){if(warn)warn.textContent=`That range overlaps an existing linked lesson (${lessonDateRangeLabel(overlap.startDate,overlap.endDate)}). Unlink it first or choose a different range.`;return;}
+  const overwrittenEntries={};for(const date of covered){const existing=data.lessonPlans.entries?.[rowId]?.[date];if(existing&&Object.keys(existing).length)overwrittenEntries[date]=structuredClone(existing);}
+  if(Object.keys(overwrittenEntries).length&&!confirm('Some of those days already have lesson-plan information. Creating this linked lesson will replace it. Continue?'))return;
+  data.lessonPlanMultiDayLessons.push({id:'mdl_'+uid(),rowId,startDate:start,endDate:end,text,planned:false,created:false,posted:false,overwrittenEntries});
+  for(const date of covered){if(data.lessonPlans.entries?.[rowId])delete data.lessonPlans.entries[rowId][date];}
+  save();window.closeMultiDayLessonModal();render();
+};
+window.deleteMultiDayLesson=id=>{ensureLessonPlans();const m=data.lessonPlanMultiDayLessons.find(x=>x.id===id);if(!m)return;if(!confirm(`Unlink this multi-day lesson (${lessonDateRangeLabel(m.startDate,m.endDate)})?`))return;data.lessonPlanMultiDayLessons=data.lessonPlanMultiDayLessons.filter(x=>x.id!==id);data.lessonPlans.entries[m.rowId]=data.lessonPlans.entries[m.rowId]||{};Object.entries(m.overwrittenEntries||{}).forEach(([date,e])=>{data.lessonPlans.entries[m.rowId][date]=e;});save();window.closeMultiDayLessonModal();render();};
 window.changeLessonWeek=delta=>{const d=lessonWeekStart(window.lessonPlanWeekStart);d.setDate(d.getDate()+delta*7);window.lessonPlanWeekStart=isoDate(d);render();};
 window.goToLessonWeekToday=()=>{window.lessonPlanWeekStart=isoDate(lessonWeekStart());render();};
 window.openLessonPlanManager=()=>{
@@ -3248,16 +3290,12 @@ function lessonSubAffectsRow(row,date){return lessonSubState(row,date,1)!=="none
 function lessonDayList(days){const names=['Mon','Tue','Wed','Thu','Fri'];return (days||[]).map(d=>names[d-1]).join(', ');}
 
 window.updateLessonPlan=(rowId,date,field,value)=>{ensureLessonPlans();data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{};data.lessonPlans.entries[rowId][date][field]=String(value||'');save();};
-window.updateLessonStatus=(rowId,date,field,value)=>{
-  ensureLessonPlans();
-  data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};
-  const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:"",planned:false,created:false,posted:false};
-  e[field]=!!value;
-  e.all=!!(e.planned&&e.created&&e.posted);
-  save();render();
-};
-window.updateLessonTodoStatus=(rowId,date,field,value)=>{ensureLessonPlans();data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{};e[field]=!!value;save();render();};
-window.updateLessonAll=(rowId,date,value)=>{ensureLessonPlans();data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{};e.planned=e.created=e.posted=!!value;save();render();};
+function multiDayForUpdate(rowId,date){ensureLessonPlans();return findMultiDayLesson(rowId,date);}
+window.updateLessonPlan=(rowId,date,field,value)=>{ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);if(multi){multi[field]=field==='text'?String(value||''):value;save();return;}data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{};data.lessonPlans.entries[rowId][date][field]=String(value||'');save();};
+window.updateLessonStatus=(rowId,date,field,value)=>{ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);if(multi){multi[field]=!!value;save();render();return;}data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:'',planned:false,created:false,posted:false};e[field]=!!value;e.all=!!(e.planned&&e.created&&e.posted);save();render();};
+window.updateLessonTodoStatus=(rowId,date,field,value)=>window.updateLessonStatus(rowId,date,field,value);
+window.updateLessonAll=(rowId,date,value)=>window.updateLessonStatusAll(rowId,date,value);
+
 window.deleteLessonPlanRow=rowId=>{if(!confirm('Delete this planning row? Your lesson text will remain saved unless you add a new row with the same ID.'))return;const id=String(rowId).replace(/^row:/,'');data.lessonPlanCustomRows=(data.lessonPlanCustomRows||[]).filter(r=>r.id!==id);save();render();};
 window.openLessonPlanManager=()=>{ensureLessonPlans();ensureClassFields();document.querySelector('#lessonPlanModal')?.remove();const hidden=new Set(data.lessonPlanHiddenClassIds||[]);const vis=data.classes.map(c=>`<label class="lessonVisibilityItem"><input class="lessonPlanClassVisible" type="checkbox" value="${c.id}" ${hidden.has(c.id)?'':'checked'}> <span><b>${esc(c.name)}</b></span></label>`).join('');const groups=(data.lessonPlanSyncGroups||[]).map(g=>`<div class="lessonSyncEditor" data-sync-id="${g.id}"><div class="lessonSyncHead"><input class="lessonSyncName" value="${esc(g.name)}" placeholder="e.g., Algebra"><button type="button" onclick="this.closest('.lessonSyncEditor').remove()">Remove</button></div><div class="lessonClassChecks">${data.classes.map(c=>`<label><input type="checkbox" value="${c.id}" ${(g.classIds||[]).includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</div></div>`).join('');const rows=data.lessonPlanCustomRows.map(r=>lessonPlanRowEditor(r)).join('');document.body.insertAdjacentHTML('beforeend',`<div id="lessonPlanModal" class="modalbg"><div class="modal lessonPlanModal"><h3>Customize Lesson Planning</h3><h4>Classes on This Plan</h4><div class="lessonVisibilityList">${vis}</div><hr class="lessonPlanDivider"><h4>Linked Classes</h4><p class="small">Linked classes share one planning row.</p><div id="lessonSyncList">${groups||'<p class="small emptySyncGroups">No linked rows yet.</p>'}</div><button type="button" onclick="window.addLessonSyncGroup()">＋ Add Linked Row</button><hr class="lessonPlanDivider"><h4>Custom Planning Rows</h4><p class="small">For things like a single period, duty, or any row not tied to a class.</p><div id="lessonRowList">${rows||'<p class="small emptyRows">No custom rows yet.</p>'}</div><button type="button" onclick="window.addLessonPlanRow()">＋ Add Planning Row</button><div style="margin-top:16px"><button class="primary" onclick="window.saveLessonPlanManager()">Save</button> <button onclick="window.closeLessonPlanManager()">Cancel</button></div></div></div>`);};;
 function lessonPlanRowEditor(r){const ds=[1,2,3,4,5];return `<div class="lessonPlanRowEditor" data-row-id="${esc(r.id)}"><div class="lessonPlanRowEditorHead"><input type="text" class="lpRowName" value="${esc(r.name)}" placeholder="e.g., 6th Period"><button type="button" onclick="this.closest('.lessonPlanRowEditor').remove()">Remove</button></div><div class="lessonDayPick">${ds.map(d=>`<label><input class="lpRowDay" type="checkbox" value="${d}" ${(r.days||[]).includes(d)?'checked':''}> ${['Mon','Tue','Wed','Thu','Fri'][d-1]}</label>`).join('')}</div><div class="lessonRowMeta"><label>Period (optional) <input class="lpRowPeriod" type="number" min="1" max="12" value="${r.period||''}" placeholder="6" style="width:70px"></label><span class="small">Period helps the planner recognize AM/PM subs and alternate schedules.</span></div></div>`;}
