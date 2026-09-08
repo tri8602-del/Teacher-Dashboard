@@ -683,7 +683,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="2.3.31";
+const APP_VERSION="3.0.0";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1952,8 +1952,6 @@ function accommodationCategoryOptions(selected){
   return cats.map(c=>`<option value="${esc(c)}" ${selected===c?"selected":""}>${esc(c)}</option>`).join("");
 }
 function accommodationCategoryFilterOptions(selected){const cats=["all","Testing","Instruction","Assignments","Environment","Communication","Behavior / Executive Function","Assistive Technology","Other"];return cats.map(c=>`<option value="${esc(c)}" ${selected===c?"selected":""}>${esc(c==="all"?"All categories":c)}</option>`).join("");}
-function accommodationCategoryOptions(selected){const cats=["Testing","Instruction","Assignments","Environment","Communication","Behavior / Executive Function","Assistive Technology","Other"];return cats.map(c=>`<option value="${esc(c)}" ${selected===c?"selected":""}>${esc(c)}</option>`).join("");}
-function accommodationKindLabel(kind){return kind==="service"?"Service / Placement":"Accommodation";}
 function accommodations(){
   ensureAccommodations();normalizeStudents();ensureClassFields();
   const q=(window.accommodationQuery||"").trim().toLowerCase();
