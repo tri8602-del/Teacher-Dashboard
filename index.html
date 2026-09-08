@@ -550,10 +550,12 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .announcementActions button{padding:7px 10px}
 .announcementListItem.isDisabled{opacity:.58}
 .classReminder{border-left:5px solid var(--announcement-color,#385b9d)}
-.classReminder.announcementPriority-high{box-shadow:0 0 0 1px color-mix(in srgb,var(--announcement-color,#385b9d) 30%,transparent)}
-.classReminder.announcementPriority-urgent{box-shadow:0 0 0 2px color-mix(in srgb,var(--announcement-color,#385b9d) 45%,transparent)}
+.classReminder.announcementPriority-low{opacity:.88}
+.classReminder.announcementPriority-high{box-shadow:0 0 0 2px color-mix(in srgb,var(--announcement-color,#385b9d) 35%,transparent);font-weight:700}
+.classReminder.announcementPriority-urgent{box-shadow:0 0 0 3px color-mix(in srgb,var(--announcement-color,#385b9d) 55%,transparent);font-weight:800}
 @keyframes announcementPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.58;transform:scale(.992)}}
-.classReminder.announcementFlash{animation:announcementPulse 1s ease-in-out infinite}
+.classReminder.announcementFlash,.classReminder.announcementPriority-urgent{animation:announcementPulse 1s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.classReminder.announcementFlash,.classReminder.announcementPriority-urgent{animation:none}}
 @media(max-width:900px){.announcementOptionsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.announcementOptionsGrid{grid-template-columns:1fr}.announcementListItem{grid-template-columns:5px minmax(0,1fr)}.announcementActions{grid-column:2;justify-content:flex-start;padding-top:0}.announcementListTop{align-items:flex-start}.announcementBadge{margin-left:auto}}
 </style>
@@ -678,7 +680,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="2.3.23";
+const APP_VERSION="2.3.24";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1269,6 +1271,9 @@ function activeAnnouncements(cls,block=currentScheduleBlock()){
     }
     const displayEnd=Math.min(trigger+duration,times.end);
     return nowMin>=trigger && nowMin<displayEnd && !data.reminderDismissals[announcementDismissKey(cls,block,a)];
+  }).sort((a,b)=>{
+    const rank={urgent:4,high:3,normal:2,low:1};
+    return (rank[b.priority]||2)-(rank[a.priority]||2);
   });
 }
 function announcementTimingLabel(a){
