@@ -644,6 +644,14 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 </style>
 <style id="v2320-multi-day-lessons">.lessonHeaderActions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.lessonMultiBadge{position:absolute;right:6px;top:5px;font-size:10px;line-height:1;z-index:2;pointer-events:none}.lessonCell.lessonMultiDay{box-shadow:inset 0 0 0 1px rgba(95,159,183,.22)}.multiDayLessonModal{max-height:88vh;overflow:auto}.multiDayDates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.multiDayDates label{display:flex;flex-direction:column;gap:5px;font-size:13px}.multiDayDates input{width:100%;box-sizing:border-box}.multiDayExisting{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line,#d8dee8)}.multiDayExisting:last-child{border-bottom:0}@media(max-width:700px){.lessonHeaderActions{width:100%;justify-content:center}.lessonHeaderActions button{font-size:12px;padding:5px 8px}.multiDayDates{grid-template-columns:1fr}.multiDayExisting{align-items:flex-start}}</style>
 <style id="v2321-between-period-countdown">.sidebarTimeCard.isWaiting .sidebarTimeLabel{font-size:11px}.sidebarCountdown{font-variant-numeric:tabular-nums;letter-spacing:.02em}.sidebarTimeCard.isWaiting .sidebarTimeBlock{font-weight:600}</style>
+
+<style id="v2323-announcement-fixes">
+.announcementOneTimeNote{font-size:12px;color:var(--muted);}
+.classReminderText{font-weight:700;font-size:15px;line-height:1.35;}
+.classReminder{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.classReminder>div{min-width:0;}
+@media(max-width:600px){.classReminder{align-items:flex-start;flex-wrap:wrap}.classReminder button{margin-left:auto}}
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -670,7 +678,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="2.3.22";
+const APP_VERSION="2.3.23";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -827,7 +835,9 @@ function ensureAnnouncements(){
       display:"static",
       priority:"normal",
       color:"#385b9d",
-      enabled:r.enabled!==false
+      enabled:r.enabled!==false,
+      recurrence:"recurring",
+      oneTimeDate:""
     })));
     data.announcements.push(...migrated);
     data.legacyAnnouncementsMigrated=true;
@@ -842,7 +852,9 @@ function ensureAnnouncements(){
     display:a.display==="flash"?"flash":"static",
     priority:["low","normal","high","urgent"].includes(a.priority)?a.priority:"normal",
     color:String(a.color||"#385b9d"),
-    enabled:a.enabled!==false
+    enabled:a.enabled!==false,
+    recurrence:a.recurrence==="once"?"once":"recurring",
+    oneTimeDate:/^\d{4}-\d{2}-\d{2}$/.test(String(a.oneTimeDate||""))?String(a.oneTimeDate):""
   })).filter(a=>a.text);
 }
 const SIDEBAR_ITEMS=[
@@ -1243,18 +1255,20 @@ function activeAnnouncements(cls,block=currentScheduleBlock()){
   ensureClassroomTools();
   const times=scheduleBlockTimes(block);if(!times)return [];
   const now=new Date(),nowMin=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+  const today=todayISO();
   return (data.announcements||[]).filter(a=>{
     if(!a.enabled || !(a.classIds||[]).includes(cls.id))return false;
+    if(a.recurrence==="once" && a.oneTimeDate!==today)return false;
     const duration=Math.max(1,Number(a.duration)||5);
-    let begins=false;
+    let trigger=times.start;
     if(a.timing==="beforeEnd"){
       const offset=Math.max(0,Number(a.offset)||5);
-      begins=nowMin>=times.end-offset-duration && nowMin<times.end-offset;
-    }else{
-      const offset=a.timing==="afterStart"?Math.max(0,Number(a.offset)||0):0;
-      begins=nowMin>=times.start+offset && nowMin<times.start+offset+duration;
+      trigger=times.end-offset;
+    }else if(a.timing==="afterStart"){
+      trigger=times.start+Math.max(0,Number(a.offset)||0);
     }
-    return begins&&!data.reminderDismissals[announcementDismissKey(cls,block,a)];
+    const displayEnd=Math.min(trigger+duration,times.end);
+    return nowMin>=trigger && nowMin<displayEnd && !data.reminderDismissals[announcementDismissKey(cls,block,a)];
   });
 }
 function announcementTimingLabel(a){
@@ -1271,7 +1285,7 @@ function announcementTimingLabel(a){
 function reminderHTML(cls,block){
   const announcements=activeAnnouncements(cls,block);
   if(!announcements.length)return "";
-  return `<section class="classReminderStack">${announcements.map(a=>`<div class="classReminder announcementPriority-${esc(a.priority)} ${a.display==="flash"?"announcementFlash":""}" style="--announcement-color:${esc(a.color)}" data-announcement-id="${esc(a.id)}"><div><div class="classReminderLabel">${esc(announcementTimingLabel(a))} · ${esc(a.priority)} priority</div><div class="classReminderText">${esc(a.text)}</div></div><button onclick="window.dismissAnnouncement('${cls.id}','${block?.label||""}','${a.id}')">Dismiss ×</button></div>`).join("")}</section>`;
+  return `<section class="classReminderStack">${announcements.map(a=>`<div class="classReminder announcementPriority-${esc(a.priority)} ${a.display==="flash"?"announcementFlash":""}" style="--announcement-color:${esc(a.color)}" data-announcement-id="${esc(a.id)}"><div class="classReminderText">${esc(a.text)}</div><button onclick="window.dismissAnnouncement('${cls.id}','${block?.label||""}','${a.id}')">Dismiss ×</button></div>`).join("")}</section>`;
 }
 window.dismissAnnouncement=(classId,blockLabel,announcementId)=>{
   ensureClassroomTools();
@@ -1754,7 +1768,9 @@ function announcementFormHTML(a={}){
     display:a.display||"static",
     priority:a.priority||"normal",
     color:a.color||"#385b9d",
-    enabled:a.enabled!==false
+    enabled:a.enabled!==false,
+    recurrence:a.recurrence==="once"?"once":"recurring",
+    oneTimeDate:a.oneTimeDate||""
   };
   const classes=data.classes;
   return `<section class="card announcementComposer">
@@ -1768,6 +1784,16 @@ function announcementFormHTML(a={}){
     </div>
 
     <div class="announcementOptionsGrid">
+      <label>How often?
+        <select id="announcementRecurrence" onchange="window.updateAnnouncementRecurrenceFields()">
+          <option value="recurring" ${item.recurrence!=="once"?"selected":""}>Recurring</option>
+          <option value="once" ${item.recurrence==="once"?"selected":""}>One time only</option>
+        </select>
+      </label>
+      <label id="announcementOneTimeDateWrap" ${item.recurrence==="once"?"":"style=\"display:none\""}>Date
+        <input id="announcementOneTimeDate" type="date" value="${esc(item.oneTimeDate)}">
+        <span class="small">The announcement will only appear on this date.</span>
+      </label>
       <label>When should it appear?
         <select id="announcementTiming" onchange="window.updateAnnouncementTimingFields()">
           <option value="start" ${item.timing==="start"?"selected":""}>At the beginning of class</option>
@@ -1810,7 +1836,7 @@ function remindersPage(){
     return `<article class="announcementListItem ${a.enabled?"":"isDisabled"}" style="--announcement-color:${esc(a.color)}">
       <div class="announcementColorBar"></div>
       <div class="announcementListContent"><div class="announcementListTop"><b>${esc(a.text)}</b><span class="announcementBadge">${esc(a.priority)}</span></div>
-      <div class="small">${esc(classNames.join(" · ")||"No classes selected")} · ${esc(announcementTimingLabel(a))} · ${a.duration} min · ${a.display==="flash"?"Flashing":"Static"} · ${a.enabled?"Enabled":"Disabled"}</div></div>
+      <div class="small">${esc(classNames.join(" · ")||"No classes selected")} · ${a.recurrence==="once"?`One time · ${esc(a.oneTimeDate||"Date not set")}`:"Recurring"} · ${esc(announcementTimingLabel(a))} · ${a.duration} min · ${a.display==="flash"?"Flashing":"Static"} · ${a.enabled?"Enabled":"Disabled"}</div></div>
       <div class="announcementActions"><button onclick="window.editAnnouncement('${a.id}')">Edit</button><button onclick="window.deleteAnnouncement('${a.id}')">Delete</button></div>
     </article>`;
   }).join("")}</div>`:`<p class="small">No announcements yet. Create your first one above.</p>`}
@@ -1824,6 +1850,11 @@ window.updateAnnouncementTimingFields=()=>{
   wrap.style.display=custom?"":"none";
   if(help)help.textContent=select.value==="customBeforeEnd"?"minutes before class ends":"minutes after class begins";
 };
+window.updateAnnouncementRecurrenceFields=()=>{
+  const select=$("#announcementRecurrence"),wrap=$("#announcementOneTimeDateWrap");
+  if(!select||!wrap)return;
+  wrap.style.display=select.value==="once"?"":"none";
+};
 window.editAnnouncement=id=>{window.editingAnnouncementId=id;render();window.scrollTo({top:0,behavior:"smooth"});};
 window.cancelAnnouncementEdit=()=>{window.editingAnnouncementId=null;render();};
 window.saveAnnouncement=()=>{
@@ -1832,6 +1863,9 @@ window.saveAnnouncement=()=>{
   const classIds=[...document.querySelectorAll('input[name="announcementClass"]:checked')].map(x=>x.value);
   if(!text){alert("Please enter an announcement message.");return;}
   if(!classIds.length){alert("Choose at least one class.");return;}
+  const recurrence=$("#announcementRecurrence")?.value==="once"?"once":"recurring";
+  const oneTimeDate=($("#announcementOneTimeDate")?.value||"").trim();
+  if(recurrence==="once"&&!/^\d{4}-\d{2}-\d{2}$/.test(oneTimeDate)){alert("Choose the date for this one-time announcement.");return;}
   const timingChoice=$("#announcementTiming")?.value||"start";
   let timing="start",offset=0;
   if(timingChoice==="beforeEnd"){timing="beforeEnd";offset=5;}
@@ -1843,7 +1877,8 @@ window.saveAnnouncement=()=>{
     display:$("#announcementDisplay")?.value==="flash"?"flash":"static",
     priority:["low","normal","high","urgent"].includes($("#announcementPriority")?.value)?$("#announcementPriority").value:"normal",
     color:$("#announcementColor")?.value||"#385b9d",
-    enabled:!!$("#announcementEnabled")?.checked
+    enabled:!!$("#announcementEnabled")?.checked,
+    recurrence,oneTimeDate:recurrence==="once"?oneTimeDate:""
   };
   const i=data.announcements.findIndex(a=>a.id===item.id);
   if(i>=0)data.announcements[i]=item;else data.announcements.push(item);
