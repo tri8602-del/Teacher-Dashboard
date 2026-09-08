@@ -643,6 +643,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 }
 </style>
 <style id="v2320-multi-day-lessons">.lessonHeaderActions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.lessonMultiBadge{position:absolute;right:6px;top:5px;font-size:10px;line-height:1;z-index:2;pointer-events:none}.lessonCell.lessonMultiDay{box-shadow:inset 0 0 0 1px rgba(95,159,183,.22)}.multiDayLessonModal{max-height:88vh;overflow:auto}.multiDayDates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.multiDayDates label{display:flex;flex-direction:column;gap:5px;font-size:13px}.multiDayDates input{width:100%;box-sizing:border-box}.multiDayExisting{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line,#d8dee8)}.multiDayExisting:last-child{border-bottom:0}@media(max-width:700px){.lessonHeaderActions{width:100%;justify-content:center}.lessonHeaderActions button{font-size:12px;padding:5px 8px}.multiDayDates{grid-template-columns:1fr}.multiDayExisting{align-items:flex-start}}</style>
+<style id="v2321-between-period-countdown">.sidebarTimeCard.isWaiting .sidebarTimeLabel{font-size:11px}.sidebarCountdown{font-variant-numeric:tabular-nums;letter-spacing:.02em}.sidebarTimeCard.isWaiting .sidebarTimeBlock{font-weight:600}</style>
 </head>
 <body>
 <div id="root"></div>
@@ -669,7 +670,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="2.3.18";
+const APP_VERSION="2.3.21";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -870,6 +871,9 @@ function ensureSidebarSettings(){
 
 function ensureClassroomTools(){
   ensureAnnouncements();
+  data.buttons=Array.isArray(data.buttons)?data.buttons:defaultButtons.map(([id,icon,label,type])=>({id,icon,label,type}));
+  data.events=Array.isArray(data.events)?data.events:[];
+  data.notes=Array.isArray(data.notes)?data.notes:[];
   data.classroomTools=data.classroomTools||{};
   const t=data.classroomTools;
   t.stopwatch=t.stopwatch||{running:false,elapsedMs:0,startedAt:null};
@@ -903,6 +907,24 @@ function timeLeftInBlock(){
   const seconds=now.getSeconds();
   return Math.max(0,diff*60000-seconds*1000-now.getMilliseconds());
 }
+function nextScheduleBlock(date=new Date()){
+  const info=getDateInfo(todayISO());
+  if(info.type!=="instructional")return null;
+  const schedule=bellScheduleById(info.schedule||"regular");
+  const nowMs=date.getTime();
+  let previous=-1;
+  for(const row of schedule.periods||[]){
+    const begin=timeToMinutes(row[1],previous);
+    if(begin===null)continue;
+    const end=timeToMinutes(row[2],begin);
+    if(end===null)continue;
+    previous=end;
+    const beginDate=new Date(date);beginDate.setHours(Math.floor(begin/60),begin%60,0,0);
+    if(beginDate.getTime()>nowMs)return {label:row[0],period:classPeriodNumber(row[0]),schedule,beginMs:beginDate.getTime()};
+  }
+  return null;
+}
+function timeUntilNextBlock(){const next=nextScheduleBlock();return next?Math.max(0,next.beginMs-Date.now()):null;}
 function currentToolRoster(){
   const cls=currentClass();
   return cls?data.students.filter(s=>(cls.studentIds||[]).includes(s.id)):data.students.slice();
@@ -1147,7 +1169,13 @@ window.addEnrollmentPeriod=(classId,studentId)=>{const c=data.classes.find(x=>x.
 window.removeEnrollmentPeriod=(classId,periodId)=>{const c=data.classes.find(x=>x.id===classId);if(!c)return;c.enrollmentPeriods=(c.enrollmentPeriods||[]).filter(p=>p.id!==periodId);save();render();};
 
 function sidebarTimeRemainingHTML(){
-  try{const block=currentScheduleBlock(),times=scheduleBlockTimes(block),left=timeLeftInBlock();if(!block||left===null)return `<section class="sidebarTimeCard isIdle"><div class="sidebarTimeLabel">TIME REMAINING</div><div class="sidebarTimeValue" data-tool-live="classleft">—</div><div class="sidebarTimeBlock"></div><div class="sidebarTimeRange">No active period</div></section>`;return `<section class="sidebarTimeCard"><div class="sidebarTimeLabel">TIME REMAINING</div><div class="sidebarTimeValue"><span data-tool-live="classleft">${Math.max(0,Math.ceil(left/60000))}</span> min</div><div class="sidebarTimeBlock" data-sidebar-block>${esc(block.label)}</div><div class="sidebarTimeRange" data-sidebar-range>${esc(times?.startText||'')} – ${esc(times?.endText||'')}</div></section>`;}catch(e){return '';}
+  try{
+    const block=currentScheduleBlock(),times=scheduleBlockTimes(block),left=timeLeftInBlock();
+    if(block&&left!==null)return `<section class="sidebarTimeCard"><div class="sidebarTimeLabel">TIME REMAINING</div><div class="sidebarTimeValue"><span data-tool-live="classleft">${Math.max(0,Math.ceil(left/60000))}</span> min</div><div class="sidebarTimeBlock" data-sidebar-block>${esc(block.label)}</div><div class="sidebarTimeRange" data-sidebar-range>${esc(times?.startText||'')} – ${esc(times?.endText||'')}</div></section>`;
+    const next=nextScheduleBlock(),until=timeUntilNextBlock();
+    if(next&&until!==null){const nt=scheduleBlockTimes(next);return `<section class="sidebarTimeCard isWaiting"><div class="sidebarTimeLabel">NEXT CLASS IN</div><div class="sidebarTimeValue sidebarCountdown" data-next-class-countdown>${formatClock(until)}</div><div class="sidebarTimeBlock" data-next-class-block>${esc(next.label)}</div><div class="sidebarTimeRange" data-next-class-range>${esc(nt?.startText||'')} – ${esc(nt?.endText||'')}</div></section>`;}
+    return `<section class="sidebarTimeCard isIdle"><div class="sidebarTimeLabel">TIME REMAINING</div><div class="sidebarTimeValue">—</div><div class="sidebarTimeBlock">No active period</div><div class="sidebarTimeRange">No upcoming period</div></section>`;
+  }catch(e){return '';}
 }
 
 function render(){
@@ -1498,7 +1526,7 @@ window.updateLessonPlanLive=(rowId,date,value)=>{
 };
 window.updateLessonStatusAll=(rowId,date,checked)=>{
   ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);
-  if(multi){multi.planned=!!checked;multi.created=!!checked;multi.posted=!!checked;save();render();return;}
+  if(multi){multi.planned=!!checked;multi.created=!!checked;multi.posted=!!checked;multi.all=!!checked;save();render();return;}
   data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};
   const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:"",planned:false,created:false,posted:false};
   e.planned=!!checked;e.created=!!checked;e.posted=!!checked;e.all=!!checked;save();render();
@@ -1577,7 +1605,7 @@ function pageHTML(){return ({live,reminders:remindersPage,students,lessonplans,g
 
 function classroomToolsHTML(cls,block){
   ensureClassroomTools();
-  const left=timeLeftInBlock(),t=data.classroomTools;
+  const left=timeLeftInBlock(),next=nextScheduleBlock(),untilNext=timeUntilNextBlock(),t=data.classroomTools;
   const runningTimer=t.stopwatch.visible;
   const runningCountdown=t.countdown.visible;
   const picked=t.randomStudentId?data.students.find(s=>s.id===t.randomStudentId):null;
@@ -1592,7 +1620,7 @@ function classroomToolsHTML(cls,block){
   return `${activeExtras.join("")}
     <div class="card utilityCard"><button type="button" onclick="window.toggleUtilityMenu()">🧰 Additional Tools</button>
       <div id="utilityMenu" class="utilityMenu" hidden>
-        <div class="toolBlock"><h4>⏱ Time Remaining</h4><div class="toolResult" style="font-size:18px"><b><span data-tool-live="classleft">${left===null?"—":Math.max(0,Math.ceil(left/60000))+" min"}</span></b></div><div class="small"><span data-tool-block>${block?esc(block.label):"No active period"}</span>${block?` · <span data-tool-range>${esc(scheduleBlockTimes(block)?.startText||"")} – ${esc(scheduleBlockTimes(block)?.endText||"")}</span>`:""}</div><div class="toolControls" style="margin-top:7px"><button onclick="window.openClassroomDisplay('classleft')">↗ Display</button></div></div>
+        <div class="toolBlock"><h4>⏱ Time Remaining</h4><div class="toolResult" style="font-size:18px"><b><span data-tool-live="classleft">${left===null?(untilNext===null?"—":formatClock(untilNext)):Math.max(0,Math.ceil(left/60000))+" min"}</span></b></div><div class="small"><span data-tool-block>${block?esc(block.label):(next?`Next: ${esc(next.label)}`:"No active period")}</span>${block?` · <span data-tool-range>${esc(scheduleBlockTimes(block)?.startText||"")} – ${esc(scheduleBlockTimes(block)?.endText||"")}</span>`:(next?` · <span data-next-class-range>${esc(scheduleBlockTimes(next)?.startText||"")} – ${esc(scheduleBlockTimes(next)?.endText||"")}</span>`:"")}</div><div class="toolControls" style="margin-top:7px"><button onclick="window.openClassroomDisplay('classleft')">↗ Display</button></div></div>
         <div class="toolBlock"><h4>⏱ Timer</h4><div class="toolControls"><button onclick="window.toggleStopwatch()">${t.stopwatch.running?"Pause":"Start"}</button><button onclick="window.resetStopwatch()">Reset</button><button onclick="window.openClassroomDisplay('stopwatch')">↗ Display</button></div><div class="toolResult" data-tool-live="stopwatch">${formatClock(stopwatchMs())}</div></div>
         <div class="toolBlock"><h4>⏲ Countdown</h4><div class="toolControls"><input id="countdownMinutes" type="number" min="1" placeholder="min"><button onclick="window.setCountdown()">Set</button><button onclick="window.toggleCountdown()">${t.countdown.running?"Pause":"Start"}</button><button onclick="window.resetCountdown()">Reset</button><button onclick="window.openClassroomDisplay('countdown')">↗ Display</button></div><div class="toolResult" data-tool-live="countdown">${formatClock(countdownMs())}</div></div>
         <div class="toolBlock"><h4>🎲 Random Number</h4><div class="toolControls"><input id="rngMin" type="number" value="1"><span>to</span><input id="rngMax" type="number" value="10"><button onclick="window.generateRandomNumber()">Generate</button><button onclick="window.openClassroomDisplay('number')">↗ Display</button></div><div class="toolResult">${rng}</div></div>
@@ -1637,8 +1665,8 @@ function live(){
     : "";
   if(!cls)return `<header><div><h2>No class right now</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}<section class="card noActiveClass"><b>${block?`No class is assigned to ${esc(block.label)}.`:"There is no active class during this time."}</b><p class="small">Add a class and choose its period(s), meeting days, and term in Students & Classes.</p></section>`;
   const roster=sortedStudents(data.students.filter(st=>cls.studentIds.includes(st.id)));
-  if(liveView==="matrix")return `<header><div><h2>${esc(cls.name)}</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Excessive<br>Talking":esc(b.label)}</span></th>`).join("")}<th>📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${out?"<br><small>Currently out</small>":""}</td>${data.buttons.map(b=>`<td><button class="matrixBtn" title="${esc(b.label)}" onclick="window.record('${st.id}','${b.id}')">${b.icon}</button></td>`).join("")}<td><button onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div>`;
-  return `<header><div><h2>${esc(cls.name)}</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}</h3><div class="quick">${data.buttons.map(b=>`<button onclick="window.record('${st.id}','${b.id}')">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div><button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Add Note</button></article>`).join("")}</div>`;
+  if(liveView==="matrix")return `<header><div><h2>${esc(cls.name)}</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Excessive<br>Talking":esc(b.label)}</span></th>`).join("")}<th>📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${out?"<br><small>Currently out</small>":""}</td>${data.buttons.map(b=>`<td><button type="button" class="matrixBtn quickButton" title="${esc(b.label)}" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}</button></td>`).join("")}<td><button onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div>`;
+  return `<header><div><h2>${esc(cls.name)}</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}</h3><div class="quick">${(data.buttons||[]).map(b=>`<button type="button" class="quickButton" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div><button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Add Note</button></article>`).join("")}</div>`;
 }
 const DAY_NAMES=[[1,"Mon"],[2,"Tue"],[3,"Wed"],[4,"Thu"],[5,"Fri"]];
 const TERM_OPTIONS=[["fullYear","Full Year"],["q1","Quarter 1"],["q2","Quarter 2"],["q3","Quarter 3"],["q4","Quarter 4"],["t1","Trimester 1"],["t2","Trimester 2"],["t3","Trimester 3"],["s1","Semester 1"],["s2","Semester 2"]];
@@ -2857,7 +2885,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .currentLessonStatus{margin-top:6px;font-size:11px;color:#7d8996;}
 @media(max-width:1000px){.lessonRowName,.lessonTable .lessonCorner{width:118px!important;min-width:118px!important;max-width:118px!important;}.lessonStatus{font-size:7px!important}.lessonCell textarea{font-size:13px!important}}
 </style>
-</head><body><div id="display"></div><script>const mode=${JSON.stringify(mode)};function update(){const s=window.opener&&window.opener.getClassroomDisplayState?window.opener.getClassroomDisplayState():null;if(!s)return;const cards={classleft:['Time Remaining',s.timeLeft,s.timeBlock,s.timeRange],stopwatch:['Timer',s.stopwatch],countdown:['Countdown',s.countdown],number:['Random Number',s.randomNumber],student:['Random Student',s.randomStudent]};let html='<div class="wrap">';if(mode==='all')html+='<h3>'+s.className+'</h3>';if(mode==='groups'){html+='<div class="groups"><h1>Groups</h1>'+s.groups.map((g,i)=>'<div class="group"><b>Group '+(i+1)+'</b><br>'+g.join(' · ')+'</div>').join('')+'</div>';}else if(mode!=='all'&&cards[mode]){const x=cards[mode];if(mode==='classleft'){html+='<div class="single classleftDisplay"><div class="label">TIME REMAINING</div><div class="value">'+x[1]+'</div><div class="displayBlock">'+x[2]+'</div><div class="displayRange">'+x[3]+'</div></div>';}else{html+='<div class="single '+(mode==='student'?'student':'')+'"><div class="label">'+x[0]+'</div><div class="value">'+x[1]+'</div></div>';}}else{html+='<div class="grid">'+Object.values(cards).map(x=>'<div class="card"><div class="label">'+x[0]+'</div><div class="value">'+x[1]+'</div></div>').join('')+'</div>'+(s.groups.length?'<div class="groups"><h3>Groups</h3>'+s.groups.map((g,i)=>'<div class="group"><b>Group '+(i+1)+'</b><br>'+g.join(' · ')+'</div>').join('')+'</div>':'');}document.getElementById('display').innerHTML=html+'</div>';}update();setInterval(update,500);<\/script>
+</head><body><div id="display"></div><script>const mode=${JSON.stringify(mode)};function update(){const s=window.opener&&window.opener.getClassroomDisplayState?window.opener.getClassroomDisplayState():null;if(!s)return;const cards={classleft:[s.waiting?'Next Class In':'Time Remaining',s.timeLeft,s.timeBlock,s.timeRange],stopwatch:['Timer',s.stopwatch],countdown:['Countdown',s.countdown],number:['Random Number',s.randomNumber],student:['Random Student',s.randomStudent]};let html='<div class="wrap">';if(mode==='all')html+='<h3>'+s.className+'</h3>';if(mode==='groups'){html+='<div class="groups"><h1>Groups</h1>'+s.groups.map((g,i)=>'<div class="group"><b>Group '+(i+1)+'</b><br>'+g.join(' · ')+'</div>').join('')+'</div>';}else if(mode!=='all'&&cards[mode]){const x=cards[mode];if(mode==='classleft'){html+='<div class="single classleftDisplay"><div class="label">TIME REMAINING</div><div class="value">'+x[1]+'</div><div class="displayBlock">'+x[2]+'</div><div class="displayRange">'+x[3]+'</div></div>';}else{html+='<div class="single '+(mode==='student'?'student':'')+'"><div class="label">'+x[0]+'</div><div class="value">'+x[1]+'</div></div>';}}else{html+='<div class="grid">'+Object.values(cards).map(x=>'<div class="card"><div class="label">'+x[0]+'</div><div class="value">'+x[1]+'</div></div>').join('')+'</div>'+(s.groups.length?'<div class="groups"><h3>Groups</h3>'+s.groups.map((g,i)=>'<div class="group"><b>Group '+(i+1)+'</b><br>'+g.join(' · ')+'</div>').join('')+'</div>':'');}document.getElementById('display').innerHTML=html+'</div>';}update();setInterval(update,500);<\/script>
 <style id="v2318-ipad-status-controls">
 /* Version 2.3.18 — truly compact lesson-status controls on touch/smaller screens */
 @media (hover:none) and (pointer:coarse), (max-width:1200px){
@@ -2897,7 +2925,8 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 }
 window.getClassroomDisplayState=()=>{
   ensureClassroomTools();const cls=currentClass(),picked=data.classroomTools.randomStudentId?data.students.find(s=>s.id===data.classroomTools.randomStudentId):null;
-  return {className:cls?.name||"Teacher Dashboard",timeLeft:(()=>{const x=timeLeftInBlock();return x===null?"—":Math.max(0,Math.ceil(x/60000))+" min"})(),timeBlock:currentScheduleBlock()?.label||"No active period",timeRange:(()=>{const x=scheduleBlockTimes(currentScheduleBlock());return x?`${x.startText} – ${x.endText}`:""})(),stopwatch:formatClock(stopwatchMs()),countdown:formatClock(countdownMs()),randomNumber:data.classroomTools.randomNumber??"—",randomStudent:picked?studentDisplayName(picked):"—",groups:(data.classroomTools.groups||[]).map(g=>g.map(id=>studentDisplayName(data.students.find(s=>s.id===id)||{})))};
+  const activeBlock=currentScheduleBlock(),next=nextScheduleBlock(),activeTimes=scheduleBlockTimes(activeBlock),nextTimes=scheduleBlockTimes(next),activeLeft=timeLeftInBlock(),nextUntil=timeUntilNextBlock();
+  return {className:cls?.name||"Teacher Dashboard",timeLeft:activeLeft===null?(nextUntil===null?"—":formatClock(nextUntil)):Math.max(0,Math.ceil(activeLeft/60000))+" min",timeBlock:activeBlock?.label||(next?`Next: ${next.label}`:"No active period"),timeRange:activeTimes?`${activeTimes.startText} – ${activeTimes.endText}`:(nextTimes?`${nextTimes.startText} – ${nextTimes.endText}`:""),waiting:!activeBlock&&nextUntil!==null,nextUntil:nextUntil===null?null:formatClock(nextUntil),stopwatch:formatClock(stopwatchMs()),countdown:formatClock(countdownMs()),randomNumber:data.classroomTools.randomNumber??"—",randomStudent:picked?studentDisplayName(picked):"—",groups:(data.classroomTools.groups||[]).map(g=>g.map(id=>studentDisplayName(data.students.find(s=>s.id===id)||{})))};
 }
 let liveMinuteTimer=null;
 function scheduleLiveMinuteRefresh(){
@@ -2924,7 +2953,8 @@ function updateBrowserTabTitle(){
       const mins=Math.max(0,Math.ceil(ms/60000));
       document.title=`⏱ ${mins} min · ${block.label} | Teacher Dashboard`;
     }else{
-      document.title=`Teacher Dashboard V${APP_VERSION}`;
+      const next=nextScheduleBlock(),until=timeUntilNextBlock();
+      document.title=next&&until!==null?`⏳ ${formatClock(until)} · ${next.label} | Teacher Dashboard`:`Teacher Dashboard V${APP_VERSION}`;
     }
   }catch(e){document.title=`Teacher Dashboard V${APP_VERSION}`;}
 }
@@ -2938,13 +2968,42 @@ document.addEventListener("visibilitychange",updateBrowserTabTitle);
 window.addEventListener("pageshow",updateBrowserTabTitle);
 
 function bind(){
+  document.querySelectorAll('.quickButton[data-student-id][data-button-id]').forEach(btn=>{
+    if(btn.dataset.boundQuickButton==='1')return;
+    btn.dataset.boundQuickButton='1';
+    btn.addEventListener('click',()=>window.record(btn.dataset.studentId,btn.dataset.buttonId));
+  });
   document.querySelectorAll("[data-timer]").forEach(el=>{const tick=()=>{const sec=Math.floor((Date.now()-new Date(el.dataset.timer))/1000);el.textContent=`${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`};tick();setInterval(tick,1000);});
-  const tickClassLeft=()=>{const block=currentScheduleBlock(),times=scheduleBlockTimes(block),ms=timeLeftInBlock();document.querySelectorAll('[data-tool-live="classleft"]').forEach(el=>el.textContent=ms===null?"—":Math.max(0,Math.ceil(ms/60000)));document.querySelectorAll('[data-sidebar-block]').forEach(el=>el.textContent=block?.label||"");document.querySelectorAll('[data-sidebar-range]').forEach(el=>el.textContent=times?`${times.startText} – ${times.endText}`:"No active period");document.querySelectorAll('[data-tool-block]').forEach(el=>el.textContent=block?.label||"No active period");document.querySelectorAll('[data-tool-range]').forEach(el=>el.textContent=times?`${times.startText} – ${times.endText}`:"");};tickClassLeft();setInterval(tickClassLeft,1000);
+  const tickClassLeft=()=>{
+    const block=currentScheduleBlock(),times=scheduleBlockTimes(block),ms=timeLeftInBlock(),next=nextScheduleBlock(),until=timeUntilNextBlock(),nextTimes=scheduleBlockTimes(next);
+    document.querySelectorAll('[data-tool-live="classleft"]').forEach(el=>el.textContent=ms===null?"—":Math.max(0,Math.ceil(ms/60000)));
+    document.querySelectorAll('[data-sidebar-block]').forEach(el=>el.textContent=block?.label||"");
+    document.querySelectorAll('[data-sidebar-range]').forEach(el=>el.textContent=times?`${times.startText} – ${times.endText}`:"No active period");
+    document.querySelectorAll('[data-tool-block]').forEach(el=>el.textContent=block?.label||(next?`Next: ${next.label}`:"No active period"));
+    document.querySelectorAll('[data-tool-range]').forEach(el=>el.textContent=times?`${times.startText} – ${times.endText}`:"");
+    document.querySelectorAll('[data-next-class-countdown]').forEach(el=>el.textContent=until===null?"—":formatClock(until));
+    document.querySelectorAll('[data-next-class-block]').forEach(el=>el.textContent=next?.label||"No upcoming period");
+    document.querySelectorAll('[data-next-class-range]').forEach(el=>el.textContent=nextTimes?`${nextTimes.startText} – ${nextTimes.endText}`:"");
+    // Re-render when the state crosses from a passing period into a scheduled block
+    // (or vice versa), so the sidebar switches between the two layouts automatically.
+    const waitingState=!block&&until!==null;
+    const sidebar=document.querySelector('.sidebarTimeCard');
+    if(sidebar){const renderedWaiting=sidebar.classList.contains('isWaiting');if(renderedWaiting!==waitingState)render();}
+    };tickClassLeft();setInterval(tickClassLeft,1000);
   if(page==="live"){const tickTools=()=>{document.querySelectorAll('[data-tool-live="stopwatch"]').forEach(el=>el.textContent=formatClock(stopwatchMs()));document.querySelectorAll('[data-tool-live="countdown"]').forEach(el=>el.textContent=formatClock(countdownMs()));};tickTools();setInterval(tickTools,1000);}
 }
 
 window.setLiveView=v=>{liveView=v;localStorage.teacherDashboardLiveView=v;render()}
-window.record=(sid,bid)=>{const s=data.students.find(x=>x.id===sid),b=data.buttons.find(x=>x.id===bid),cls=currentClass();if(!s||!b||!cls)return;const e={id:uid(),studentId:sid,classId:cls.id,buttonId:bid,label:b.label,icon:b.icon,type:b.type,start:new Date().toISOString(),end:null};data.events.push(e);save();toast=`${b.icon} ${b.label} recorded for ${s.name}.`;if(b.type==="event")selected={student:s,eventId:e.id};render()}
+window.record=(sid,bid)=>{
+  ensureClassroomTools();ensureClassFields();
+  const s=data.students.find(x=>x.id===sid),b=data.buttons.find(x=>x.id===bid),cls=currentClass();
+  if(!s||!b){toast="That Quick Button is no longer available.";render();return;}
+  if(!cls){toast="There is no active class right now.";render();return;}
+  const e={id:uid(),studentId:sid,classId:cls.id,buttonId:bid,label:b.label,icon:b.icon,type:b.type,start:new Date().toISOString(),end:null};
+  data.events.push(e);save();toast=`${b.icon} ${b.label} recorded for ${studentDisplayName(s)}.`;
+  if(b.type==="event")selected={student:s,eventId:e.id};
+  render();
+}
 window.returnEvent=(id,status)=>{const e=data.events.find(x=>x.id===id);if(!e)return;e.end=new Date().toISOString();e.status=status;save();render()}
 window.note=(sid,eid)=>{const student=data.students.find(x=>x.id===sid);if(student){selected={student,eventId:eid};render()}}
 window.closeNote=()=>{selected=null;render()}
@@ -3292,7 +3351,13 @@ function lessonDayList(days){const names=['Mon','Tue','Wed','Thu','Fri'];return 
 window.updateLessonPlan=(rowId,date,field,value)=>{ensureLessonPlans();data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{};data.lessonPlans.entries[rowId][date][field]=String(value||'');save();};
 function multiDayForUpdate(rowId,date){ensureLessonPlans();return findMultiDayLesson(rowId,date);}
 window.updateLessonPlan=(rowId,date,field,value)=>{ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);if(multi){multi[field]=field==='text'?String(value||''):value;save();return;}data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{};data.lessonPlans.entries[rowId][date][field]=String(value||'');save();};
-window.updateLessonStatus=(rowId,date,field,value)=>{ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);if(multi){multi[field]=!!value;save();render();return;}data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:'',planned:false,created:false,posted:false};e[field]=!!value;e.all=!!(e.planned&&e.created&&e.posted);save();render();};
+window.updateLessonStatus=(rowId,date,field,value)=>{
+  ensureLessonPlans();const multi=multiDayForUpdate(rowId,date);
+  if(multi){multi[field]=!!value;multi.all=!!(multi.planned&&multi.created&&multi.posted);save();render();return;}
+  data.lessonPlans.entries[rowId]=data.lessonPlans.entries[rowId]||{};
+  const e=data.lessonPlans.entries[rowId][date]=data.lessonPlans.entries[rowId][date]||{text:'',planned:false,created:false,posted:false};
+  e[field]=!!value;e.all=!!(e.planned&&e.created&&e.posted);save();render();
+};
 window.updateLessonTodoStatus=(rowId,date,field,value)=>window.updateLessonStatus(rowId,date,field,value);
 window.updateLessonAll=(rowId,date,value)=>window.updateLessonStatusAll(rowId,date,value);
 
