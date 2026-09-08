@@ -680,7 +680,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="2.3.25";
+const APP_VERSION="2.3.26";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1954,7 +1954,32 @@ function accommodations(){
 window.openStudentAccommodations=id=>{window.accommodationStudentFilter=id;window.accommodationKindFilter="all";window.accommodationClassFilter="all";window.accommodationQuery="";page="accommodations";render();};
 window.openAccommodationModal=(id="",presetStudentId="")=>{ensureAccommodations();normalizeStudents();document.querySelector("#accommodationModal")?.remove();const a=id?data.accommodations.find(x=>x.id===id):null,studentId=a?.studentId||presetStudentId||window.accommodationStudentFilter||"",studentOptions=sortedStudents(data.students).map(st=>`<option value="${esc(st.id)}" ${studentId===st.id?"selected":""}>${esc(studentDisplayName(st))}</option>`).join("");document.body.insertAdjacentHTML("beforeend",`<div id="accommodationModal" class="modalbg"><div class="modal accommodationModal"><div class="modalHead"><h3>${a?"Edit Record":"Add Accommodation"}</h3><button type="button" onclick="window.closeAccommodationModal()">×</button></div><div class="modalBody"><label>Student<br><select id="accommodationStudent">${studentOptions}</select></label><label>Type<br><select id="accommodationKind"><option value="accommodation" ${(!a||a.kind!=="service")?"selected":""}>Accommodation</option><option value="service" ${a?.kind==="service"?"selected":""}>Service / Placement</option></select></label><label>Category<br><select id="accommodationCategory">${accommodationCategoryOptions(a?.category||"Instruction")}</select></label><label>Accommodation / service<br><textarea id="accommodationText" rows="3" placeholder="e.g., Extended time (1.5x) on tests and quizzes">${esc(a?.text||"")}</textarea></label><label>Details / teacher-facing notes (optional)<br><textarea id="accommodationDetails" rows="2" placeholder="Concise context that helps you implement it">${esc(a?.details||"")}</textarea></label><div class="reportControls"><label>Source / IEP date<br><input id="accommodationSourceDate" type="date" value="${esc(a?.sourceDate||"")}"></label><label>Source document name (optional)<br><input id="accommodationSourceName" value="${esc(a?.sourceName||"")}" placeholder="e.g., SDI 2026-27"></label></div><label class="inlineCheck"><input id="accommodationActive" type="checkbox" ${a?.active!==false?"checked":""}> Active</label></div><div class="modalActions"><button type="button" onclick="window.closeAccommodationModal()">Cancel</button><button type="button" class="primary" onclick="window.saveAccommodation('${esc(id)}')">Save</button></div></div></div>`);};
 window.closeAccommodationModal=()=>document.querySelector("#accommodationModal")?.remove();
-window.saveAccommodation=id=>{const studentId=$("#accommodationStudent")?.value||"",text=$("#accommodationText")?.value.trim()||"";if(!studentId){alert("Please choose a student.");return;}if(!text){alert("Please enter the accommodation or service.");return;}ensureAccommodations();const existing=id?data.accommodations.find(a=>a.id===id):null,rec=existing||{id:uid()};Object.assign(rec,{studentId,kind:$("#accommodationKind")?.value==="service"?"service":"accommodation",category:$("#accommodationCategory")?.value||"Other",text,details:$("#accommodationDetails")?.value.trim()||"",sourceDate:$("#accommodationSourceDate")?.value||"",sourceName:$("#accommodationSourceName")?.value.trim()||"",active:$("#accommodationActive")?.checked!==false,updatedAt:new Date().toISOString()});if(!existing)data.accommodations.push(rec);save();toast=existing?"Record updated.":"Accommodation added.";window.closeAccommodationModal();render();};
+window.saveAccommodation=async id=>{
+  const studentEl=document.getElementById("accommodationStudent"),textEl=document.getElementById("accommodationText");
+  const studentId=studentEl?.value||"",text=(textEl?.value||"").trim();
+  if(!studentId){alert("Please choose a student.");return;}
+  if(!text){alert("Please enter the accommodation or service.");return;}
+  ensureAccommodations();
+  const existing=id?data.accommodations.find(a=>a.id===id):null;
+  const rec=existing||{id:uid()};
+  Object.assign(rec,{
+    studentId,
+    kind:document.getElementById("accommodationKind")?.value==="service"?"service":"accommodation",
+    category:document.getElementById("accommodationCategory")?.value||"Other",
+    text,
+    details:(document.getElementById("accommodationDetails")?.value||"").trim(),
+    sourceDate:document.getElementById("accommodationSourceDate")?.value||"",
+    sourceName:(document.getElementById("accommodationSourceName")?.value||"").trim(),
+    active:document.getElementById("accommodationActive")?.checked!==false,
+    updatedAt:new Date().toISOString()
+  });
+  if(!existing)data.accommodations.push(rec);
+  try{saveLocal();}catch(err){console.error("Accommodation local save failed",err);alert("I couldn't save that accommodation locally. Please try again.");return;}
+  toast=existing?"Record updated.":"Accommodation added.";
+  window.closeAccommodationModal();
+  render();
+  if(currentUser&&initializedUserData){save();}
+};
 window.toggleAccommodationActive=id=>{ensureAccommodations();const a=data.accommodations.find(x=>x.id===id);if(!a)return;a.active=!a.active;save();toast=a.active?"Record restored.":"Record archived.";render();};
 function isoAddDays(date,n){const d=new Date(date+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
 function isWeekday(date){const d=new Date(date+"T12:00:00").getDay();return d!==0&&d!==6}
