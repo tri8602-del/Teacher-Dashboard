@@ -1354,6 +1354,14 @@ function recentEventsHTML(){
 window.toggleRecentEvents=()=>{window.recentEventsExpanded=!(window.recentEventsExpanded===true);render();}
 function toastHTML(){return toast?`<div class="toast">${esc(toast)} <button onclick="window.clearToast()">×</button></div>`:""}
 window.clearToast=()=>{toast="";render()}
+function showToast(message){toast=String(message||"");render();}
+function openModal(title,body,footer=""){
+  document.querySelector("#genericModal")?.remove();
+  const host=document.createElement("div");host.id="genericModal";host.className="modalbg";
+  host.innerHTML=`<div class="modal"><div class="modalHead" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3 style="margin:0">${esc(title)}</h3><button type="button" onclick="closeModal()">×</button></div><div class="modalBody" style="margin-top:12px">${body}</div><div class="modalActions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">${footer}</div></div>`;
+  document.body.appendChild(host);
+}
+function closeModal(){document.querySelector("#genericModal")?.remove();}
 
 function lessonWeekStart(value){
   const d=value?new Date(value+"T12:00:00"):new Date();
@@ -1361,6 +1369,7 @@ function lessonWeekStart(value){
   return d;
 }
 function isoDate(d){return new Date(d).toISOString().slice(0,10)}
+function isoAddDays(d,n){const x=new Date(String(d).slice(0,10)+"T12:00:00");x.setDate(x.getDate()+Number(n||0));return isoDate(x)}
 function lessonWeekDates(){
   const start=lessonWeekStart(window.lessonPlanWeekStart);return [0,1,2,3,4].map(i=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
 }
