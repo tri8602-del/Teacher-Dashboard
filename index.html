@@ -686,7 +686,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.3";
+const APP_VERSION="3.1.4";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -734,7 +734,7 @@ const seed={
  setupComplete:false,
  pvaasSettings:{customEndDate:""},
  calendarOverrides:{},
- calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
+ calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",earlydismissal:"#d58a2b",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
  calendarViewDate:new Date().toISOString().slice(0,7),
  bellSchedules:[
   {id:"regular",name:"Regular Bell Schedule",kind:"regular",periods:[
@@ -2185,7 +2185,7 @@ function schoolEndDate(){return (data.calendarSettings||{}).lastStudentDay||""}
 function isInstructionalOrInServiceDay(date){
   const o=(data.calendarOverrides||{})[date]||{};
   const type=o.type||baseDateType(date);
-  return isWeekday(date)&&(type==="instructional"||type==="inservice");
+  return isWeekday(date)&&(type==="instructional"||type==="inservice"||type==="earlydismissal");
 }
 function isPreStudentInService(date){
   const start=schoolStartDate();
@@ -2197,13 +2197,13 @@ function getDateInfo(date){
   const type=o.type||baseDateType(date);
   const s=data.calendarSettings||{};
   const within=!!(s.firstStudentDay&&s.lastStudentDay&&date>=s.firstStudentDay&&date<=s.lastStudentDay);
-  const counted=within&&isWeekday(date)&&(type==="instructional"||type==="inservice");
+  const counted=within&&isWeekday(date)&&(type==="instructional"||type==="inservice"||type==="earlydismissal");
   const markers={
     nineWeeks:!!o.nineWeeks,endNineWeeks:!!o.endNineWeeks,
     trimester:!!o.trimester,endTrimester:!!o.endTrimester,
     semester:!!o.semester,endSemester:!!o.endSemester
   };
-  let schedule=o.schedule!==undefined?o.schedule:(type==="instructional"?"regular":"");
+  let schedule=o.schedule!==undefined?o.schedule:((type==="instructional"||type==="earlydismissal")?"regular":"");
   if(schedule==="alternate")schedule="regular";
   ensureBellSchedules();
   if(schedule&&!data.bellSchedules.some(s=>s.id===schedule))schedule="regular";
@@ -2217,7 +2217,7 @@ function countedDaysBefore(date){
   while(d<=end){
     const o=(data.calendarOverrides||{})[d]||{};
     const type=o.type||baseDateType(d);
-    if(isWeekday(d)&&(type==="instructional"||type==="inservice"))count++;
+    if(isWeekday(d)&&(type==="instructional"||type==="inservice"||type==="earlydismissal"))count++;
     d=isoAddDays(d,1);
   }
   return count;
@@ -2232,7 +2232,7 @@ function countedDaysTotal(){
 
 function calendarColors(){
   const defaults={
-    instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",
+    instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",earlydismissal:"#d58a2b",
     nineWeeks:"#d59627",endNineWeeks:"#c77b20",
     trimester:"#3f7fc0",endTrimester:"#2f679e",
     semester:"#6c63a8",endSemester:"#514a8a",
@@ -2254,7 +2254,7 @@ function calendarAppearance(date,info){
   // that changes how an otherwise instructional day runs.
   let key="";
   if(info.schedule&&info.schedule!=="regular") key="alternateSchedule";
-  else if(["instructional","inservice","noschool"].includes(info.type)) key=info.type;
+  else if(["instructional","inservice","noschool","earlydismissal"].includes(info.type)) key=info.type;
   if(!key)return {color:"#e0e4ec",background:"#f7f8fa"};
   const color=eventColor(date,key);
   return {color,background:hexToRgba(color,.11)};
@@ -2276,6 +2276,7 @@ function upcomingCalendarEvents(limit=8){
     if((o.notes||[]).length)events.push({date,label:o.notes[0],kind:"Note",color:eventColor(date,"note")});
     if(info.type==="inservice")events.push({date,label:"In-Service Day",kind:"School Calendar",color:eventColor(date,"inservice")});
     if(info.type==="noschool")events.push({date,label:"No School",kind:"School Calendar",color:eventColor(date,"noschool")});
+    if(info.type==="earlydismissal")events.push({date,label:"Early Dismissal",kind:"School Calendar",color:eventColor(date,"earlydismissal")});
   });
   return events.sort((a,b)=>a.date.localeCompare(b.date)).slice(0,limit);
 }
@@ -2656,7 +2657,7 @@ function calendar(){
     if(info.markers.endSemester)marks.push(academicMarkerHTML("endSemester",eventColor(date,"endSemester"),markerIndex("endSemester",date)));
     if(date===firstStudent)marks.push("🎒");
     if(date===lastStudent)marks.push("🏁");
-    const typeTag=info.type==="inservice"?`<span class="calendarTypeTag">In-Service</span>`:info.type==="noschool"?`<span class="calendarTypeTag">No School</span>`:"";
+    const typeTag=info.type==="inservice"?`<span class="calendarTypeTag">In-Service</span>`:info.type==="noschool"?`<span class="calendarTypeTag">No School</span>`:info.type==="earlydismissal"?`<span class="calendarTypeTag">Early Dismissal</span>`:"";
     const altTag=info.schedule&&info.schedule!=="regular"?`<span class="altScheduleTag">${esc(bellScheduleName(info.schedule))}</span>`:"";
     const dayStyle=`--cal-color:${appearance.color};--cal-bg:${appearance.background};`;
     const progress=calendarDayProgress(date);
@@ -2667,7 +2668,7 @@ function calendar(){
   return `<header><div><h2>School Calendar</h2><p>Set your student year, then only change the exceptions.</p></div></header>
   <section class="card calendarSettings"><div><label>🎒 First Student Day<br><input type="date" value="${esc(firstStudent)}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label></div><div><label>🏁 Last Student Day<br><input type="date" value="${esc(lastStudent)}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label></div><div class="calendarCount"><b>${countedDaysTotal()}</b><span>counted days</span></div></section>${upcomingHTML}
   <section class="card"><div class="calHead"><button onclick="window.changeMonth(-1)">◀</button><h3>${monthLabel}</h3><button onclick="window.changeMonth(1)">▶</button></div><div class="weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendarGrid">${cells}</div></section>
-  <section class="card small"><b>Legend:</b> <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().instructional};background:${hexToRgba(calendarColors().instructional,.11)}"></span> Instructional &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().inservice};background:${hexToRgba(calendarColors().inservice,.11)}"></span> In-Service &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().noschool};background:${hexToRgba(calendarColors().noschool,.11)}"></span> No School &nbsp; <span class="markerCard" style="color:${calendarColors().nineWeeks}">Q-Beg</span> Beginning Nine Weeks &nbsp; <span class="markerCard" style="color:${calendarColors().endNineWeeks}">Q-End</span> End Nine Weeks &nbsp; <span class="markerCard" style="color:${calendarColors().trimester}">T-Beg</span> Beginning Trimester &nbsp; <span class="markerCard" style="color:${calendarColors().endTrimester}">T-End</span> End Trimester &nbsp; <span class="markerCard" style="color:${calendarColors().semester}">S-Beg</span> Beginning Semester &nbsp; <span class="markerCard" style="color:${calendarColors().endSemester}">S-End</span> End Semester &nbsp; 🎒 First Student Day &nbsp; 🏁 Last Student Day</section>
+  <section class="card small"><b>Legend:</b> <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().instructional};background:${hexToRgba(calendarColors().instructional,.11)}"></span> Instructional &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().inservice};background:${hexToRgba(calendarColors().inservice,.11)}"></span> In-Service &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().noschool};background:${hexToRgba(calendarColors().noschool,.11)}"></span> No School &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().earlydismissal};background:${hexToRgba(calendarColors().earlydismissal,.11)}"></span> Early Dismissal &nbsp; <span class="markerCard" style="color:${calendarColors().nineWeeks}">Q-Beg</span> Beginning Nine Weeks &nbsp; <span class="markerCard" style="color:${calendarColors().endNineWeeks}">Q-End</span> End Nine Weeks &nbsp; <span class="markerCard" style="color:${calendarColors().trimester}">T-Beg</span> Beginning Trimester &nbsp; <span class="markerCard" style="color:${calendarColors().endTrimester}">T-End</span> End Trimester &nbsp; <span class="markerCard" style="color:${calendarColors().semester}">S-Beg</span> Beginning Semester &nbsp; <span class="markerCard" style="color:${calendarColors().endSemester}">S-End</span> End Semester &nbsp; 🎒 First Student Day &nbsp; 🏁 Last Student Day</section>
   <section class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">🕐 Bell Schedules</h3><p class="small" style="margin:6px 0 0">Regular is the default for instructional days. Choose a different schedule only when that day is an exception.</p></div><button class="primary" onclick="window.openBellScheduleModal()">＋ Add Custom Schedule</button></div><div class="bellScheduleList">${bellSchedulesList()}</div></section>`;
 }
 function bellSchedulesList(){
@@ -2729,10 +2730,10 @@ function renderCalendarModal(){
   document.querySelector("#calModal")?.remove();
   const date=window.calendarEditDate,info=getDateInfo(date),o=(data.calendarOverrides||{})[date]||{},colors=calendarColors(),coverage=o.subCoverage||"none";
   const label=new Date(date+"T12:00:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
-  const options=`<option value="instructional" ${info.type==="instructional"?"selected":""}>Instructional Day</option><option value="inservice" ${info.type==="inservice"?"selected":""}>In-Service Day</option><option value="noschool" ${info.type==="noschool"?"selected":""}>No School / Vacation</option><option value="outside" ${info.type==="outside"?"selected":""}>Outside Student Year</option>`;
+  const options=`<option value="instructional" ${info.type==="instructional"?"selected":""}>Instructional Day</option><option value="inservice" ${info.type==="inservice"?"selected":""}>In-Service Day</option><option value="earlydismissal" ${info.type==="earlydismissal"?"selected":""}>Early Dismissal</option><option value="noschool" ${info.type==="noschool"?"selected":""}>No School / Vacation</option><option value="outside" ${info.type==="outside"?"selected":""}>Outside Student Year</option>`;
   const notes=(o.notes||[]).join("\n");
   const colorRow=(key,label)=>`<label>${label}<br><input id="color-${key}" type="color" value="${eventColor(date,key)}"><select id="scope-${key}"><option value="this">This event only</option><option value="all">All ${label} events</option></select></label>`;
-  document.body.insertAdjacentHTML("beforeend",`<div id="calModal" class="modalbg"><div class="modal"><h3>🗓️ ${label}</h3><label>Day Type<br><select id="calType">${options}</select></label><p class="small">Weekdays between the first and last student day automatically count as instructional days unless you change them. In-service days count too.</p><hr><b>Academic Markers</b><p><label><input id="markNine" type="checkbox" ${o.nineWeeks?"checked":""}> Beginning of Nine Weeks</label><br><label><input id="markEndNine" type="checkbox" ${o.endNineWeeks?"checked":""}> End of Nine Weeks</label><br><label><input id="markTri" type="checkbox" ${o.trimester?"checked":""}> Beginning of Trimester</label><br><label><input id="markEndTri" type="checkbox" ${o.endTrimester?"checked":""}> End of Trimester</label><br><label><input id="markSem" type="checkbox" ${o.semester?"checked":""}> Beginning of Semester</label><br><label><input id="markEndSem" type="checkbox" ${o.endSemester?"checked":""}> End of Semester</label></p><hr><b>Calendar Colors</b><p class="small">These colors control the calendar appearance. Day types and alternate schedules use the color for a light background shade and the left stripe. Markers keep their colored symbol.</p><p class="small">For each item, choose whether the color changes only this date or becomes the default for every event of that type.</p><div class="colorGrid">${colorRow("instructional","Instructional")} ${colorRow("inservice","In-Service")} ${colorRow("noschool","No School")} ${colorRow("nineWeeks","Beginning Nine Weeks")} ${colorRow("endNineWeeks","End Nine Weeks")} ${colorRow("trimester","Beginning Trimester")} ${colorRow("endTrimester","End Trimester")} ${colorRow("semester","Beginning Semester")} ${colorRow("endSemester","End Semester")} ${colorRow("alternateSchedule","Alternate Schedule")} ${colorRow("note","Notes")}</div><hr><label>Bell Schedule<br><select id="calSchedule">${bellScheduleOptions(info.schedule)}</select></label><p class="small">Instructional days automatically use the Regular Bell Schedule. Select one of your alternate schedules when this date runs differently.</p><hr><div class="lessonCalendarSub"><b>🧑‍🏫 Substitute Coverage</b><p class="small">Mark a day when you will be absent. Lesson plans stay active, but affected cells are highlighted as a reminder to plan independent student work.</p><label>Coverage<br><select id="calSubCoverage"><option value="none" ${coverage==='none'?"selected":""}>No substitute</option><option value="am" ${coverage==='am'?"selected":""}>AM only</option><option value="pm" ${coverage==='pm'?"selected":""}>PM only</option><option value="full" ${coverage==='full'?"selected":""}>Full Day</option></select></label></div><hr><label><b>📝 Notes for this day</b><br><textarea id="calNotes" placeholder="One note per line. These will appear on your dashboard when this date arrives.">${esc(notes)}</textarea></label><p class="small">Notes stay attached to this date in the calendar and automatically appear on the Live Class dashboard on that day.</p><div style="margin-top:16px"><button class="primary" onclick="window.saveDateDetails('${date}')">Save</button> <button onclick="window.closeCalendarModal()">Cancel</button></div></div></div>`);
+  document.body.insertAdjacentHTML("beforeend",`<div id="calModal" class="modalbg"><div class="modal"><h3>🗓️ ${label}</h3><label>Day Type<br><select id="calType">${options}</select></label><p class="small">Weekdays between the first and last student day automatically count as instructional days unless you change them. In-service and Early Dismissal days still count as school days.</p><hr><b>Academic Markers</b><p><label><input id="markNine" type="checkbox" ${o.nineWeeks?"checked":""}> Beginning of Nine Weeks</label><br><label><input id="markEndNine" type="checkbox" ${o.endNineWeeks?"checked":""}> End of Nine Weeks</label><br><label><input id="markTri" type="checkbox" ${o.trimester?"checked":""}> Beginning of Trimester</label><br><label><input id="markEndTri" type="checkbox" ${o.endTrimester?"checked":""}> End of Trimester</label><br><label><input id="markSem" type="checkbox" ${o.semester?"checked":""}> Beginning of Semester</label><br><label><input id="markEndSem" type="checkbox" ${o.endSemester?"checked":""}> End of Semester</label></p><hr><b>Calendar Colors</b><p class="small">These colors control the calendar appearance. Day types and alternate schedules use the color for a light background shade and the left stripe. Markers keep their colored symbol.</p><p class="small">For each item, choose whether the color changes only this date or becomes the default for every event of that type.</p><div class="colorGrid">${colorRow("instructional","Instructional")} ${colorRow("inservice","In-Service")} ${colorRow("noschool","No School")} ${colorRow("earlydismissal","Early Dismissal")} ${colorRow("nineWeeks","Beginning Nine Weeks")} ${colorRow("endNineWeeks","End Nine Weeks")} ${colorRow("trimester","Beginning Trimester")} ${colorRow("endTrimester","End Trimester")} ${colorRow("semester","Beginning Semester")} ${colorRow("endSemester","End Semester")} ${colorRow("alternateSchedule","Alternate Schedule")} ${colorRow("note","Notes")}</div><hr><label>Bell Schedule<br><select id="calSchedule">${bellScheduleOptions(info.schedule)}</select></label><p class="small">Instructional days automatically use the Regular Bell Schedule. Select one of your alternate schedules when this date runs differently.</p><hr><div class="lessonCalendarSub"><b>🧑‍🏫 Substitute Coverage</b><p class="small">Mark a day when you will be absent. Lesson plans stay active, but affected cells are highlighted as a reminder to plan independent student work.</p><label>Coverage<br><select id="calSubCoverage"><option value="none" ${coverage==='none'?"selected":""}>No substitute</option><option value="am" ${coverage==='am'?"selected":""}>AM only</option><option value="pm" ${coverage==='pm'?"selected":""}>PM only</option><option value="full" ${coverage==='full'?"selected":""}>Full Day</option></select></label></div><hr><label><b>📝 Notes for this day</b><br><textarea id="calNotes" placeholder="One note per line. These will appear on your dashboard when this date arrives.">${esc(notes)}</textarea></label><p class="small">Notes stay attached to this date in the calendar and automatically appear on the Live Class dashboard on that day.</p><div style="margin-top:16px"><button class="primary" onclick="window.saveDateDetails('${date}')">Save</button> <button onclick="window.closeCalendarModal()">Cancel</button></div></div></div>`);
 }
 window.closeCalendarModal=()=>document.querySelector("#calModal")?.remove()
 window.saveDateDetails=date=>{
@@ -2756,7 +2757,9 @@ window.saveDateDetails=date=>{
     semester:$("#markSem").checked,endSemester:$("#markEndSem").checked,
     notes,colors:localColors,subCoverage
   };
-  if(schedule)data.calendarOverrides[date].schedule=schedule;
+  if(type==='earlydismissal')data.calendarOverrides[date].schedule=schedule||'regular';
+  else if(schedule)data.calendarOverrides[date].schedule=schedule;
+  else if(type!=='instructional')delete data.calendarOverrides[date].schedule;
   save();window.closeCalendarModal();render();
 }
 
@@ -2908,8 +2911,8 @@ function sidebarSettingsHTML(){
 function setupPreviewEscape(s){return esc(String(s??""));}
 function setupDateOk(d){return /^\d{4}-\d{2}-\d{2}$/.test(String(d||""));}
 function setupDateObj(v){
-  if(typeof v==='string')return {date:v,label:""};
-  return {date:String(v?.date||""),label:String(v?.label||"")};
+  if(typeof v==='string')return {date:v,label:"",schedule:""};
+  return {date:String(v?.date||""),label:String(v?.label||""),schedule:String(v?.schedule||"")};
 }
 function setupCalendarList(kind){
   const d=window.setupDraft?.calendar||{};
@@ -2981,19 +2984,7 @@ function setupDeriveMarkingPeriods(){
   return mp;
 }
 window.setupCalendarBoundary=(key,value)=>{window.setupDraft??={};window.setupDraft.calendar??={};window.setupDraft.calendar[key]=value;setupDeriveMarkingPeriods();renderSetupReview();};
-window.setupDateChanged=(kind,index,key,value)=>{const list=setupCalendarList(kind);if(!list[index])return;list[index][key]=value;renderSetupReview();};
-window.setupExceptionTypeChanged=(sourceKind,sourceIndex,value)=>{
-  const source=setupCalendarList(sourceKind);
-  const targetKind=value==='inservice'?'inserviceDates':'noSchoolDates';
-  const target=setupCalendarList(targetKind);
-  const row=source[sourceIndex];if(!row)return;
-  source.splice(sourceIndex,1);
-  target.push(row);
-  target.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  setupDeriveMarkingPeriods();renderSetupReview();
-};
-window.setupRemoveDate=(kind,index)=>{const list=setupCalendarList(kind);list.splice(index,1);setupDeriveMarkingPeriods();renderSetupReview();};
-window.setupAddDate=(kind)=>{const d=window.setupDraft?.calendar;if(!d)return;setupCalendarList(kind).push({date:"",label:""});renderSetupReview();};
+window.setupDateChanged=(kind,index,key,value)=>{const list=setupCalendarList(kind);if(!list[index])return;list[index][key]=value;if(key==='date'&&kind==='earlyDismissalDates')list[index].schedule=list[index].schedule||'';setupDeriveMarkingPeriods();renderSetupReview();};
 window.setupMarkerChanged=(index,key,value)=>{const list=setupMarkers();if(!list[index])return;list[index][key]=value;setupDeriveMarkingPeriods();renderSetupReview();};
 window.setupRemoveMarker=(index)=>{setupMarkers().splice(index,1);renderSetupReview();};
 window.setupAddMarker=()=>{const d=window.setupDraft?.calendar;if(!d)return;setupMarkers().push({date:"",kind:"beginNineWeeks",label:""});renderSetupReview();};
@@ -3035,12 +3026,108 @@ function setupCalendarReviewHTML(){
   setupDeriveMarkingPeriods();
   return `<div class="setupReviewBox"><h4>Review what I found</h4><div class="setupReviewSection"><b>School Year</b><div class="settingsGrid"><label>First Student Day<br><input id="setupFirstDay" type="date" value="${esc(c.firstStudentDay||'')}" onchange="window.setupCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input id="setupLastDay" type="date" value="${esc(c.lastStudentDay||'')}" onchange="window.setupCalendarBoundary('lastStudentDay',this.value)"></label></div><p class="small">These dates are editable. They establish the overall school-year boundaries.</p></div>${setupDateRowsHTML()}${setupMarkingPeriodsHTML()}</div>`;
 }
-function setupDateRowsHTML(){
-  const noSchool=setupCalendarList('noSchoolDates');
-  const inservice=setupCalendarList('inserviceDates');
-  const rows=[...noSchool.map((x,i)=>({kind:'noSchoolDates',type:'noschool',index:i,date:x.date,label:x.label})),...inservice.map((x,i)=>({kind:'inserviceDates',type:'inservice',index:i,date:x.date,label:x.label}))].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  return `<div class="setupReviewSubhead"><b>Calendar Exceptions</b><button type="button" onclick="window.setupAddDate('noSchoolDates')">＋ Add date</button></div><p class="small">Change the type directly if the AI classified a date incorrectly. You can also edit the date or label, remove a date, or add a missing date.</p>${rows.length?`<div class="setupEditableList">${rows.map(r=>`<div class="setupEditableRow setupExceptionRow"><input type="date" value="${esc(r.date)}" onchange="window.setupDateChanged('${r.kind}',${r.index},'date',this.value)"><select onchange="window.setupExceptionTypeChanged('${r.kind}',${r.index},this.value)"><option value="noschool" ${r.type==='noschool'?'selected':''}>No School / Vacation</option><option value="inservice" ${r.type==='inservice'?'selected':''}>In-Service / Teacher Workday</option></select><input type="text" value="${esc(r.label)}" placeholder="Label (optional)" onchange="window.setupDateChanged('${r.kind}',${r.index},'label',this.value)"><button type="button" title="Remove" onclick="window.setupRemoveDate('${r.kind}',${r.index})">×</button></div>`).join('')}</div>`:`<p class="small setupEmpty">None found. Add a date if the calendar is missing an exception.</p>`}`;
+function setupExceptionEntries(){
+  const d=window.setupDraft?.calendar||{};
+  const make=(kind,type)=>setupCalendarList(kind).map((x,i)=>({kind,type,index:i,date:x.date,label:x.label||"",schedule:x.schedule||""}));
+  return [...make('noSchoolDates','noschool'),...make('inserviceDates','inservice'),...make('earlyDismissalDates','earlydismissal')].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
 }
+function setupExceptionLabel(type){
+  return type==='inservice'?'In-Service / Teacher Workday':type==='earlydismissal'?'Early Dismissal':'No School / Vacation';
+}
+function setupExceptionTypeColor(type){
+  return type==='inservice'?'var(--setup-inservice,#8b6bb8)':type==='earlydismissal'?'var(--setup-early,#d58a2b)':'var(--setup-noschool,#cf5f5f)';
+}
+function setupFindException(date){
+  return setupExceptionEntries().find(x=>x.date===date)||null;
+}
+window.setupExceptionTypeChanged=(sourceKind,sourceIndex,value)=>{
+  const source=setupCalendarList(sourceKind);
+  const item=source[sourceIndex];
+  if(!item)return;
+  source.splice(sourceIndex,1);
+  const targetKind=value==='inservice'?'inserviceDates':value==='earlydismissal'?'earlyDismissalDates':'noSchoolDates';
+  setupCalendarList(targetKind).push({...item,schedule:value==='earlydismissal'?(item.schedule||''):''});
+  setupDeriveMarkingPeriods();renderSetupReview();
+};
+window.setupRemoveDate=(kind,index)=>{const list=setupCalendarList(kind);list.splice(index,1);setupDeriveMarkingPeriods();renderSetupReview();};
+window.setupAddDate=(kind='noSchoolDates')=>{const d=window.setupDraft?.calendar;if(!d)return;setupCalendarList(kind).push({date:"",label:"",schedule:""});renderSetupReview();};
+window.setupOpenDateEditor=(date)=>{
+  const existing=setupFindException(date);
+  const current=existing||{date,label:"",type:'noschool',kind:'noSchoolDates',index:-1,schedule:""};
+  document.querySelector('#setupDateEditorModal')?.remove();
+  const typeOptions=`<option value="noschool" ${current.type==='noschool'?'selected':''}>No School / Vacation</option><option value="inservice" ${current.type==='inservice'?'selected':''}>In-Service / Teacher Workday</option><option value="earlydismissal" ${current.type==='earlydismissal'?'selected':''}>Early Dismissal</option>`;
+  document.body.insertAdjacentHTML('beforeend',`<div id="setupDateEditorModal" class="modalbg"><div class="modal setupDateEditorModal"><h3>🗓️ ${date?new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}):'Calendar Exception'}</h3><label>Date<br><input id="setupEditDate" type="date" value="${esc(current.date||date||'')}"></label><label style="margin-top:10px">Type<br><select id="setupEditType">${typeOptions}</select></label><label style="margin-top:10px">Label<br><input id="setupEditLabel" type="text" value="${esc(current.label||'')}" placeholder="e.g. Professional Development Day"></label><div id="setupEditScheduleWrap" style="margin-top:10px;display:${current.type==='earlydismissal'?'block':'none'}"><label>Bell Schedule (optional)<br><select id="setupEditSchedule">${bellScheduleOptions(current.schedule||'')}</select></label><p class="small">You can assign a specific alternate bell schedule here now, or leave it for Step 2.</p></div><div class="setupDateEditorActions"><button class="primary" type="button" onclick="window.setupSaveDateEditor('${esc(date||'')}')">Save</button><button type="button" onclick="document.querySelector('#setupDateEditorModal')?.remove()">Cancel</button></div></div></div>`);
+  const typeEl=document.getElementById('setupEditType');
+  typeEl?.addEventListener('change',()=>{const wrap=document.getElementById('setupEditScheduleWrap');if(wrap)wrap.style.display=typeEl.value==='earlydismissal'?'block':'none';});
+};
+window.setupSaveDateEditor=(originalDate)=>{
+  const date=document.getElementById('setupEditDate')?.value||'';
+  const type=document.getElementById('setupEditType')?.value||'noschool';
+  const label=document.getElementById('setupEditLabel')?.value||'';
+  const schedule=type==='earlydismissal'?(document.getElementById('setupEditSchedule')?.value||''):'';
+  if(!setupDateOk(date)){alert('Please choose a valid date.');return;}
+  const d=window.setupDraft?.calendar;if(!d)return;
+  ['noSchoolDates','inserviceDates','earlyDismissalDates'].forEach(k=>{setupCalendarList(k);d[k]=d[k].filter(x=>String(x.date||'')!==String(originalDate||''));});
+  const target=type==='inservice'?'inserviceDates':type==='earlydismissal'?'earlyDismissalDates':'noSchoolDates';
+  setupCalendarList(target).push({date,label,schedule});
+  setupDeriveMarkingPeriods();
+  document.querySelector('#setupDateEditorModal')?.remove();
+  renderSetupReview();
+};
+function setupDateRowsHTML(){
+  const rows=setupExceptionEntries();
+  return `<div class="setupReviewSubhead"><div><b>Calendar Exceptions</b><span class="small setupViewHint">Choose List for detailed editing or Year at a Glance to work directly from the calendar.</span></div><div class="setupViewToggle"><button type="button" class="${(window.setupCalendarView||'list')==='list'?'active':''}" onclick="window.setSetupCalendarView('list')">📋 List</button><button type="button" class="${window.setupCalendarView==='year'?'active':''}" onclick="window.setSetupCalendarView('year')">📅 Year at a Glance</button><button type="button" onclick="window.setupAddDate('noSchoolDates')">＋ Add date</button></div></div><div class="setupExceptionLegend"><span><i class="setupLegendSwatch noschool"></i>No School</span><span><i class="setupLegendSwatch inservice"></i>In-Service</span><span><i class="setupLegendSwatch earlydismissal"></i>Early Dismissal</span></div>${window.setupCalendarView==='year'?setupYearAtAGlanceHTML():`<p class="small">Change the type directly if the AI classified a date incorrectly. You can edit the date or label, remove a date, or add a missing date.</p>${rows.length?`<div class="setupEditableList">${rows.map(r=>`<div class="setupEditableRow setupExceptionRow"><input type="date" value="${esc(r.date)}" onchange="window.setupDateChanged('${r.kind}',${r.index},'date',this.value)"><select onchange="window.setupExceptionTypeChanged('${r.kind}',${r.index},this.value)"><option value="noschool" ${r.type==='noschool'?'selected':''}>No School / Vacation</option><option value="inservice" ${r.type==='inservice'?'selected':''}>In-Service / Teacher Workday</option><option value="earlydismissal" ${r.type==='earlydismissal'?'selected':''}>Early Dismissal</option></select><input type="text" value="${esc(r.label)}" placeholder="Label (optional)" onchange="window.setupDateChanged('${r.kind}',${r.index},'label',this.value)"><button type="button" title="Edit details" onclick="window.setupOpenDateEditor('${esc(r.date)}')">Edit</button><button type="button" title="Remove" onclick="window.setupRemoveDate('${r.kind}',${r.index})">×</button></div>`).join('')}</div>`:`<p class="small setupEmpty">None found. Add a date if the calendar is missing an exception.</p>`}`}`;
+}
+function setupYearBounds(){
+  const c=window.setupDraft?.calendar||{};
+  let start=setupDateOk(c.firstStudentDay)?c.firstStudentDay:"";
+  let end=setupDateOk(c.lastStudentDay)?c.lastStudentDay:"";
+  const dates=setupExceptionEntries().map(x=>x.date).filter(setupDateOk).sort();
+  if(!start&&dates.length)start=dates[0];
+  if(!end&&dates.length)end=dates[dates.length-1];
+  if(!start){const now=new Date();start=`${now.getFullYear()}-08-01`;}
+  if(!end){const y=Number(start.slice(0,4))+1;end=`${y}-06-30`;}
+  return {start,end};
+}
+function setupMonthHTML(year,month){
+  const first=new Date(year,month-1,1),days=new Date(year,month,0).getDate();
+  const title=first.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  let html=`<div class="setupYearMonth"><h5>${title}</h5><div class="setupYearWeekdays">${['S','M','T','W','T','F','S'].map(x=>`<span>${x}</span>`).join('')}</div><div class="setupYearDays">`;
+  for(let i=0;i<first.getDay();i++)html+=`<span class="setupYearBlank"></span>`;
+  for(let d=1;d<=days;d++){
+    const date=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const ex=setupFindException(date);
+    const c=window.setupDraft?.calendar||{};
+    const inYear=(!c.firstStudentDay||date>=c.firstStudentDay)&&(!c.lastStudentDay||date<=c.lastStudentDay);
+    const marker=(setupMarkers().some(m=>m.date===date));
+    const cls=ex?`hasException ${ex.type}`:inYear?'schoolDay':'outsideDay';
+    html+=`<button type="button" class="setupYearDay ${cls}" title="${esc(ex?`${setupExceptionLabel(ex.type)}${ex.label?' — '+ex.label:''}`:'Click to add an exception')}" onclick="window.setupOpenDateEditor('${date}')"><b>${d}</b>${marker?'<span class="setupYearMarker">•</span>':''}</button>`;
+  }
+  html+='</div></div>';
+  return html;
+}
+function setupYearAtAGlanceHTML(){
+  const {start,end}=setupYearBounds();
+  const sy=Number(start.slice(0,4)),sm=Number(start.slice(5,7)),ey=Number(end.slice(0,4)),em=Number(end.slice(5,7));
+  const months=[];let y=sy,m=sm;
+  for(let i=0;i<18;i++){months.push([y,m]);if(y===ey&&m===em)break;m++;if(m>12){m=1;y++;}}
+  return `<div class="setupYearAtAGlance"><div class="setupYearHint"><b>Click any date to add or edit an exception.</b><span class="small">Dates outside the student year are shown softly; existing exceptions are color-coded.</span></div><div class="setupYearGrid">${months.map(x=>setupMonthHTML(x[0],x[1])).join('')}</div></div>`;
+}
+window.setSetupCalendarView=v=>{window.setupCalendarView=v==='year'?'year':'list';renderSetupReview();};
+function setupEarlyDismissalAssignments(){
+  const dates=setupCalendarList('earlyDismissalDates').filter(x=>setupDateOk(x.date));
+  const schedules=setupBellSchedules().filter(s=>s.kind==='alternate');
+  if(!dates.length)return `<div class="setupEarlyAssignment"><div class="setupReviewSubhead"><b>Early Dismissal Days Found</b><span class="small">None found in the calendar.</span></div><p class="small">If the district calendar contains an early dismissal that was not imported, add it on Step 1.</p></div>`;
+  const suggestionFor=(x)=>{
+    const text=(x.label||'').toLowerCase();
+    const hour=text.match(/(\d+(?:\.\d+)?)\s*hour/);
+    if(hour){const target=hour[1];const hit=schedules.find(s=>s.name.toLowerCase().includes(`${target} hour`)&&s.name.toLowerCase().includes('early'));if(hit)return hit.id;}
+    if(schedules.length===1)return schedules[0].id;
+    return x.schedule||'';
+  };
+  return `<div class="setupEarlyAssignment"><div class="setupReviewSubhead"><div><b>Early Dismissal Days Found</b><span class="small">${dates.length} date${dates.length===1?'':'s'} from Step 1</span></div></div><p class="small">Assign an alternate bell schedule to each early-dismissal day. I’ll suggest a likely match when the schedule name makes it obvious, but you confirm every assignment.</p><div class="setupAssignmentList">${dates.map((x,i)=>{const current=x.schedule||suggestionFor(x);return `<div class="setupAssignmentRow"><div><b>${new Date(x.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</b><span class="small">${esc(x.label||'Early Dismissal')}</span></div><select onchange="window.setupEarlyScheduleChanged(${i},this.value)"><option value="">— Choose a bell schedule —</option>${schedules.map(s=>`<option value="${esc(s.id)}" ${current===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>`}).join('')}</div>${schedules.length?`<p class="small setupAssignmentHint">Need another schedule? Add it above, then return here and assign it.</p>`:`<div class="setupWarning">No alternate bell schedules are available yet. Add one above before assigning early-dismissal days.</div>`}</div>`;
+}
+window.setupEarlyScheduleChanged=(index,value)=>{const list=setupCalendarList('earlyDismissalDates');if(!list[index])return;list[index].schedule=value||'';renderSetupReview();};
 function setupBellHTML(){
   const list=setupBellSchedules();
   return `${list.map((x,i)=>`<div class="setupScheduleEditor"><div class="setupScheduleHead"><div><input class="setupScheduleName" type="text" value="${esc(x.name||'')}" onchange="window.setupScheduleChanged(${i},'name',this.value)"><label class="small setupRegularChoice"><input type="radio" name="setupRegularSchedule" ${x.kind==='regular'?'checked':''} onchange="window.setupMakeRegular(${i})"> Regular/default</label></div><button type="button" onclick="window.setupRemoveSchedule(${i})">Remove schedule</button></div><div class="setupEditableList">${(x.periods||[]).map((p,j)=>`<div class="setupPeriodRow"><input type="text" value="${esc(p[0]||'')}" placeholder="Block name" onchange="window.setupPeriodChanged(${i},${j},0,this.value)"><input type="time" value="${esc(p[1]||'')}" onchange="window.setupPeriodChanged(${i},${j},1,this.value)"><span>to</span><input type="time" value="${esc(p[2]||'')}" onchange="window.setupPeriodChanged(${i},${j},2,this.value)"><button type="button" title="Remove block" onclick="window.setupRemovePeriod(${i},${j})">×</button></div>`).join('')||`<p class="small setupEmpty">No blocks yet.</p>`}</div><button type="button" onclick="window.setupAddPeriod(${i})">＋ Add block</button></div>`).join('')||`<p class="small setupEmpty">No schedules found. Add one manually.</p>`}<button type="button" class="setupAddSchedule" onclick="window.setupAddSchedule()">＋ Add schedule</button>`;
@@ -3050,7 +3137,7 @@ function setupBellScreenHTML(){
   return `<div class="setupScreen"><div class="setupScreenIntro"><div><h4>Step 2 · Set Up Your Bell Schedules</h4><p class="small">Upload your bell schedule. The AI will identify regular and alternate schedules, then you can edit every schedule, block name, start time, and end time.</p></div><div class="setupSkipHint">You can skip this and come back later.</div></div><div class="setupUploadCard"><input id="setupBellFile" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv,application/pdf,image/*,text/plain,text/csv"><button class="primary" type="button" onclick="window.extractSetupDocument('bell')">Read Bell Schedule</button><div id="setupBellStatus" class="small"></div></div>${b&&Array.isArray(b.schedules)?`<div id="setupReview" style="display:block">${setupBellReviewHTML()}</div>`:'<div id="setupReview" style="display:none"></div>'}</div>`;
 }
 function setupBellReviewHTML(){
-  return `<div class="setupReviewBox"><div class="setupReviewSubhead"><b>Review what I found</b><span class="small">${setupBellSchedules().length} schedule${setupBellSchedules().length===1?'':'s'} found</span></div><p class="small">Everything below is editable. Make sure the schedule marked Regular/default is the ordinary school day.</p>${setupBellHTML()}</div>`;
+  return `<div class="setupReviewBox"><div class="setupReviewSubhead"><b>Review what I found</b><span class="small">${setupBellSchedules().length} schedule${setupBellSchedules().length===1?'':'s'} found</span></div><p class="small">Everything below is editable. Make sure the schedule marked Regular/default is the ordinary school day.</p>${setupBellHTML()}${setupEarlyDismissalAssignments()}</div>`;
 }
 function setupClassesScreenHTML(){
   return `<div class="setupScreen"><div class="setupScreenIntro"><div><h4>Step 3 · Set Up Your Classes & Rosters</h4><p class="small">This is the next setup step. You'll be able to either enter your classes and rosters directly or connect Google Classroom to pull them in.</p></div><div class="setupSkipHint">You can skip this and come back later.</div></div><div class="setupComingSoonGrid"><div class="setupComingSoonCard"><div class="setupComingSoonIcon">👩‍🏫</div><b>Set Up Classes & Rosters</b><p class="small">Add classes, periods, and students directly.</p><button type="button" disabled>Coming soon</button></div><div class="setupComingSoonCard"><div class="setupComingSoonIcon">🟢</div><b>Connect Google Classroom</b><p class="small">Pull classes and rosters from Google Classroom.</p><button type="button" disabled>Coming soon</button></div></div></div>`;
@@ -3110,6 +3197,7 @@ window.extractSetupDocument=async kind=>{
       const c=window.setupDraft.calendar||{};
       c.noSchoolDates=(Array.isArray(c.noSchoolDates)?c.noSchoolDates:[]).map(setupDateObj);
       c.inserviceDates=(Array.isArray(c.inserviceDates)?c.inserviceDates:[]).map(setupDateObj);
+      c.earlyDismissalDates=(Array.isArray(c.earlyDismissalDates)?c.earlyDismissalDates:[]).map(setupDateObj);
       c.markers=(Array.isArray(c.markers)?c.markers:[]).map(m=>({date:String(m?.date||''),kind:String(m?.kind||'beginNineWeeks'),label:String(m?.label||'')})).filter(m=>setupDateOk(m.date));
       c.markingPeriods=c.markingPeriods||{};
       window.setupDraft.calendar=c;
@@ -3136,6 +3224,7 @@ window.finishSetupWizard=()=>{
   data.calendarOverrides??={};
   (c.noSchoolDates||[]).map(setupDateObj).filter(x=>setupDateOk(x.date)).forEach(x=>{const old=data.calendarOverrides[x.date]||{};data.calendarOverrides[x.date]={...old,type:'noschool',...(x.label?{notes:[x.label]}:{})};});
   (c.inserviceDates||[]).map(setupDateObj).filter(x=>setupDateOk(x.date)).forEach(x=>{const old=data.calendarOverrides[x.date]||{};data.calendarOverrides[x.date]={...old,type:'inservice',...(x.label?{notes:[x.label]}:{})};});
+  (c.earlyDismissalDates||[]).map(setupDateObj).filter(x=>setupDateOk(x.date)).forEach(x=>{const old=data.calendarOverrides[x.date]||{};data.calendarOverrides[x.date]={...old,type:'earlydismissal',schedule:x.schedule||old.schedule||'regular',...(x.label?{notes:[x.label]}:{})};});
   const mp=setupMarkingPeriods();
   const cleanPeriods=arr=>(arr||[]).map(x=>({name:String(x.name||''),start:String(x.start||''),end:String(x.end||'')}));
   data.calendarSettings.markingPeriods={quarters:cleanPeriods(mp.quarters),semesters:cleanPeriods(mp.semesters),trimesters:cleanPeriods(mp.trimesters)};
@@ -4044,6 +4133,45 @@ window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("ac
 .setupWizardModal{max-width:1120px;width:min(1120px,calc(100vw - 32px));box-sizing:border-box}.setupWizardModal .modalBody{overflow-x:hidden}.setupReviewBox{min-width:0}.setupStep,.setupReviewBox{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfe}.setupStep h4,.setupReviewBox h4{margin:0 0 7px}.setupReviewSection{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.settingsGrid,.gradeWeightGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.gradeWeightGrid input{width:100%;box-sizing:border-box}.pvaasEndSetting{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupCard{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.setupReviewSubhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 8px}.setupReviewSubhead button,.setupScheduleEditor>button,.setupAddSchedule{font-size:13px;padding:6px 9px}.setupEditableList{display:flex;flex-direction:column;gap:6px}.setupEditableRow{display:grid;grid-template-columns:150px minmax(150px,1fr) auto;gap:7px;align-items:center}.setupExceptionRow{grid-template-columns:145px 170px minmax(220px,1fr) auto}.setupMarkingPeriodCard{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupMarkingPeriodHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.setupMarkingPeriodGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px}.setupMarkingPeriodRow{display:grid;grid-template-columns:95px minmax(130px,1fr) 18px minmax(130px,1fr) auto;gap:6px;align-items:center}.setupMarkingPeriodRow input{width:100%;box-sizing:border-box}.setupMarkingPeriodRow button{padding:5px 8px}.setupMarkingPeriodHint{font-size:12px;color:var(--muted,#667085);margin:0 0 8px}.setupEditableRow input,.setupEditableRow select{width:100%;box-sizing:border-box}.setupEditableRow button,.setupScheduleHead button{flex:0 0 auto}.setupMarkerRow{grid-template-columns:150px minmax(190px,1fr) minmax(150px,1fr) auto}.setupEmpty{padding:8px 0;margin:0}.setupScheduleEditor{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupScheduleHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}.setupScheduleName{font-size:16px;font-weight:700;padding:6px 8px;border:1px solid var(--line,#d8dee8);border-radius:7px}.setupRegularChoice{margin-left:10px;white-space:nowrap}.setupPeriodRow{display:grid;grid-template-columns:minmax(150px,1fr) 110px auto 110px auto;gap:7px;align-items:center;margin-bottom:6px}.setupPeriodRow input{width:100%;box-sizing:border-box}.setupAddSchedule{margin-top:8px}@media(max-width:760px){.setupExceptionRow,.setupEditableRow,.setupMarkerRow{grid-template-columns:1fr auto}.setupExceptionRow select,.setupExceptionRow input:nth-child(3){grid-column:1}.setupMarkingPeriodGrid{grid-template-columns:1fr}.setupMarkingPeriodRow{grid-template-columns:1fr 1fr auto}.setupMarkingPeriodRow span:first-child{grid-column:1/-1}.setupMarkingPeriodRow span:nth-child(3){display:none}}@media(max-width:650px){.setupEditableRow,.setupMarkerRow{grid-template-columns:1fr auto}.setupEditableRow input:nth-child(2),.setupMarkerRow input:nth-child(3),.setupMarkerRow select{grid-column:1}.setupPeriodRow{grid-template-columns:1fr 100px auto 100px auto}.setupScheduleHead{align-items:flex-start;flex-direction:column}.setupRegularChoice{display:block;margin:6px 0 0}}
 
 .setupWizardModal{max-width:1120px;width:min(1120px,calc(100vw - 24px));box-sizing:border-box}.setupWizardModal .modalBody{overflow-x:hidden}.setupWizardSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}.setupWizardStep{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line,#d8dee8);border-radius:10px;background:#f8fafc;color:var(--muted,#667085)}.setupWizardStep>span{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#e8edf5;font-weight:700;flex:0 0 auto}.setupWizardStep b{display:block;font-size:13px}.setupWizardStep small{display:block;margin-top:1px}.setupWizardStep.active{border-color:#9bbcf0;background:#f5f9ff;color:inherit}.setupWizardStep.active>span{background:#dbeafe;color:#1557a6}.setupWizardStep.done{color:#246b45}.setupWizardStep.done>span{background:#dff4e7;color:#246b45}.setupScreenIntro{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:12px}.setupScreenIntro h4{margin:0 0 7px}.setupSkipHint{font-size:12px;color:var(--muted,#667085);padding-top:3px;white-space:nowrap}.setupUploadCard{display:flex;align-items:center;gap:9px;flex-wrap:wrap;border:1px solid var(--line,#d8dee8);border-radius:10px;padding:12px;background:#fbfcfe;margin-bottom:12px}.setupUploadCard input[type=file]{min-width:260px;flex:1}.setupReviewBox{min-width:0;border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfe}.setupReviewBox h4{margin:0 0 7px}.setupReviewSection{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupReviewSubhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 8px}.setupReviewSubhead button,.setupScheduleEditor>button,.setupAddSchedule{font-size:13px;padding:6px 9px}.setupEditableList{display:flex;flex-direction:column;gap:6px}.setupEditableRow{display:grid;grid-template-columns:145px 175px minmax(220px,1fr) auto;gap:7px;align-items:center}.setupExceptionRow input,.setupExceptionRow select{min-width:0}.setupMarkingPeriodCard{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupMarkingPeriodHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.setupMarkingPeriodGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px}.setupMarkingPeriodRow{display:grid;grid-template-columns:95px minmax(130px,1fr) 18px minmax(130px,1fr);gap:6px;align-items:center}.setupMarkingPeriodRow input{width:100%;box-sizing:border-box}.setupMarkingPeriodHint{font-size:12px;color:var(--muted,#667085);margin:0 0 8px}.setupEditableRow input,.setupEditableRow select{width:100%;box-sizing:border-box}.setupEditableRow button,.setupScheduleHead button{flex:0 0 auto}.setupEmpty{padding:8px 0;margin:0}.setupScheduleEditor{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupScheduleHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}.setupScheduleName{font-size:16px;font-weight:700;padding:6px 8px;border:1px solid var(--line,#d8dee8);border-radius:7px;min-width:260px}.setupRegularChoice{margin-left:10px;white-space:nowrap}.setupPeriodRow{display:grid;grid-template-columns:minmax(170px,1fr) 130px auto 130px auto;gap:7px;align-items:center;margin-bottom:6px}.setupPeriodRow input{width:100%;box-sizing:border-box}.setupAddSchedule{margin-top:8px}.setupComingSoonGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.setupComingSoonCard{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:18px;background:#fbfcfe}.setupComingSoonCard b{display:block;font-size:16px;margin-bottom:5px}.setupComingSoonCard button{margin-top:6px}.setupComingSoonIcon{font-size:25px;margin-bottom:8px}.setupSkipButton{font-weight:700}.setupWizardModal .modalActions{display:flex;align-items:center;gap:8px}.setupWizardModal .modalActions .setupSkipButton{margin-right:auto}@media(max-width:760px){.setupWizardSteps{grid-template-columns:1fr}.setupScreenIntro{flex-direction:column;gap:5px}.setupSkipHint{white-space:normal}.setupEditableRow{grid-template-columns:1fr auto}.setupExceptionRow select,.setupExceptionRow input:nth-child(3){grid-column:1}.setupMarkingPeriodGrid{grid-template-columns:1fr}.setupMarkingPeriodRow{grid-template-columns:1fr 1fr auto}.setupMarkingPeriodRow span:first-child{grid-column:1/-1}.setupMarkingPeriodRow span:nth-child(3){display:none}.setupComingSoonGrid{grid-template-columns:1fr}.setupPeriodRow{grid-template-columns:1fr 120px auto 120px auto}.setupScheduleHead{align-items:flex-start;flex-direction:column}.setupRegularChoice{display:block;margin:6px 0 0}.setupScheduleName{min-width:0;width:100%}}@media(max-width:600px){.setupUploadCard{align-items:stretch}.setupUploadCard input[type=file]{min-width:0}.setupWizardModal .modalActions{flex-wrap:wrap}.setupWizardModal .modalActions .setupSkipButton{margin-right:0;order:3}.setupWizardModal .modalActions #setupNextButton{order:2}.setupWizardModal .modalActions #setupBackButton{order:1}}
+
+.setupWizardModal{max-width:1180px!important;width:min(1180px,calc(100vw - 24px))!important}
+.setupWizardModal .modalBody{overflow-x:hidden}
+.setupViewToggle{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.setupViewToggle button{font-size:12px;padding:6px 9px}
+.setupViewToggle button.active{font-weight:700;border-color:#9bbcf0;background:#f5f9ff}
+.setupViewHint{display:block;margin-top:3px}
+.setupExceptionLegend{display:flex;gap:14px;flex-wrap:wrap;margin:7px 0 10px;font-size:12px;color:var(--muted,#667085)}
+.setupExceptionLegend span{display:inline-flex;align-items:center;gap:5px}
+.setupLegendSwatch{width:11px;height:11px;border-radius:3px;display:inline-block}
+.setupLegendSwatch.noschool{background:#cf5f5f}.setupLegendSwatch.inservice{background:#8b6bb8}.setupLegendSwatch.earlydismissal{background:#d58a2b}
+.setupYearAtAGlance{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:10px;background:#fff}
+.setupYearHint{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.setupYearGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.setupYearMonth{border:1px solid #e0e4ec;border-radius:10px;padding:8px;background:#fbfcfe}
+.setupYearMonth h5{margin:0 0 7px;text-align:center;font-size:14px}
+.setupYearWeekdays,.setupYearDays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.setupYearWeekdays span{text-align:center;font-size:10px;font-weight:700;color:var(--muted,#667085)}
+.setupYearBlank{aspect-ratio:1}
+.setupYearDay{position:relative;min-width:0;aspect-ratio:1;padding:0;border:1px solid transparent;border-radius:5px;background:#f3f5f8;font-size:11px;display:grid;place-items:center;cursor:pointer}
+.setupYearDay:hover{border-color:#9bbcf0;transform:translateY(-1px)}
+.setupYearDay.schoolDay{background:#fff}
+.setupYearDay.outsideDay{opacity:.38;background:#eef1f5}
+.setupYearDay.noschool{background:rgba(207,95,95,.18);border-color:#cf5f5f}
+.setupYearDay.inservice{background:rgba(139,107,184,.18);border-color:#8b6bb8}
+.setupYearDay.earlydismissal{background:rgba(213,138,43,.20);border-color:#d58a2b}
+.setupYearDay b{font-weight:600}.setupYearMarker{position:absolute;right:2px;bottom:0;font-size:13px;line-height:1}
+.setupDateEditorModal{max-width:500px;width:min(500px,calc(100vw - 30px))}
+.setupDateEditorModal label{display:block}.setupDateEditorModal input,.setupDateEditorModal select{width:100%;box-sizing:border-box;margin-top:4px}
+.setupDateEditorActions{display:flex;gap:8px;margin-top:16px}
+.setupEditableRow{grid-template-columns:145px 175px minmax(220px,1fr) auto auto}
+.setupEditableRow button{padding:6px 9px}
+.setupEarlyAssignment{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:12px;margin-top:14px;background:#fff}
+.setupAssignmentList{display:flex;flex-direction:column;gap:7px}
+.setupAssignmentRow{display:grid;grid-template-columns:minmax(220px,1fr) minmax(240px,360px);gap:10px;align-items:center;padding:8px;border:1px solid #e5e8ee;border-radius:8px;background:#fbfcfe}
+.setupAssignmentRow>div{display:flex;flex-direction:column;gap:2px}.setupAssignmentRow select{width:100%;box-sizing:border-box}.setupWarning{padding:10px;border-radius:8px;background:#fff4e5;border:1px solid #f1c27d;margin-top:10px}.setupAssignmentHint{margin:8px 0 0}
+@media(max-width:900px){.setupYearGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.setupYearGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.setupAssignmentRow{grid-template-columns:1fr}.setupEditableRow{grid-template-columns:1fr auto}.setupExceptionRow select,.setupExceptionRow input:nth-child(3){grid-column:1/-1}}
+@media(max-width:480px){.setupYearGrid{grid-template-columns:1fr}.setupViewToggle{width:100%}.setupViewToggle button{flex:1}}
 </style>
 
 </body>
