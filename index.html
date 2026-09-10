@@ -686,7 +686,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.0.4";
+const APP_VERSION="3.1.0";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -731,6 +731,8 @@ const seed={
  events:[],notes:[],schoolDays:[],totalSchoolDays:178,gradeCourses:[],
  profileAvatar:"",
  calendarSettings:{firstStudentDay:"",lastStudentDay:""},
+ setupComplete:false,
+ pvaasSettings:{customEndDate:""},
  calendarOverrides:{},
  calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
  calendarViewDate:new Date().toISOString().slice(0,7),
@@ -903,7 +905,7 @@ const SIDEBAR_ITEMS=[
   ["accommodations","🧩","Accommodations"],
   ["calendar","🗓️","Calendar"],
   ["buttons","⚡","Quick Buttons"],
-  ["grades","📚","Grades"],
+  ["grades","📚","Grade Calculator"],
   ["reports","📊","Reports"],
   ["pvaas","📈","PVAAS Reporting"],
   ["settings","⚙️","Settings"]
@@ -1063,6 +1065,10 @@ render();
   }
   initializedUserData=true;
   render();
+  if(!data.setupComplete && !window.setupPrompted){
+    window.setupPrompted=true;
+    setTimeout(()=>window.openSetupWizard(),250);
+  }
 }
 
 function save(){
@@ -1153,7 +1159,10 @@ function pvaasDaysForPeriod(start,end){
   } return n;
 }
 function pvaasTotalDays(){
-  const start=schoolStartDate(),end=schoolEndDate(); return start&&end?pvaasDaysForPeriod(start,end):178;
+  const start=schoolStartDate();
+  const configured=data.pvaasSettings?.customEndDate||"";
+  const end=configured||schoolEndDate();
+  return start&&end?pvaasDaysForPeriod(start,end):178;
 }
 
 function ensurePvaasData(){
@@ -1201,10 +1210,11 @@ function pvaas(){
   const cohortOptions=[`<option value="allStudents" ${cohortFilter==="allStudents"?"selected":""}>All PVAAS Students</option>`,...data.pvaasCohorts.filter(c=>c.id!=="all").map(c=>`<option value="${c.id}" ${cohortFilter===c.id?"selected":""}>${esc(c.name)}</option>`)];
   return `<header><div><h2>PVAAS Reporting</h2><p>All students from PVAAS-reportable classes are combined into one alphabetized roster. Class sections are kept only as a reference.</p></div></header>
   <section class="card"><div class="pvaasControls"><div><h3 style="margin-bottom:4px">PVAAS Cohort</h3><label class="small">View cohort<br><select onchange="window.setPvaasCohortFilter(this.value)">${cohortOptions.join("")}</select></label></div><div><button onclick="window.openPvaasCohortManager()">Manage Cohorts</button></div></div>
-  <p class="small" style="margin-top:10px">${classes.length?`${classes.length} course${classes.length===1?"":"s"} selected for PVAAS · ${rows.length} unique student${rows.length===1?"":"s"} · ${total} instructional days`:`No courses are currently marked for PVAAS.`}</p></section>
+  <p class="small" style="margin-top:10px">${classes.length?`${classes.length} course${classes.length===1?"":"s"} selected for PVAAS · ${rows.length} unique student${rows.length===1?"":"s"} · ${total} instructional days`:`No courses are currently marked for PVAAS.`}</p><div class="pvaasEndSetting"><label><b>PVAAS reporting end date</b><br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label><span class="small">Leave blank to use the last student day. Set this to the test date when reporting should stop there.</span></div></section>
   ${classes.length?`<section class="card"><h3>Student Responsibility Matrix</h3><p class="small">Students are alphabetized by last name. If a student is enrolled in more than one PVAAS class, they appear only once in this matrix.</p><div class="pvaasMatrixWrap"><table class="pvaasTable"><thead><tr><th>Student</th><th>% Responsible</th><th>Enrollment Period(s)</th><th>Responsibility Days</th><th>Cohort</th></tr></thead><tbody>${filtered.map(r=>{const st=r.student;const pct=total?Math.round(r.days/total*1000)/10:0;const cohortId=pvaasCohortId(st.id);return `<tr><td><b>${esc(studentDisplayName(st))}</b></td><td><b>${pct}%</b></td><td><div class="pvaasPeriodsInline">${r.classes.map(cls=>{const periods=classEnrollmentPeriods(cls,st.id);return periods.map(p=>`<div class="pvaasPeriodInline"><label>Enroll <input type="date" value="${p.start||""}" onchange="window.updateEnrollmentPeriod('${cls.id}','${p.id}','start',this.value)"></label><label>Unenroll <input type="date" value="${p.end||""}" onchange="window.updateEnrollmentPeriod('${cls.id}','${p.id}','end',this.value)"></label>${periods.length>1?`<button type="button" class="tinyBtn" title="Remove period" onclick="window.removeEnrollmentPeriod('${cls.id}','${p.id}')">×</button>`:""}</div>`).join("")+`<button type="button" class="tinyBtn" onclick="window.addEnrollmentPeriod('${cls.id}','${st.id}')">+ Period</button>`}).join("")}</div></td><td><b>${r.days} / ${total}</b></td><td><select onchange="window.setPvaasStudentCohort('${st.id}',this.value)">${data.pvaasCohorts.map(c=>`<option value="${c.id}" ${cohortId===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select></td></tr>`;}).join("")||`<tr><td colspan="5" class="small">No students in this cohort yet.</td></tr>`}</tbody></table></div></section>`:`<section class="card"><p class="small">Go to Students & Classes → Edit the course → PVAAS Reporting and check “Report this course for PVAAS.”</p></section>`}`;
 }
 window.setPvaasCohortFilter=value=>{window.pvaasCohortFilter=value;render();};
+window.setPvaasEndDate=value=>{data.pvaasSettings??={customEndDate:""};data.pvaasSettings.customEndDate=value||"";save();render();};
 window.setPvaasStudentCohort=(studentId,cohortId)=>{ensurePvaasData();data.pvaasStudentCohorts[studentId]=cohortId;save();render();};
 window.openPvaasCohortManager=()=>{
   ensurePvaasData();document.querySelector('#pvaasCohortModal')?.remove();
@@ -2767,10 +2777,13 @@ function gradeComponents(c){
 }
 function baseWeights(c){
   const comps=gradeComponents(c),qs=comps.filter(x=>x.kind==="quarter"),ex=comps.filter(x=>x.kind==="exam");
+  const defaults={};
+  if(ex.length===2){qs.forEach(x=>defaults[x.id]=1);ex.forEach(x=>defaults[x.id]=.5)}
+  else if(ex.length===1){[...qs,...ex].forEach(x=>defaults[x.id]=1)}
+  else qs.forEach(x=>defaults[x.id]=1);
+  const saved=c.gradeWeights&&typeof c.gradeWeights==="object"?c.gradeWeights:{};
   const w={};
-  if(ex.length===2){qs.forEach(x=>w[x.id]=1);ex.forEach(x=>w[x.id]=.5)}
-  else if(ex.length===1){[...qs,...ex].forEach(x=>w[x.id]=1)}
-  else qs.forEach(x=>w[x.id]=1);
+  comps.forEach(x=>{const v=Number(saved[x.id]);w[x.id]=Number.isFinite(v)&&v>=0?v:defaults[x.id]||0;});
   return w;
 }
 function currentAverage(c,sid){
@@ -2794,7 +2807,7 @@ function grades(){
   window.gradeCourseId=selectedId;
   window.gradeViewMode=window.gradeViewMode||"class";
   const c=courses.find(x=>x.id===selectedId);
-  if(!c)return `<header><h2>Grades</h2></header><section class="card"><h3>📚 Grades</h3><p>No eligible graded Full-Year or Semester courses yet.</p><p class="small">Edit a class and check <b>This is a graded course</b>. Trimester courses are intentionally excluded.</p></section>`;
+  if(!c)return `<header><h2>Grade Calculator</h2></header><section class="card"><h3>📚 Grades</h3><p>No eligible graded Full-Year or Semester courses yet.</p><p class="small">Edit a class and check <b>This is a graded course</b>. Trimester courses are intentionally excluded.</p></section>`;
   c.grades??={};
   const comps=gradeComponents(c);
   const allStudents=sortedStudents(data.students.filter(s=>(c.studentIds||[]).includes(s.id)));
@@ -2803,7 +2816,7 @@ function grades(){
   const students=window.gradeViewMode==="student"?allStudents.filter(s=>s.id===selectedStudentId):allStudents;
   const options=courses.map(x=>`<option value="${esc(x.id)}" ${x.id===c.id?"selected":""}>${esc(x.name)}</option>`).join("");
   const studentOptions=allStudents.map(s=>`<option value="${esc(s.id)}" ${s.id===selectedStudentId?"selected":""}>${esc(s.lastName||studentLastName(s))}, ${esc(s.firstName||studentFirstName(s))}</option>`).join("");
-  return `<header><h2>Grades</h2><p class="small">Current Average updates instantly as you enter or change grades. Blank future grades never count as zeros.</p></header>
+  return `<header><h2>Grade Calculator</h2><p class="small">Calculate current and projected grades. This is a grade calculator, not a full gradebook or grading system. Blank future grades never count as zeros.</p></header>
   <section class="card"><div class="gradeViewControls">
     <label>Select Course<br><select onchange="window.selectGradeCourse(this.value)">${options}</select></label>
     <label>View<br><select onchange="window.setGradeView(this.value)"><option value="class" ${window.gradeViewMode==="class"?"selected":""}>Class Grades</option><option value="student" ${window.gradeViewMode==="student"?"selected":""}>One Student</option></select></label>
@@ -2891,18 +2904,71 @@ function sidebarSettingsHTML(){
   }).join("");
 }
 
+
+function setupPreviewEscape(s){return esc(String(s??""));}
+window.openSetupWizard=()=>{
+  document.querySelector('#setupWizardModal')?.remove();
+  const cal=data.calendarSettings||{};
+  document.body.insertAdjacentHTML('beforeend',`<div id="setupWizardModal" class="modalbg"><div class="modal setupWizardModal"><div class="modalHead"><h3>🏫 School Setup</h3><button type="button" onclick="window.closeSetupWizard()">×</button></div><div class="modalBody">
+    <p>Import your district calendar and bell schedule instead of entering them by hand. The AI will suggest what it finds, and <b>nothing is saved until you review and approve it.</b></p>
+    <div class="setupStep"><h4>1. District Calendar</h4><p class="small">Upload the calendar your district publishes. PDF, image, text, or CSV are supported.</p><input id="setupCalendarFile" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv,application/pdf,image/*,text/plain,text/csv"><button class="primary" type="button" onclick="window.extractSetupDocument('calendar')">Read Calendar</button><div id="setupCalendarStatus" class="small"></div></div>
+    <div class="setupStep"><h4>2. Bell Schedule</h4><p class="small">Upload the district bell schedule. You can review and edit the schedules before saving.</p><input id="setupBellFile" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv,application/pdf,image/*,text/plain,text/csv"><button class="primary" type="button" onclick="window.extractSetupDocument('bell')">Read Bell Schedule</button><div id="setupBellStatus" class="small"></div></div>
+    <div id="setupReview" style="display:none"></div>
+    <div class="setupStep"><h4>3. Review & Finish</h4><p class="small">You can always change these settings later from Settings.</p><div id="setupSummary">${cal.firstStudentDay||cal.lastStudentDay?`Current calendar: ${setupPreviewEscape(cal.firstStudentDay)} through ${setupPreviewEscape(cal.lastStudentDay)}`:'No calendar imported yet.'}</div></div>
+  </div><div class="modalActions"><button class="primary" type="button" onclick="window.finishSetupWizard()">Save Setup</button><button type="button" onclick="window.closeSetupWizard()">Cancel</button></div></div></div>`);
+};
+window.closeSetupWizard=()=>document.querySelector('#setupWizardModal')?.remove();
+window.extractSetupDocument=async kind=>{
+  const input=document.getElementById(kind==='calendar'?'setupCalendarFile':'setupBellFile');
+  const file=input?.files?.[0]; if(!file){alert(`Please choose a ${kind==='calendar'?'district calendar':'bell schedule'} file first.`);return;}
+  if(file.size>15*1024*1024){alert('Please use a document 15 MB or smaller.');return;}
+  const status=document.getElementById(kind==='calendar'?'setupCalendarStatus':'setupBellStatus'); if(status)status.textContent='Reading with AI…';
+  try{
+    const token=currentUser?.getIdToken?await currentUser.getIdToken():''; if(!token)throw new Error('You must be signed in.');
+    const form=new FormData();form.append('file',file,file.name||`${kind}.pdf`);form.append('mode',`setup_${kind}`);
+    const res=await fetch(ACCOMMODATION_AI_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
+    const payload=await res.json().catch(()=>({})); if(!res.ok)throw new Error(payload.error||`Setup import failed (${res.status}).`);
+    window.setupDraft=window.setupDraft||{};window.setupDraft[kind]=payload;
+    renderSetupReview(); if(status)status.textContent='Read successfully. Review the suggestions below.';
+  }catch(err){console.error(err);if(status)status.textContent='Could not read the file.';alert(err.message||'Setup import failed.');}
+};
+function renderSetupReview(){
+  const host=document.getElementById('setupReview');if(!host)return;const d=window.setupDraft||{};
+  const c=d.calendar||{};const b=d.bell||{};
+  host.style.display='block';
+  host.innerHTML=`<div class="setupReviewBox"><h4>Review what I found</h4>${d.calendar?`<div class="setupReviewSection"><b>Calendar</b><div class="settingsGrid"><label>First Student Day<br><input id="setupFirstDay" type="date" value="${esc(c.firstStudentDay||"")}"></label><label>Last Student Day<br><input id="setupLastDay" type="date" value="${esc(c.lastStudentDay||"")}"></label></div><p class="small">${Number(c.noSchoolDates?.length||0)} no-school dates · ${Number(c.inserviceDates?.length||0)} in-service dates · ${Number(c.markers?.length||0)} academic markers</p></div>`:''}${d.bell?`<div class="setupReviewSection"><b>Bell Schedules</b><p class="small">${Array.isArray(b.schedules)?b.schedules.length:0} schedule${(b.schedules?.length||0)===1?'':'s'} found.</p>${(b.schedules||[]).map((x,i)=>`<details><summary>${esc(x.name||`Schedule ${i+1}`)} — ${(x.periods||[]).length} blocks</summary><div class="small">${(x.periods||[]).map(p=>`${esc(p[0]||'Block')}: ${esc(p[1]||'')}–${esc(p[2]||'')}`).join('<br>')}</div></details>`).join('')}</div>`:''}</div>`;
+}
+window.finishSetupWizard=()=>{
+  const d=window.setupDraft||{};const c=d.calendar||{};
+  data.calendarSettings??={firstStudentDay:'',lastStudentDay:''};
+  const first=document.getElementById('setupFirstDay')?.value||c.firstStudentDay||data.calendarSettings.firstStudentDay||'';
+  const last=document.getElementById('setupLastDay')?.value||c.lastStudentDay||data.calendarSettings.lastStudentDay||'';
+  if(first)data.calendarSettings.firstStudentDay=first;if(last)data.calendarSettings.lastStudentDay=last;
+  data.calendarOverrides??={};
+  (c.noSchoolDates||[]).forEach(date=>{if(/^\d{4}-\d{2}-\d{2}$/.test(date))data.calendarOverrides[date]={...(data.calendarOverrides[date]||{}),type:'noschool'};});
+  (c.inserviceDates||[]).forEach(date=>{if(/^\d{4}-\d{2}-\d{2}$/.test(date))data.calendarOverrides[date]={...(data.calendarOverrides[date]||{}),type:'inservice'};});
+  (c.markers||[]).forEach(m=>{if(!m?.date||!/^\d{4}-\d{2}-\d{2}$/.test(m.date))return;const o=data.calendarOverrides[m.date]||{};const key=({beginNineWeeks:'nineWeeks',endNineWeeks:'endNineWeeks',beginTrimester:'trimester',endTrimester:'endTrimester',beginSemester:'semester',endSemester:'endSemester'})[m.kind];if(key)o[key]=true;if(m.label)o.notes=[...(o.notes||[]),m.label];data.calendarOverrides[m.date]=o;});
+  if(Array.isArray(d.bell?.schedules)&&d.bell.schedules.length){data.bellSchedules=d.bell.schedules.map((x,i)=>({id:x.id||`imported_${Date.now().toString(36)}_${i}`,name:String(x.name||`Imported Schedule ${i+1}`),kind:i===0?'regular':'alternate',periods:(x.periods||[]).map(p=>[String(p[0]||''),String(p[1]||''),String(p[2]||'')]).filter(p=>p.some(Boolean))})).filter(x=>x.periods.length);if(!data.bellSchedules.some(x=>x.id==='regular'))data.bellSchedules[0].id='regular';}
+  data.setupComplete=true;save();window.setupDraft=null;window.closeSetupWizard();toast='School setup saved.';render();
+};
 function settings(){
   const userLabel=currentUser?.displayName||currentUser?.email||"Google user";
-  return `<header><h2>Settings</h2></header>
+  const cal=data.calendarSettings||{};
+  return `<header><h2>Settings</h2><p class="small">Set up the parts of Teacher Dashboard that vary by school or district.</p></header>
+  <section class="card setupCard"><div><h3>🏫 School Setup</h3><p class="small">Import your district calendar and bell schedules, then review everything before it becomes part of your dashboard.</p></div><button class="primary" onclick="window.openSetupWizard()">${data.setupComplete?"Review School Setup":"Start School Setup"}</button></section>
   <section class="card"><h3>Account</h3><div class="accountRow">${avatarHTML()}<div><b>${esc(userLabel)}</b><div class="small">${esc(currentUser?.email||"")}</div></div></div>
   <div class="avatarActions"><button type="button" onclick="document.getElementById('avatarFile').click()">📷 Upload a picture</button>${data.profileAvatar?`<button type="button" onclick="window.useGooglePhoto()">Use Google picture</button>`:""}</div>
   <input id="avatarFile" type="file" accept="image/*" style="display:none" onchange="window.uploadAvatar(this)"><button style="margin-top:12px" onclick="window.signOut()">Sign out</button></section>
-  <section class="card"><h3>Sidebar Layout</h3><p class="small">Choose which sections appear in your sidebar and arrange them in the order you prefer. Changes are saved to your dashboard.</p><div class="sidebarEditorList">${sidebarSettingsHTML()}</div><button type="button" onclick="window.resetSidebarLayout()">Reset to Default</button></section>
+  <section class="card"><h3>Sidebar Layout</h3><p class="small">Choose which sections appear in your sidebar and arrange them in the order you prefer.</p><div class="sidebarEditorList">${sidebarSettingsHTML()}</div><button type="button" onclick="window.resetSidebarLayout()">Reset to Default</button></section>
+  <section class="card"><h3>📅 Calendar & PVAAS</h3><div class="settingsGrid"><label>First Student Day<br><input type="date" value="${esc(cal.firstStudentDay||"")}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input type="date" value="${esc(cal.lastStudentDay||"")}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label><label>PVAAS End Date<br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label></div><p class="small">PVAAS uses this end date when it is set; otherwise it uses the last student day.</p></section>
+  <section class="card"><h3>🧮 Grade Calculator Defaults</h3><p class="small">Scoring is configured separately for each class from the Grade Calculator. Your existing JM defaults remain unchanged.</p></section>
+  <section class="card"><h3>👩‍🎓 Google Classroom</h3><p class="small">Roster syncing is the next integration. It will let you authorize Google Classroom and import selected classes without typing rosters by hand.</p><button type="button" disabled>Connect Google Classroom — coming next</button></section>
   <section class="card"><h3>Data Storage</h3><p><b>☁️ ${esc(cloudStatus)}</b></p><div class="syncTime"><b>Last sync:</b> ${esc(formatSync(lastSyncAt))}</div><p class="small">Your dashboard is stored separately for each signed-in Google account.</p></section>
   <section class="card"><h3>Keystone Tracking</h3><label>Total counted school days<br><input type="number" value="${data.totalSchoolDays}" onchange="window.setTotalDays(this.value)"></label></section>
   <section class="card"><h3>Local Data Backup</h3><p class="small">Download a backup before major updates. You can also import it later.</p><button onclick="window.exportData()">Download backup</button> <button onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="window.importData(this)"></section>
   <section class="card"><button onclick="window.resetData()">Reset this dashboard to demo data</button></section>`;
 }
+
 function modalHTML(){return `<div class="modalbg"><div class="modal"><h3>📝 ${selected.eventId?"Comment":"Note"} for ${esc(selected.student.name)}</h3><textarea id="noteText" placeholder="Optional context or general note..."></textarea><p class="small">A comment is optional. Save will also work without typing anything.</p><div><button class="primary" onclick="window.saveNote()">Save</button> <button onclick="window.closeNote()">Cancel</button></div></div></div>`}
 
 window.toggleStopwatch=()=>{
@@ -3563,6 +3629,7 @@ window.openGradeSettings=id=>{
   <label><input id="gsFinal" type="checkbox" ${c.giveFinal?"checked":""}> Give Final</label><br>
   <label><input id="gsRecommendations" type="checkbox" ${c.usesRecommendations?"checked":""}> Uses Recommendations</label>
   </div></details>
+  <details class="collapsibleFieldset" open><summary>⚖️ Score Weights</summary><div class="collapsibleInner"><p class="small">Adjust how each component contributes to the calculated average. These settings apply only to this class.</p><div class="gradeWeightGrid">${gradeComponents(c).map(x=>`<label>${esc(x.label)}<br><input class="gradeWeightInput" data-weight-id="${esc(x.id)}" type="number" min="0" step="0.01" value="${esc(baseWeights(c)[x.id])}"></label>`).join("")}</div></div></details>
   <details class="collapsibleFieldset"><summary>🎓 Recommendation Rules</summary><div class="collapsibleInner"><p class="small">Rules are evaluated from top to bottom. The first matching rule wins.</p>
   <div id="recommendationRules">${rules}</div><button type="button" onclick="window.addRecommendationRule()">＋ Add Rule</button></div></details>
   <div style="margin-top:16px"><button class="primary" onclick="window.saveGradeSettings('${c.id}')">Save Settings</button> <button onclick="window.closeGradeSettings()">Cancel</button></div></div></div>`);
@@ -3578,6 +3645,7 @@ window.closeGradeSettings=()=>document.querySelector("#gradeSettingsModal")?.rem
 window.saveGradeSettings=id=>{
  const c=data.classes.find(x=>x.id===id);if(!c)return;
  c.graded=!!$("#gsGraded")?.checked;c.giveMidterm=!!$("#gsMidterm")?.checked;c.giveFinal=!!$("#gsFinal")?.checked;c.usesRecommendations=!!$("#gsRecommendations")?.checked;
+ c.gradeWeights={};document.querySelectorAll('.gradeWeightInput').forEach(el=>{const v=Number(el.value);if(Number.isFinite(v)&&v>=0)c.gradeWeights[el.dataset.weightId]=v;});
  c.recommendationRules=[...document.querySelectorAll(".recommendationRule")].map(el=>({op:el.querySelector(".rrOp").value,a:el.querySelector(".rrA").value,b:el.querySelector(".rrB")?.value||"",title:el.querySelector(".rrTitle").value.trim()})).filter(r=>r.title&&r.a!=="");
  save();window.closeGradeSettings();render();
 }
@@ -3775,6 +3843,8 @@ window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("ac
   #content .lessonStatusShort{display:inline!important;}
   #content .lessonStatusAll .lessonStatusShort{font-weight:700!important;}
 }
+
+.setupWizardModal{max-width:820px}.setupStep,.setupReviewBox{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfe}.setupStep h4,.setupReviewBox h4{margin:0 0 7px}.setupReviewSection{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.settingsGrid,.gradeWeightGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.gradeWeightGrid input{width:100%;box-sizing:border-box}.pvaasEndSetting{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupCard{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 </style>
 
 </body>
