@@ -686,7 +686,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.0";
+const APP_VERSION="3.1.1";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -2906,6 +2906,42 @@ function sidebarSettingsHTML(){
 
 
 function setupPreviewEscape(s){return esc(String(s??""));}
+function setupDateOk(d){return /^\d{4}-\d{2}-\d{2}$/.test(String(d||""));}
+function setupDateObj(v){
+  if(typeof v==='string')return {date:v,label:""};
+  return {date:String(v?.date||""),label:String(v?.label||"")};
+}
+function setupCalendarList(kind){
+  const d=window.setupDraft?.calendar||{};
+  const list=Array.isArray(d[kind])?d[kind].map(setupDateObj):[];
+  d[kind]=list;
+  return list;
+}
+function setupMarkers(){
+  const d=window.setupDraft?.calendar||{};
+  d.markers=Array.isArray(d.markers)?d.markers.map(m=>({date:String(m?.date||""),kind:String(m?.kind||"beginNineWeeks"),label:String(m?.label||"")})) : [];
+  return d.markers;
+}
+function setupDraftCalendarChanged(){renderSetupReview();}
+window.setupCalendarBoundary=(key,value)=>{window.setupDraft??={};window.setupDraft.calendar??={};window.setupDraft.calendar[key]=value;renderSetupReview();};
+window.setupDateChanged=(kind,index,key,value)=>{const list=setupCalendarList(kind);if(!list[index])return;list[index][key]=value;renderSetupReview();};
+window.setupRemoveDate=(kind,index)=>{const list=setupCalendarList(kind);list.splice(index,1);renderSetupReview();};
+window.setupAddDate=(kind)=>{const d=window.setupDraft?.calendar;if(!d)return;const list=setupCalendarList(kind);list.push({date:"",label:""});renderSetupReview();};
+window.setupMarkerChanged=(index,key,value)=>{const list=setupMarkers();if(!list[index])return;list[index][key]=value;renderSetupReview();};
+window.setupRemoveMarker=(index)=>{const list=setupMarkers();list.splice(index,1);renderSetupReview();};
+window.setupAddMarker=()=>{const d=window.setupDraft?.calendar;if(!d)return;setupMarkers().push({date:"",kind:"beginNineWeeks",label:""});renderSetupReview();};
+function setupBellSchedules(){
+  const d=window.setupDraft?.bell||{};
+  d.schedules=Array.isArray(d.schedules)?d.schedules:[];
+  return d.schedules;
+}
+window.setupScheduleChanged=(index,key,value)=>{const list=setupBellSchedules();if(!list[index])return;list[index][key]=value;renderSetupReview();};
+window.setupPeriodChanged=(si,pi,key,value)=>{const list=setupBellSchedules();const p=list[si]?.periods?.[pi];if(!p)return;p[key]=value;renderSetupReview();};
+window.setupRemoveSchedule=(index)=>{const list=setupBellSchedules();list.splice(index,1);if(list.length&&!list.some(x=>x.kind==='regular'))list[0].kind='regular';renderSetupReview();};
+window.setupAddSchedule=()=>{setupBellSchedules().push({id:`setup_${Date.now()}`,name:"New Schedule",kind:setupBellSchedules().length?'alternate':'regular',periods:[]});renderSetupReview();};
+window.setupAddPeriod=(si)=>{const s=setupBellSchedules()[si];if(!s)return;s.periods??=[];s.periods.push([`Block ${s.periods.length+1}`,'','']);renderSetupReview();};
+window.setupRemovePeriod=(si,pi)=>{const s=setupBellSchedules()[si];if(!s)return;s.periods.splice(pi,1);renderSetupReview();};
+window.setupMakeRegular=(si)=>{const list=setupBellSchedules();list.forEach((x,i)=>x.kind=i===si?'regular':'alternate');renderSetupReview();};
 window.openSetupWizard=()=>{
   document.querySelector('#setupWizardModal')?.remove();
   const cal=data.calendarSettings||{};
@@ -2914,7 +2950,7 @@ window.openSetupWizard=()=>{
     <div class="setupStep"><h4>1. District Calendar</h4><p class="small">Upload the calendar your district publishes. PDF, image, text, or CSV are supported.</p><input id="setupCalendarFile" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv,application/pdf,image/*,text/plain,text/csv"><button class="primary" type="button" onclick="window.extractSetupDocument('calendar')">Read Calendar</button><div id="setupCalendarStatus" class="small"></div></div>
     <div class="setupStep"><h4>2. Bell Schedule</h4><p class="small">Upload the district bell schedule. You can review and edit the schedules before saving.</p><input id="setupBellFile" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv,application/pdf,image/*,text/plain,text/csv"><button class="primary" type="button" onclick="window.extractSetupDocument('bell')">Read Bell Schedule</button><div id="setupBellStatus" class="small"></div></div>
     <div id="setupReview" style="display:none"></div>
-    <div class="setupStep"><h4>3. Review & Finish</h4><p class="small">You can always change these settings later from Settings.</p><div id="setupSummary">${cal.firstStudentDay||cal.lastStudentDay?`Current calendar: ${setupPreviewEscape(cal.firstStudentDay)} through ${setupPreviewEscape(cal.lastStudentDay)}`:'No calendar imported yet.'}</div></div>
+    <div class="setupStep"><h4>3. Review & Finish</h4><p class="small">Nothing above becomes official until you click Save Setup. You can also change school settings later from Settings.</p><div id="setupSummary">${cal.firstStudentDay||cal.lastStudentDay?`Current calendar: ${setupPreviewEscape(cal.firstStudentDay)} through ${setupPreviewEscape(cal.lastStudentDay)}`:'No calendar imported yet.'}</div></div>
   </div><div class="modalActions"><button class="primary" type="button" onclick="window.finishSetupWizard()">Save Setup</button><button type="button" onclick="window.closeSetupWizard()">Cancel</button></div></div></div>`);
 };
 window.closeSetupWizard=()=>document.querySelector('#setupWizardModal')?.remove();
@@ -2929,14 +2965,40 @@ window.extractSetupDocument=async kind=>{
     const res=await fetch(ACCOMMODATION_AI_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
     const payload=await res.json().catch(()=>({})); if(!res.ok)throw new Error(payload.error||`Setup import failed (${res.status}).`);
     window.setupDraft=window.setupDraft||{};window.setupDraft[kind]=payload;
-    renderSetupReview(); if(status)status.textContent='Read successfully. Review the suggestions below.';
+    if(kind==='calendar'){
+      const c=window.setupDraft.calendar||{};
+      c.noSchoolDates=(Array.isArray(c.noSchoolDates)?c.noSchoolDates:[]).map(setupDateObj).filter(x=>setupDateOk(x.date));
+      c.inserviceDates=(Array.isArray(c.inserviceDates)?c.inserviceDates:[]).map(setupDateObj).filter(x=>setupDateOk(x.date));
+      c.markers=(Array.isArray(c.markers)?c.markers:[]).map(m=>({date:String(m?.date||''),kind:String(m?.kind||'beginNineWeeks'),label:String(m?.label||'')})).filter(m=>setupDateOk(m.date));
+      window.setupDraft.calendar=c;
+    }
+    if(kind==='bell'){
+      const b=window.setupDraft.bell||{};
+      b.schedules=(Array.isArray(b.schedules)?b.schedules:[]).map((x,i)=>({id:x.id||`setup_${Date.now().toString(36)}_${i}`,name:String(x.name||`Schedule ${i+1}`),kind:x.kind==='regular'||i===0?'regular':'alternate',periods:(Array.isArray(x.periods)?x.periods:[]).map((p,j)=>Array.isArray(p)?[String(p[0]||`Block ${j+1}`),String(p[1]||''),String(p[2]||'')]:[]).filter(p=>p.some(Boolean))}));
+      if(b.schedules.length&&!b.schedules.some(x=>x.kind==='regular'))b.schedules[0].kind='regular';
+      window.setupDraft.bell=b;
+    }
+    renderSetupReview(); if(status)status.textContent='Read successfully. Review and correct anything needed below.';
   }catch(err){console.error(err);if(status)status.textContent='Could not read the file.';alert(err.message||'Setup import failed.');}
 };
+function setupDateRowsHTML(kind,title){
+  const list=setupCalendarList(kind);
+  return `<div class="setupReviewSubhead"><b>${esc(title)}</b><button type="button" onclick="window.setupAddDate('${kind}')">＋ Add date</button></div>${list.length?`<div class="setupEditableList">${list.map((x,i)=>`<div class="setupEditableRow"><input type="date" value="${esc(x.date)}" onchange="window.setupDateChanged('${kind}',${i},'date',this.value)"><input type="text" value="${esc(x.label)}" placeholder="Label (optional)" onchange="window.setupDateChanged('${kind}',${i},'label',this.value)"><button type="button" title="Remove" onclick="window.setupRemoveDate('${kind}',${i})">×</button></div>`).join('')}</div>`:`<p class="small setupEmpty">None found. You can add one if the calendar is missing a date.</p>`}`;
+}
+function setupMarkersHTML(){
+  const list=setupMarkers();
+  const options=[['beginNineWeeks','Beginning of Nine Weeks'],['endNineWeeks','End of Nine Weeks'],['beginTrimester','Beginning of Trimester'],['endTrimester','End of Trimester'],['beginSemester','Beginning of Semester'],['endSemester','End of Semester']];
+  return `<div class="setupReviewSubhead"><b>Academic Markers</b><button type="button" onclick="window.setupAddMarker()">＋ Add marker</button></div>${list.length?`<div class="setupEditableList">${list.map((x,i)=>`<div class="setupEditableRow setupMarkerRow"><input type="date" value="${esc(x.date)}" onchange="window.setupMarkerChanged(${i},'date',this.value)"><select onchange="window.setupMarkerChanged(${i},'kind',this.value)">${options.map(o=>`<option value="${o[0]}" ${x.kind===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select><input type="text" value="${esc(x.label)}" placeholder="Label (optional)" onchange="window.setupMarkerChanged(${i},'label',this.value)"><button type="button" title="Remove" onclick="window.setupRemoveMarker(${i})">×</button></div>`).join('')}</div>`:`<p class="small setupEmpty">None found. Add any quarter, semester, or trimester marker the district calendar uses.</p>`}`;
+}
+function setupBellHTML(){
+  const list=setupBellSchedules();
+  return `${list.map((x,i)=>`<div class="setupScheduleEditor"><div class="setupScheduleHead"><div><input class="setupScheduleName" type="text" value="${esc(x.name||'')}" onchange="window.setupScheduleChanged(${i},'name',this.value)"><label class="small setupRegularChoice"><input type="radio" name="setupRegularSchedule" ${x.kind==='regular'?'checked':''} onchange="window.setupMakeRegular(${i})"> Regular/default</label></div><button type="button" onclick="window.setupRemoveSchedule(${i})">Remove schedule</button></div><div class="setupEditableList">${(x.periods||[]).map((p,j)=>`<div class="setupPeriodRow"><input type="text" value="${esc(p[0]||'')}" placeholder="Block name" onchange="window.setupPeriodChanged(${i},${j},0,this.value)"><input type="time" value="${esc(p[1]||'')}" onchange="window.setupPeriodChanged(${i},${j},1,this.value)"><span>to</span><input type="time" value="${esc(p[2]||'')}" onchange="window.setupPeriodChanged(${i},${j},2,this.value)"><button type="button" title="Remove block" onclick="window.setupRemovePeriod(${i},${j})">×</button></div>`).join('')||`<p class="small setupEmpty">No blocks yet.</p>`}</div><button type="button" onclick="window.setupAddPeriod(${i})">＋ Add block</button></div>`).join('')||`<p class="small setupEmpty">No schedules found. Add one manually.</p>`}<button type="button" class="setupAddSchedule" onclick="window.setupAddSchedule()">＋ Add schedule</button>`;
+}
 function renderSetupReview(){
   const host=document.getElementById('setupReview');if(!host)return;const d=window.setupDraft||{};
   const c=d.calendar||{};const b=d.bell||{};
   host.style.display='block';
-  host.innerHTML=`<div class="setupReviewBox"><h4>Review what I found</h4>${d.calendar?`<div class="setupReviewSection"><b>Calendar</b><div class="settingsGrid"><label>First Student Day<br><input id="setupFirstDay" type="date" value="${esc(c.firstStudentDay||"")}"></label><label>Last Student Day<br><input id="setupLastDay" type="date" value="${esc(c.lastStudentDay||"")}"></label></div><p class="small">${Number(c.noSchoolDates?.length||0)} no-school dates · ${Number(c.inserviceDates?.length||0)} in-service dates · ${Number(c.markers?.length||0)} academic markers</p></div>`:''}${d.bell?`<div class="setupReviewSection"><b>Bell Schedules</b><p class="small">${Array.isArray(b.schedules)?b.schedules.length:0} schedule${(b.schedules?.length||0)===1?'':'s'} found.</p>${(b.schedules||[]).map((x,i)=>`<details><summary>${esc(x.name||`Schedule ${i+1}`)} — ${(x.periods||[]).length} blocks</summary><div class="small">${(x.periods||[]).map(p=>`${esc(p[0]||'Block')}: ${esc(p[1]||'')}–${esc(p[2]||'')}`).join('<br>')}</div></details>`).join('')}</div>`:''}</div>`;
+  host.innerHTML=`<div class="setupReviewBox"><h4>Review what I found</h4>${d.calendar?`<div class="setupReviewSection"><b>Calendar</b><div class="settingsGrid"><label>First Student Day<br><input id="setupFirstDay" type="date" value="${esc(c.firstStudentDay||'')}" onchange="window.setupCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input id="setupLastDay" type="date" value="${esc(c.lastStudentDay||'')}" onchange="window.setupCalendarBoundary('lastStudentDay',this.value)"></label></div><p class="small">Review every imported date below. You can edit, delete, or add entries before saving.</p>${setupDateRowsHTML('noSchoolDates','No-School Dates')}${setupDateRowsHTML('inserviceDates','In-Service Dates')}${setupMarkersHTML()}</div>`:''}${d.bell?`<div class="setupReviewSection"><div class="setupReviewSubhead"><b>Bell Schedules</b><span class="small">${setupBellSchedules().length} schedule${setupBellSchedules().length===1?'':'s'} found.</span></div><p class="small">Every schedule and every block is editable. Make sure the schedule marked Regular/default is the ordinary school day.</p>${setupBellHTML()}</div>`:''}</div>`;
 }
 window.finishSetupWizard=()=>{
   const d=window.setupDraft||{};const c=d.calendar||{};
@@ -2945,12 +3007,14 @@ window.finishSetupWizard=()=>{
   const last=document.getElementById('setupLastDay')?.value||c.lastStudentDay||data.calendarSettings.lastStudentDay||'';
   if(first)data.calendarSettings.firstStudentDay=first;if(last)data.calendarSettings.lastStudentDay=last;
   data.calendarOverrides??={};
-  (c.noSchoolDates||[]).forEach(date=>{if(/^\d{4}-\d{2}-\d{2}$/.test(date))data.calendarOverrides[date]={...(data.calendarOverrides[date]||{}),type:'noschool'};});
-  (c.inserviceDates||[]).forEach(date=>{if(/^\d{4}-\d{2}-\d{2}$/.test(date))data.calendarOverrides[date]={...(data.calendarOverrides[date]||{}),type:'inservice'};});
-  (c.markers||[]).forEach(m=>{if(!m?.date||!/^\d{4}-\d{2}-\d{2}$/.test(m.date))return;const o=data.calendarOverrides[m.date]||{};const key=({beginNineWeeks:'nineWeeks',endNineWeeks:'endNineWeeks',beginTrimester:'trimester',endTrimester:'endTrimester',beginSemester:'semester',endSemester:'endSemester'})[m.kind];if(key)o[key]=true;if(m.label)o.notes=[...(o.notes||[]),m.label];data.calendarOverrides[m.date]=o;});
-  if(Array.isArray(d.bell?.schedules)&&d.bell.schedules.length){data.bellSchedules=d.bell.schedules.map((x,i)=>({id:x.id||`imported_${Date.now().toString(36)}_${i}`,name:String(x.name||`Imported Schedule ${i+1}`),kind:i===0?'regular':'alternate',periods:(x.periods||[]).map(p=>[String(p[0]||''),String(p[1]||''),String(p[2]||'')]).filter(p=>p.some(Boolean))})).filter(x=>x.periods.length);if(!data.bellSchedules.some(x=>x.id==='regular'))data.bellSchedules[0].id='regular';}
+  const importedDates=new Set();
+  (c.noSchoolDates||[]).map(setupDateObj).filter(x=>setupDateOk(x.date)).forEach(x=>{importedDates.add(x.date);const old=data.calendarOverrides[x.date]||{};data.calendarOverrides[x.date]={...old,type:'noschool',...(x.label?{notes:[x.label]}:{})};});
+  (c.inserviceDates||[]).map(setupDateObj).filter(x=>setupDateOk(x.date)).forEach(x=>{importedDates.add(x.date);const old=data.calendarOverrides[x.date]||{};data.calendarOverrides[x.date]={...old,type:'inservice',...(x.label?{notes:[x.label]}:{})};});
+  (c.markers||[]).filter(m=>setupDateOk(m?.date)).forEach(m=>{importedDates.add(m.date);const o=data.calendarOverrides[m.date]||{};const key=({beginNineWeeks:'nineWeeks',endNineWeeks:'endNineWeeks',beginTrimester:'trimester',endTrimester:'endTrimester',beginSemester:'semester',endSemester:'endSemester'})[m.kind];if(key)o[key]=true;if(m.label)o.notes=[...(o.notes||[]).filter(n=>n!==m.label),m.label];data.calendarOverrides[m.date]=o;});
+  if(Array.isArray(d.bell?.schedules)&&d.bell.schedules.length){const schedules=d.bell.schedules.map((x,i)=>({id:x.id||`imported_${Date.now().toString(36)}_${i}`,name:String(x.name||`Imported Schedule ${i+1}`),kind:x.kind==='regular'||i===0?'regular':'alternate',periods:(x.periods||[]).map(p=>[String(p[0]||''),String(p[1]||''),String(p[2]||'')]).filter(p=>p.some(Boolean))})).filter(x=>x.periods.length);if(schedules.length&&!schedules.some(x=>x.kind==='regular'))schedules[0].kind='regular';data.bellSchedules=schedules;}
   data.setupComplete=true;save();window.setupDraft=null;window.closeSetupWizard();toast='School setup saved.';render();
 };
+
 function settings(){
   const userLabel=currentUser?.displayName||currentUser?.email||"Google user";
   const cal=data.calendarSettings||{};
@@ -3844,7 +3908,7 @@ window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("ac
   #content .lessonStatusAll .lessonStatusShort{font-weight:700!important;}
 }
 
-.setupWizardModal{max-width:820px}.setupStep,.setupReviewBox{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfe}.setupStep h4,.setupReviewBox h4{margin:0 0 7px}.setupReviewSection{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.settingsGrid,.gradeWeightGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.gradeWeightGrid input{width:100%;box-sizing:border-box}.pvaasEndSetting{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupCard{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.setupWizardModal{max-width:820px}.setupStep,.setupReviewBox{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfe}.setupStep h4,.setupReviewBox h4{margin:0 0 7px}.setupReviewSection{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.settingsGrid,.gradeWeightGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.gradeWeightGrid input{width:100%;box-sizing:border-box}.pvaasEndSetting{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupCard{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.setupReviewSubhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 8px}.setupReviewSubhead button,.setupScheduleEditor>button,.setupAddSchedule{font-size:13px;padding:6px 9px}.setupEditableList{display:flex;flex-direction:column;gap:6px}.setupEditableRow{display:grid;grid-template-columns:150px minmax(150px,1fr) auto;gap:7px;align-items:center}.setupEditableRow input,.setupEditableRow select{width:100%;box-sizing:border-box}.setupEditableRow button,.setupScheduleHead button{flex:0 0 auto}.setupMarkerRow{grid-template-columns:150px minmax(190px,1fr) minmax(150px,1fr) auto}.setupEmpty{padding:8px 0;margin:0}.setupScheduleEditor{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupScheduleHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}.setupScheduleName{font-size:16px;font-weight:700;padding:6px 8px;border:1px solid var(--line,#d8dee8);border-radius:7px}.setupRegularChoice{margin-left:10px;white-space:nowrap}.setupPeriodRow{display:grid;grid-template-columns:minmax(150px,1fr) 110px auto 110px auto;gap:7px;align-items:center;margin-bottom:6px}.setupPeriodRow input{width:100%;box-sizing:border-box}.setupAddSchedule{margin-top:8px}@media(max-width:650px){.setupEditableRow,.setupMarkerRow{grid-template-columns:1fr auto}.setupEditableRow input:nth-child(2),.setupMarkerRow input:nth-child(3),.setupMarkerRow select{grid-column:1}.setupPeriodRow{grid-template-columns:1fr 100px auto 100px auto}.setupScheduleHead{align-items:flex-start;flex-direction:column}.setupRegularChoice{display:block;margin:6px 0 0}}
 </style>
 
 </body>
