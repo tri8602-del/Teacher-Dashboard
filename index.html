@@ -686,7 +686,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.4";
+const APP_VERSION="3.1.5";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -3056,20 +3056,29 @@ window.setupOpenDateEditor=(date)=>{
   const current=existing||{date,label:"",type:'noschool',kind:'noSchoolDates',index:-1,schedule:""};
   document.querySelector('#setupDateEditorModal')?.remove();
   const typeOptions=`<option value="noschool" ${current.type==='noschool'?'selected':''}>No School / Vacation</option><option value="inservice" ${current.type==='inservice'?'selected':''}>In-Service / Teacher Workday</option><option value="earlydismissal" ${current.type==='earlydismissal'?'selected':''}>Early Dismissal</option>`;
-  document.body.insertAdjacentHTML('beforeend',`<div id="setupDateEditorModal" class="modalbg"><div class="modal setupDateEditorModal"><h3>🗓️ ${date?new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}):'Calendar Exception'}</h3><label>Date<br><input id="setupEditDate" type="date" value="${esc(current.date||date||'')}"></label><label style="margin-top:10px">Type<br><select id="setupEditType">${typeOptions}</select></label><label style="margin-top:10px">Label<br><input id="setupEditLabel" type="text" value="${esc(current.label||'')}" placeholder="e.g. Professional Development Day"></label><div id="setupEditScheduleWrap" style="margin-top:10px;display:${current.type==='earlydismissal'?'block':'none'}"><label>Bell Schedule (optional)<br><select id="setupEditSchedule">${bellScheduleOptions(current.schedule||'')}</select></label><p class="small">You can assign a specific alternate bell schedule here now, or leave it for Step 2.</p></div><div class="setupDateEditorActions"><button class="primary" type="button" onclick="window.setupSaveDateEditor('${esc(date||'')}')">Save</button><button type="button" onclick="document.querySelector('#setupDateEditorModal')?.remove()">Cancel</button></div></div></div>`);
-  const typeEl=document.getElementById('setupEditType');
-  typeEl?.addEventListener('change',()=>{const wrap=document.getElementById('setupEditScheduleWrap');if(wrap)wrap.style.display=typeEl.value==='earlydismissal'?'block':'none';});
+  const deleteButton=existing?`<button type="button" class="setupDeleteDateButton" onclick="window.setupDeleteDateEditor('${esc(date||'')}')">Delete day</button>`:'';
+  document.body.insertAdjacentHTML('beforeend',`<div id="setupDateEditorModal" class="modalbg"><div class="modal setupDateEditorModal"><h3>🗓️ ${date?new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}):'Calendar Exception'}</h3><label>Date<br><input id="setupEditDate" type="date" value="${esc(current.date||date||'')}"></label><label style="margin-top:10px">Type<br><select id="setupEditType">${typeOptions}</select></label><label style="margin-top:10px">Label<br><input id="setupEditLabel" type="text" value="${esc(current.label||'')}" placeholder="e.g. Professional Development Day"></label><p class="small" style="margin-top:10px">Early-dismissal bell schedules are assigned in Step 2 after your schedules are set up.</p><div class="setupDateEditorActions"><button class="primary" type="button" onclick="window.setupSaveDateEditor('${esc(date||'')}')">Save</button><button type="button" onclick="document.querySelector('#setupDateEditorModal')?.remove()">Cancel</button>${deleteButton}</div></div></div>`);
+};
+window.setupDeleteDateEditor=(originalDate)=>{
+  if(!originalDate)return;
+  const existing=setupFindException(originalDate);
+  if(!existing)return;
+  if(!confirm(`Remove ${new Date(originalDate+'T12:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})} from the calendar exceptions?`))return;
+  const d=window.setupDraft?.calendar;if(!d)return;
+  ['noSchoolDates','inserviceDates','earlyDismissalDates'].forEach(k=>{setupCalendarList(k);d[k]=d[k].filter(x=>String(x.date||'')!==String(originalDate||''));});
+  setupDeriveMarkingPeriods();
+  document.querySelector('#setupDateEditorModal')?.remove();
+  renderSetupReview();
 };
 window.setupSaveDateEditor=(originalDate)=>{
   const date=document.getElementById('setupEditDate')?.value||'';
   const type=document.getElementById('setupEditType')?.value||'noschool';
   const label=document.getElementById('setupEditLabel')?.value||'';
-  const schedule=type==='earlydismissal'?(document.getElementById('setupEditSchedule')?.value||''):'';
   if(!setupDateOk(date)){alert('Please choose a valid date.');return;}
   const d=window.setupDraft?.calendar;if(!d)return;
   ['noSchoolDates','inserviceDates','earlyDismissalDates'].forEach(k=>{setupCalendarList(k);d[k]=d[k].filter(x=>String(x.date||'')!==String(originalDate||''));});
   const target=type==='inservice'?'inserviceDates':type==='earlydismissal'?'earlyDismissalDates':'noSchoolDates';
-  setupCalendarList(target).push({date,label,schedule});
+  setupCalendarList(target).push({date,label,schedule:''});
   setupDeriveMarkingPeriods();
   document.querySelector('#setupDateEditorModal')?.remove();
   renderSetupReview();
@@ -4162,7 +4171,7 @@ window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("ac
 .setupYearDay b{font-weight:600}.setupYearMarker{position:absolute;right:2px;bottom:0;font-size:13px;line-height:1}
 .setupDateEditorModal{max-width:500px;width:min(500px,calc(100vw - 30px))}
 .setupDateEditorModal label{display:block}.setupDateEditorModal input,.setupDateEditorModal select{width:100%;box-sizing:border-box;margin-top:4px}
-.setupDateEditorActions{display:flex;gap:8px;margin-top:16px}
+.setupDateEditorActions{display:flex;gap:8px;margin-top:16px;align-items:center;flex-wrap:wrap}.setupDeleteDateButton{margin-left:auto}
 .setupEditableRow{grid-template-columns:145px 175px minmax(220px,1fr) auto auto}
 .setupEditableRow button{padding:6px 9px}
 .setupEarlyAssignment{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:12px;margin-top:14px;background:#fff}
