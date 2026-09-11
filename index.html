@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V3.1.19</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V3.1.20</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -688,7 +688,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.19";
+const APP_VERSION="3.1.20";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -2059,21 +2059,35 @@ function openClassroomRosterMatcher(cid,roster){
   const c=data.classes.find(x=>x.id===cid);if(!c)return;
   document.querySelector("#classroomRosterMatcher")?.remove();
   const localStudents=sortedStudents(data.students.filter(st=>(c.studentIds||[]).includes(st.id)));
-  const rows=(roster||[]).map((student,i)=>{
-    const userId=String(student?.userId||"").trim();if(!userId)return "";
+  const classroomStudents=(roster||[]).filter(student=>String(student?.userId||"").trim()).map(student=>{
+    const userId=String(student.userId).trim();
     const info=splitClassroomName(student.profile||{});
-    const exact=localStudents.filter(st=>gcNameKey({firstName:studentFirstName(st),lastName:studentLastName(st)})===gcNameKey(info));
-    const existing=localStudents.find(st=>String(st.googleClassroomUserId||"")===userId);
-    const selected=existing?.id||((exact.length===1&&(!exact[0].googleClassroomUserId||String(exact[0].googleClassroomUserId)===userId))?exact[0].id:"");
-    const options=`<option value="">— Do not match —</option>`+localStudents.map(st=>{const conflict=st.googleClassroomUserId&&String(st.googleClassroomUserId)!==userId;return `<option value="${esc(st.id)}" ${String(st.id)===String(selected)?"selected":""}>${esc(studentDisplayName(st))}${conflict?" · already linked":""}</option>`}).join("");
-    return `<div class="classroomMatchRow" data-user-id="${esc(userId)}"><div><b>${esc(info.name||"Unnamed Student")}</b><div class="small">Classroom student</div></div><select class="classroomMatchSelect">${options}</select></div>`;
-  }).filter(Boolean).join("");
-  document.body.insertAdjacentHTML("beforeend",`<div id="classroomRosterMatcher" class="modalbg"><div class="modal classEditor"><h3>🔗 Match Classroom Students</h3><p class="small">Match Google Classroom students to students already in <b>${esc(c.name)}</b>. This does <b>not</b> add, remove, or replace students in your Dashboard roster. It only connects their Google Classroom identities so grades can be pulled.</p><div id="classroomMatchRows" style="max-height:55vh;overflow:auto">${rows||"<p class='small'>No Classroom students were found.</p>"}</div><div style="margin-top:16px"><button class="primary" onclick="window.saveClassroomRosterMatches('${c.id}')">Save Matches</button> <button onclick="window.closeClassroomRosterMatcher()">Cancel</button></div></div></div>`);
+    return {userId,name:info.name||"Unnamed Student",firstName:info.firstName||"",lastName:info.lastName||""};
+  }).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
+  const classroomOptions=(selectedId="")=>`<option value="">— No Classroom match —</option>`+classroomStudents.map(st=>`<option value="${esc(st.userId)}" ${String(st.userId)===String(selectedId)?"selected":""}>${esc(st.name)}</option>`).join("");
+  const rows=localStudents.map(st=>{
+    const existingId=String(st.googleClassroomUserId||"");
+    const exact=classroomStudents.filter(gs=>gcNameKey({firstName:st.firstName||studentFirstName(st),lastName:st.lastName||studentLastName(st)})===gcNameKey({firstName:gs.firstName,lastName:gs.lastName}));
+    const selectedId=existingId||((exact.length===1)?exact[0].userId:"");
+    const auto=!!selectedId&&!existingId&&exact.length===1;
+    return `<div class="classroomMatchRow" data-student-id="${esc(st.id)}" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.2fr);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #e5e7eb"><div><b>${esc(studentDisplayName(st))}</b><div class="small">Dashboard student${auto?" · suggested match":""}</div></div><select class="classroomMatchSelect" data-student-id="${esc(st.id)}">${classroomOptions(selectedId)}</select></div>`;
+  }).join("");
+  const matchedCount=localStudents.filter(st=>st.googleClassroomUserId&&classroomStudents.some(gs=>String(gs.userId)===String(st.googleClassroomUserId))).length;
+  document.body.insertAdjacentHTML("beforeend",`<div id="classroomRosterMatcher" class="modalbg"><div class="modal classEditor" style="max-width:850px"><h3>🔗 Match Classroom Students</h3><p class="small">Match the <b>${esc(c.name)}</b> students you already have in Teacher Dashboard to their Google Classroom identities. Your Dashboard roster will not change. Students are shown alphabetically; Google Classroom names are also alphabetical.</p><div class="softPanel" style="margin:10px 0 12px;padding:10px 12px"><b>${localStudents.length} Dashboard students</b> · ${matchedCount} already linked · ${classroomStudents.length} students in the selected Classroom course</div><div id="classroomMatchRows" style="max-height:55vh;overflow:auto;padding-right:4px">${rows||"<p class='small'>This Dashboard class has no students yet.</p>"}</div><div style="margin-top:16px"><button class="primary" onclick="window.saveClassroomRosterMatches('${c.id}')">Save Matches</button> <button onclick="window.closeClassroomRosterMatcher()">Cancel</button></div></div></div>`);
 }
 window.saveClassroomRosterMatches=cid=>{
   const c=data.classes.find(x=>x.id===cid);if(!c)return;
-  const assignments=[...document.querySelectorAll("#classroomMatchRows .classroomMatchRow")].map(row=>({userId:row.dataset.userId,studentId:row.querySelector(".classroomMatchSelect")?.value||""})).filter(x=>x.studentId);
-  const seen=new Set();for(const a of assignments){if(seen.has(a.studentId)){alert("Each Dashboard student can only be matched to one Classroom student in this course. Please check the selections.");return;}seen.add(a.studentId);const st=data.students.find(x=>x.id===a.studentId);if(st?.googleClassroomUserId&&String(st.googleClassroomUserId)!==String(a.userId)){alert(`${studentDisplayName(st)} is already linked to a different Google Classroom account. Please resolve that student first.`);return;}}
+  const rows=[...document.querySelectorAll("#classroomMatchRows .classroomMatchRow")];
+  const assignments=rows.map(row=>({studentId:row.dataset.studentId,userId:row.querySelector(".classroomMatchSelect")?.value||""})).filter(x=>x.userId);
+  const seen=new Set();
+  for(const a of assignments){
+    if(seen.has(a.userId)){alert("Each Google Classroom student can only be matched to one Dashboard student in this class. Please check the selections.");return;}
+    seen.add(a.userId);
+    const st=data.students.find(x=>x.id===a.studentId);
+    if(st?.googleClassroomUserId&&String(st.googleClassroomUserId)!==String(a.userId)){
+      alert(`${studentDisplayName(st)} is already linked to a different Google Classroom account. Please resolve that student first.`);return;
+    }
+  }
   assignments.forEach(a=>{const st=data.students.find(x=>x.id===a.studentId);if(st)st.googleClassroomUserId=a.userId;});
   save();window.closeClassroomRosterMatcher();toast=`Saved ${assignments.length} Classroom student match${assignments.length===1?"":"es"} for ${c.name}.`;
 };
