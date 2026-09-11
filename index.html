@@ -3322,7 +3322,7 @@ function gradeLetter(avg,c=null){
 function formatCurrentAverage(avg,c=null){
   if(avg===""||avg===null||Number.isNaN(Number(avg)))return {text:"—",isF:false};
   const rounded=Math.round(Number(avg)),letter=gradeLetter(avg,c);
-  return {text:`${rounded}% (${letter})`,isF:letter==="F"};
+  return {text:`${rounded}% ${letter}`,isF:letter==="F"};
 }
 function recommendationFor(c,avg){
   if(avg===""||avg===null||!c.usesRecommendations)return "";
@@ -4802,6 +4802,8 @@ window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("ac
 
 /* Version 3.1.13 — cleaner Google Classroom setup + iPad-safe OAuth */
 .setupGcPanel{margin-top:14px;padding:0;border-top:0}.setupGcHero{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 15px;border:1px solid #dce3ee;border-radius:12px;background:#f8fafc}.setupGcBrand{display:flex;align-items:center;gap:11px;min-width:0}.setupGcBrand>b,.setupGcBrand span{display:block}.setupGcBrand>b{font-size:16px}.setupGcLogo,.setupGcEmptyIcon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#fff;border:1px solid #d7dee9;font-weight:800;font-size:21px;color:#4285f4;flex:0 0 auto}.setupGcConnection{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#697386;white-space:nowrap}.setupGcStatusDot{width:8px;height:8px;border-radius:50%;background:#aab3c2}.setupGcStatusDot.connected{background:#34a853}.setupGcIntro{margin:11px 2px}.setupGcConnectRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}.setupGcStatus{padding:8px 10px;border-radius:8px;background:#f4f6fa;color:#596579;min-height:34px}.setupGcSection{margin-top:12px;padding-top:4px;border-top:1px solid #e5e8ee}.setupGcEmpty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px 10px;border:1px dashed #cfd7e3;border-radius:10px;background:#fbfcfe;margin-top:12px}.setupGcEmptyIcon{margin-bottom:8px}.setupGcEmpty b{font-size:14px}.setupGcCourseList{max-height:300px;overflow:auto}.setupGcCourseRow{background:#fbfcfe}.setupGcCourseRow span{display:flex;flex-direction:column;gap:2px}.setupGcActions{margin-top:10px}.setupGcRosterCard{background:#fff}.setupGcMatchReview{background:#fff}@media(max-width:650px){.setupGcHero{align-items:flex-start;flex-direction:column}.setupGcConnection{padding-left:49px;margin-top:-5px}.setupGcConnectRow{align-items:flex-start;flex-direction:column}.setupGcConnectRow button{width:100%}}
+
+.currentAvg{white-space:nowrap;}
 </style>
 
 </body>
