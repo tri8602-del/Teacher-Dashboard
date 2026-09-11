@@ -1833,7 +1833,9 @@ function gcRequestAccess(){
   }
 }
 
-async function gcApi(path,params={}){
+window.gcRequestAccess=gcRequestAccess;
+
+function gcApi(path,params={}){
   const state=window.googleClassroomState;
   if(!state.accessToken||Date.now()>=state.expiresAt)throw new Error("Your Google Classroom connection has expired. Click Connect Google Classroom again.");
   const url=new URL(`https://classroom.googleapis.com/v1/${path}`);
