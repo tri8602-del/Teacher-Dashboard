@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V3.1.18</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V3.1.19</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -688,7 +688,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.18";
+const APP_VERSION="3.1.19";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -735,7 +735,7 @@ const seed={
  calendarSettings:{firstStudentDay:"",lastStudentDay:""},
  setupComplete:false,
  pvaasSettings:{customEndDate:""},
- googleClassroom:{clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:""},
+ googleClassroom:{clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:"",connectedAt:""},
  calendarOverrides:{},
  calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",earlydismissal:"#d58a2b",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
  calendarViewDate:new Date().toISOString().slice(0,7),
@@ -1779,16 +1779,24 @@ function normalizeGoogleClassroomSettings(){
   data.googleClassroom??={clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:""};
   if(typeof data.googleClassroom.clientId!=="string")data.googleClassroom.clientId="";
   if(typeof data.googleClassroom.lastImportAt!=="string")data.googleClassroom.lastImportAt="";
+  if(typeof data.googleClassroom.connectedAt!=="string")data.googleClassroom.connectedAt="";
 }
 
 normalizeGoogleClassroomSettings();
 
 const GOOGLE_CLASSROOM_SCOPES="https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.course-work.readonly https://www.googleapis.com/auth/classroom.coursework.students.readonly https://www.googleapis.com/auth/classroom.student-submissions.students.readonly";
-window.googleClassroomState=window.googleClassroomState||{accessToken:"",expiresAt:0,tokenClient:null,courses:[],rosters:{},selected:new Set(),loading:false,status:"",gradeCatalogs:{}};
+window.googleClassroomState=window.googleClassroomState||{accessToken:"",expiresAt:0,tokenClient:null,courses:[],rosters:{},selected:new Set(),loading:false,status:"",gradeCatalogs:{},pendingClassModalId:"",pendingRosterMatchClassId:""};
 
 const GOOGLE_CLASSROOM_CLIENT_ID="191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com";
 function googleClassroomClientId(){return GOOGLE_CLASSROOM_CLIENT_ID;}
 function googleClassroomConfigured(){return !!googleClassroomClientId();}
+function googleClassroomSessionConnected(){const state=window.googleClassroomState||{};return !!state.accessToken&&Date.now()<Number(state.expiresAt||0);}
+function googleClassroomCourseLabel(course){return [String(course?.name||"Google Classroom Course").trim(),String(course?.section||"").trim()].filter(Boolean).join(" · ");}
+function googleClassroomCourseOptions(selectedId=""){
+  const state=window.googleClassroomState||{};const courses=Array.isArray(state.courses)?state.courses:[];
+  if(!courses.length)return `<option value="">${googleClassroomSessionConnected()?"No active Classroom courses loaded yet":"Connect Google Classroom to load courses"}</option>`;
+  return `<option value="">Not linked</option>`+courses.map(course=>`<option value="${esc(course.id)}" ${String(course.id)===String(selectedId)?"selected":""}>${esc(googleClassroomCourseLabel(course))}</option>`).join("");
+}
 function gcSetStatus(message){const state=window.googleClassroomState||{};state.status=message||"";window.googleClassroomState=state;const el=document.getElementById("setupGoogleClassroomStatus");if(el)el.textContent=state.status;}
 function gcEscapeMessage(err){return err?.message||"Google Classroom could not be accessed.";}
 
@@ -1803,9 +1811,10 @@ function waitForGoogleIdentityServices(){
   });
 }
 
-function gcRequestAccess(){
+function gcRequestAccess(afterClassModalId=""){
   const clientId=googleClassroomClientId();
   const state=window.googleClassroomState;
+  if(afterClassModalId)state.pendingClassModalId=afterClassModalId;
   if(!window.google?.accounts?.oauth2){
     const message="Google authorization tools are not available yet. Please refresh the dashboard and try again.";
     gcSetStatus(message);alert(message);return;
@@ -1819,7 +1828,14 @@ function gcRequestAccess(){
         if(response?.error){gcSetStatus(response.error_description||response.error||"Google authorization was not completed.");return;}
         state.accessToken=response.access_token||"";
         state.expiresAt=Date.now()+Math.max(0,Number(response.expires_in||3600)-60)*1000;
-        gcLoadCourses();
+        data.googleClassroom??={};data.googleClassroom.connectedAt=new Date().toISOString();save();
+        gcLoadCourses().then(()=>{
+          const pending=state.pendingClassModalId;state.pendingClassModalId="";
+          const pendingMatch=state.pendingRosterMatchClassId;state.pendingRosterMatchClassId="";
+          if(pending){refreshClassroomCourseSelect(pending);return;}
+          if(pendingMatch){window.gcMatchClassRoster(pendingMatch);return;}
+          if(document.getElementById("setupWizardModal"))renderSetupWizard();else render();
+        });
       },
       error_callback:error=>{
         const message=error?.type||"Google authorization popup could not be opened.";
@@ -1978,14 +1994,14 @@ window.updateClassroomCombination=(cid,bucket,index,field,value)=>{const c=data.
 window.removeClassroomCombination=(cid,bucket,index)=>{const c=data.classes.find(x=>x.id===cid);const items=c?.classroomGradeSources?.[bucket]?.categoryItems;if(!items)return;items.splice(index,1);save();refreshClassroomGradeSourceConfig(cid);};
 async function gcLoadCourses(){
   const state=window.googleClassroomState;
-  state.loading=true;gcSetStatus("Loading your active Google Classroom classes…");renderSetupWizard();
+  state.loading=true;gcSetStatus("Loading your active Google Classroom classes…");if(document.getElementById("setupWizardModal"))renderSetupWizard();
   try{
     const courses=await gcListPages("courses",{teacherId:"me",courseStates:"ACTIVE",fields:"courses(id,name,section,courseState),nextPageToken"},"courses");
     state.courses=courses.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
     state.selected=new Set(state.selected||[]);
     gcSetStatus(`${state.courses.length} active class${state.courses.length===1?"":"es"} found.`);
   }catch(err){console.error(err);gcSetStatus(gcEscapeMessage(err));alert(gcEscapeMessage(err));}
-  finally{state.loading=false;renderSetupWizard();}
+  finally{state.loading=false;if(document.getElementById("setupWizardModal"))renderSetupWizard();}
 }
 
 window.gcToggleCourse=courseId=>{
@@ -1993,6 +2009,76 @@ window.gcToggleCourse=courseId=>{
   if(state.selected.has(courseId))state.selected.delete(courseId);else state.selected.add(courseId);
   renderSetupWizard();
 };
+
+window.gcLoadCoursesForClassModal=async cid=>{
+  const state=window.googleClassroomState;
+  state.pendingClassModalId=cid;
+  if(!googleClassroomSessionConnected()){gcRequestAccess(cid);return;}
+  try{await gcLoadCourses();state.pendingClassModalId="";refreshClassroomCourseSelect(cid);}catch(err){console.error(err);alert(gcEscapeMessage(err));}
+};
+window.gcLinkClass=cid=>{
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  const value=document.querySelector("#classroomCourseLink")?.value||"";
+  if(!value){alert("Choose a Google Classroom course first.");return;}
+  c.googleClassroomCourseId=value;c.googleClassroomImported=false;
+  c.classroomGradeCache=c.classroomGradeCache&&typeof c.classroomGradeCache==="object"?c.classroomGradeCache:{};
+  const course=(window.googleClassroomState.courses||[]).find(x=>String(x.id)===String(value));
+  c.googleClassroomCourseName=course?googleClassroomCourseLabel(course):String(c.googleClassroomCourseName||"");
+  save();toast=`Linked ${c.name} to Google Classroom.`;render();
+};
+window.gcUnlinkClass=cid=>{
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  const sel=document.querySelector("#classroomCourseLink");if(sel)sel.value="";
+  const status=document.querySelector("#classroomCourseLinkStatus");if(status)status.textContent="Not linked. Click Save Class to apply. Your Dashboard roster and manually entered grades will stay in place.";
+};
+function refreshClassroomCourseSelect(cid){
+  const sel=document.querySelector("#classroomCourseLink");if(!sel)return;
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  sel.innerHTML=googleClassroomCourseOptions(c.googleClassroomCourseId);
+  sel.value=c.googleClassroomCourseId||"";
+  updateClassroomCourseLinkStatus(sel.value,cid);
+}
+window.updateClassroomCourseLinkStatus=(courseId,cid)=>{
+  const c=data.classes.find(x=>x.id===cid);const status=document.querySelector("#classroomCourseLinkStatus");if(!c||!status)return;
+  const course=(window.googleClassroomState.courses||[]).find(x=>String(x.id)===String(courseId));
+  status.textContent=course?`Selected ${googleClassroomCourseLabel(course)}. Your Dashboard roster stays separate.`:courseId?`Selected Google Classroom course ${c.googleClassroomCourseName||courseId}. Your Dashboard roster stays separate.`:"Not linked. Linking will not import or replace students.";
+};
+window.gcMatchClassRoster=async cid=>{
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  const selectedCourseId=document.querySelector("#classroomCourseLink")?.value||c.googleClassroomCourseId||"";
+  if(!selectedCourseId){alert("Link this Dashboard class to a Google Classroom course first.");return;}
+  const state=window.googleClassroomState;
+  if(!googleClassroomSessionConnected()){state.pendingRosterMatchClassId=cid;gcRequestAccess();return;}
+  try{
+    gcSetStatus("Loading the Classroom roster for matching…");
+    const roster=await gcListPages(`courses/${encodeURIComponent(selectedCourseId)}/students`,{},"students");
+    openClassroomRosterMatcher(cid,roster);
+  }catch(err){console.error(err);alert(gcEscapeMessage(err));}
+};
+function openClassroomRosterMatcher(cid,roster){
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  document.querySelector("#classroomRosterMatcher")?.remove();
+  const localStudents=sortedStudents(data.students.filter(st=>(c.studentIds||[]).includes(st.id)));
+  const rows=(roster||[]).map((student,i)=>{
+    const userId=String(student?.userId||"").trim();if(!userId)return "";
+    const info=splitClassroomName(student.profile||{});
+    const exact=localStudents.filter(st=>gcNameKey({firstName:studentFirstName(st),lastName:studentLastName(st)})===gcNameKey(info));
+    const existing=localStudents.find(st=>String(st.googleClassroomUserId||"")===userId);
+    const selected=existing?.id||((exact.length===1&&(!exact[0].googleClassroomUserId||String(exact[0].googleClassroomUserId)===userId))?exact[0].id:"");
+    const options=`<option value="">— Do not match —</option>`+localStudents.map(st=>{const conflict=st.googleClassroomUserId&&String(st.googleClassroomUserId)!==userId;return `<option value="${esc(st.id)}" ${String(st.id)===String(selected)?"selected":""}>${esc(studentDisplayName(st))}${conflict?" · already linked":""}</option>`}).join("");
+    return `<div class="classroomMatchRow" data-user-id="${esc(userId)}"><div><b>${esc(info.name||"Unnamed Student")}</b><div class="small">Classroom student</div></div><select class="classroomMatchSelect">${options}</select></div>`;
+  }).filter(Boolean).join("");
+  document.body.insertAdjacentHTML("beforeend",`<div id="classroomRosterMatcher" class="modalbg"><div class="modal classEditor"><h3>🔗 Match Classroom Students</h3><p class="small">Match Google Classroom students to students already in <b>${esc(c.name)}</b>. This does <b>not</b> add, remove, or replace students in your Dashboard roster. It only connects their Google Classroom identities so grades can be pulled.</p><div id="classroomMatchRows" style="max-height:55vh;overflow:auto">${rows||"<p class='small'>No Classroom students were found.</p>"}</div><div style="margin-top:16px"><button class="primary" onclick="window.saveClassroomRosterMatches('${c.id}')">Save Matches</button> <button onclick="window.closeClassroomRosterMatcher()">Cancel</button></div></div></div>`);
+}
+window.saveClassroomRosterMatches=cid=>{
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  const assignments=[...document.querySelectorAll("#classroomMatchRows .classroomMatchRow")].map(row=>({userId:row.dataset.userId,studentId:row.querySelector(".classroomMatchSelect")?.value||""})).filter(x=>x.studentId);
+  const seen=new Set();for(const a of assignments){if(seen.has(a.studentId)){alert("Each Dashboard student can only be matched to one Classroom student in this course. Please check the selections.");return;}seen.add(a.studentId);const st=data.students.find(x=>x.id===a.studentId);if(st?.googleClassroomUserId&&String(st.googleClassroomUserId)!==String(a.userId)){alert(`${studentDisplayName(st)} is already linked to a different Google Classroom account. Please resolve that student first.`);return;}}
+  assignments.forEach(a=>{const st=data.students.find(x=>x.id===a.studentId);if(st)st.googleClassroomUserId=a.userId;});
+  save();window.closeClassroomRosterMatcher();toast=`Saved ${assignments.length} Classroom student match${assignments.length===1?"":"es"} for ${c.name}.`;
+};
+window.closeClassroomRosterMatcher=()=>document.querySelector("#classroomRosterMatcher")?.remove();
+
 
 window.gcLoadSelectedRosters=async()=>{
   const state=window.googleClassroomState;const ids=[...(state.selected||[])];
@@ -3704,7 +3790,7 @@ function settings(){
   <section class="card"><h3>Sidebar Layout</h3><p class="small">Choose which sections appear in your sidebar and arrange them in the order you prefer.</p><div class="sidebarEditorList">${sidebarSettingsHTML()}</div><button type="button" onclick="window.resetSidebarLayout()">Reset to Default</button></section>
   <section class="card"><h3>📅 Calendar & PVAAS</h3><div class="settingsGrid"><label>First Student Day<br><input type="date" value="${esc(cal.firstStudentDay||"")}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input type="date" value="${esc(cal.lastStudentDay||"")}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label><label>PVAAS End Date<br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label></div><p class="small">PVAAS uses this end date when it is set; otherwise it uses the last student day.</p></section>
   <section class="card"><h3>🧮 Grade Calculator Defaults</h3><p class="small">Scoring is configured separately for each class from the Grade Calculator. Your existing JM defaults remain unchanged.</p></section>
-  <section class="card"><div class="setupCard"><div><h3 style="margin-bottom:4px">👩‍🎓 Google Classroom</h3><p class="small" style="margin:0">Connect Google Classroom to import classes, rosters, and — when configured — grade information. Google is already configured for this dashboard.</p></div><button type="button" class="primary" onclick="window.gcRequestAccess()">Connect Google Classroom</button></div></section>
+  <section class="card"><div class="setupCard"><div><h3 style="margin-bottom:4px">👩‍🎓 Google Classroom</h3><p class="small" style="margin:0 0 6px"><b>${googleClassroomSessionConnected()?"🟢 Connected":"⚪ Not connected"}</b></p><p class="small" style="margin:0">${googleClassroomSessionConnected()?`${(window.googleClassroomState.courses||[]).length||"Your"} active Classroom courses are available. Use Classroom only when you ask it to supply classes, rosters, or grades.`:(data.googleClassroom?.connectedAt?"Google Classroom was connected previously. Reconnect when you need to access it again.":"Connect Google Classroom to import classes, rosters, and — when configured — grade information.")}</p></div><button type="button" class="primary" onclick="window.gcRequestAccess()">${googleClassroomSessionConnected()?"Reconnect Google Classroom":"Connect Google Classroom"}</button></div></section>
   <section class="card"><h3>Data Storage</h3><p><b>☁️ ${esc(cloudStatus)}</b></p><div class="syncTime"><b>Last sync:</b> ${esc(formatSync(lastSyncAt))}</div><p class="small">Your dashboard is stored separately for each signed-in Google account.</p></section>
     <section class="card"><h3>Local Data Backup</h3><p class="small">Download a backup before major updates. You can also import it later.</p><button onclick="window.exportData()">Download backup</button> <button onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="window.importData(this)"></section>
   <section class="card"><button onclick="window.resetData()">Reset this dashboard to demo data</button></section>`;
@@ -4294,6 +4380,20 @@ window.openClassModal=(id="")=>{
       </details>
 
       <details class="collapsibleFieldset">
+        <summary>☁️ Google Classroom</summary>
+        <div class="collapsibleInner">
+          <p class="small">Link this Dashboard class to a Google Classroom course for grade retrieval <b>without changing this class's Dashboard roster</b>. Multiple Dashboard classes can link to the same Classroom course.</p>
+          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <label style="flex:1;min-width:240px">Google Classroom course<br><select id="classroomCourseLink" style="width:100%" onchange="window.updateClassroomCourseLinkStatus(this.value,'${c.id}')">${googleClassroomCourseOptions(c.googleClassroomCourseId||"")}</select></label>
+            <button type="button" onclick="window.gcLoadCoursesForClassModal('${c.id}')">↻ Load Courses</button>
+          </div>
+          <div style="margin-top:10px"><button type="button" onclick="window.gcMatchClassRoster('${c.id}')">🔗 Match Classroom Roster to This Class</button></div>
+          <p id="classroomCourseLinkStatus" class="small" style="margin:8px 0 0">${c.googleClassroomCourseId?`Linked to ${esc(c.googleClassroomCourseName||c.googleClassroomCourseId)}. Your Dashboard roster stays separate.`:"Not linked. Linking will not import or replace students."}</p>
+          ${c.googleClassroomCourseId?`<button type="button" style="margin-top:8px" onclick="window.gcUnlinkClass('${c.id}')">Unlink from Google Classroom</button>`:""}
+        </div>
+      </details>
+
+      <details class="collapsibleFieldset">
         <summary>Students in This Class</summary>
         <div class="collapsibleInner">
           <p class="small">Check the students who belong in this class, or add a new student without leaving this screen.</p>
@@ -4324,11 +4424,21 @@ window.saveClass=oldId=>{
   const studentIds=[...document.querySelectorAll('input[name="classStudent"]:checked')].map(x=>x.value);
   const reminders=old?.reminders||[];
   const previous=old||{};
+  const linkedCourseId=document.querySelector("#classroomCourseLink")?.value;
+  const googleClassroomCourseId=linkedCourseId!==undefined?linkedCourseId:(previous.googleClassroomCourseId||"");
+  const linkedCourse=(window.googleClassroomState.courses||[]).find(x=>String(x.id)===String(googleClassroomCourseId));
+  const googleClassroomCourseName=linkedCourse?googleClassroomCourseLabel(linkedCourse):(previous.googleClassroomCourseName||"");
+  const classroomLinkChanged=String(googleClassroomCourseId||"")!==String(previous.googleClassroomCourseId||"");
+  const classroomGradeSources=classroomLinkChanged?{}:(previous.classroomGradeSources||{});
+  const classroomGradeCache=classroomLinkChanged?{}:(previous.classroomGradeCache||{});
+  const classroomGradeOverrides=classroomLinkChanged?{}:(previous.classroomGradeOverrides||{});
+  const classroomGradePulled=classroomLinkChanged?{}:(previous.classroomGradePulled||{});
+  const classroomGradeLastPulledAt=classroomLinkChanged?"":(previous.classroomGradeLastPulledAt||"");
   const item={id:oldId||uid(),name,nickname,studentIds,rules,periods:[...new Set(rules.flatMap(r=>r.periods))],days:[...new Set(rules.flatMap(r=>r.days))],terms,
   graded:!!$("#classGraded")?.checked,giveMidterm:!!$("#classMidterm")?.checked,giveFinal:!!$("#classFinal")?.checked,
-  usesRecommendations:!!$("#classRecommendations")?.checked,recommendationRules:previous.recommendationRules||[],grades:previous.grades||{},classroomGradeSources:previous.classroomGradeSources||{},classroomGradeCache:previous.classroomGradeCache||{},classroomGradeOverrides:previous.classroomGradeOverrides||{},classroomGradePulled:previous.classroomGradePulled||{},classroomGradeLastPulledAt:previous.classroomGradeLastPulledAt||"",
+  usesRecommendations:!!$("#classRecommendations")?.checked,recommendationRules:previous.recommendationRules||[],grades:previous.grades||{},classroomGradeSources,classroomGradeCache,classroomGradeOverrides,classroomGradePulled,classroomGradeLastPulledAt,
   reminders,
-  pvaasReported:!!$("#classPvaas")?.checked,enrollmentPeriods:previous.enrollmentPeriods||[],rosterHistory:previous.rosterHistory||[],googleClassroomCourseId:previous.googleClassroomCourseId||"",googleClassroomImported:!!previous.googleClassroomImported,setupComplete:previous.setupComplete===true};
+  pvaasReported:!!$("#classPvaas")?.checked,enrollmentPeriods:previous.enrollmentPeriods||[],rosterHistory:previous.rosterHistory||[],googleClassroomCourseId,googleClassroomCourseName,googleClassroomImported:classroomLinkChanged?false:!!previous.googleClassroomImported,setupComplete:previous.setupComplete===true};
   if(oldId){const i=data.classes.findIndex(c=>c.id===oldId);if(i>=0)data.classes[i]=item;}else data.classes.push(item);
   if(window.setupClassAfterSave){
     item.setupComplete=!item.graded;
