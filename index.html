@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Teacher Dashboard V3.0.1</title><meta name="theme-color" content="#2d3b59">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Teacher Dashboard">
@@ -111,7 +112,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 .quickAddOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10001;display:flex;align-items:center;justify-content:center;padding:18px}
 .quickAddBox{background:var(--card,#fff);width:min(380px,94vw);padding:20px;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.3);display:grid;gap:12px}
 .quickAddBox label{display:grid;gap:5px}.quickAddBox input{width:100%}
-.formCard{margin:10px 0}.formCardTop{display:flex;justify-content:space-between;gap:12px;align-items:center}.targetGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:8px}.targetGrid>div{display:grid;gap:5px}.targetStudents{max-height:220px;overflow:auto}.fieldDef{display:grid;grid-template-columns:1fr 160px auto;gap:7px;margin:6px 0}.tableWrap{overflow:auto;max-width:100%}.formMatrix{white-space:nowrap}.formMatrix input,.formMatrix select,.formMatrix textarea{max-width:180px}.trackerHeader{display:flex;gap:12px;align-items:center;margin-bottom:10px}@media(max-width:700px){.targetGrid{grid-template-columns:1fr}.fieldDef{grid-template-columns:1fr}.formCardTop{align-items:flex-start;flex-direction:column}}
+.formCard{margin:10px 0}.formCardTop{display:flex;justify-content:space-between;gap:12px;align-items:center}.targetGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:8px}.targetGrid>div{display:grid;gap:5px}.targetStudents{max-height:220px;overflow:auto}.fieldDef{display:grid;grid-template-columns:1fr 160px auto;gap:7px;margin:6px 0}.tableWrap{overflow:auto;max-width:100%}.formMatrix{white-space:nowrap}.formMatrix input,.formMatrix select,.formMatrix textarea{max-width:180px}.trackerHeader{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.studentMergePanel{max-width:760px}.studentMergeGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.studentMergeCard{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--card)}.studentMergeArrow{text-align:center;font-size:24px;align-self:center}.mergeWarning{padding:10px 12px;border-radius:8px;background:var(--soft);margin:12px 0}@media(max-width:700px){.studentMergeGrid{grid-template-columns:1fr}.studentMergeArrow{display:none}}@media(max-width:700px){.targetGrid{grid-template-columns:1fr}.fieldDef{grid-template-columns:1fr}.formCardTop{align-items:flex-start;flex-direction:column}}
 #formModalFallback{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:10000;align-items:center;justify-content:center;padding:18px}
 #formModalFallback .formModalPanel{background:var(--card,#fff);width:min(850px,96vw);max-height:92vh;overflow:auto;border-radius:14px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.28)}
 #formModalFallback .modalHead{display:flex;align-items:center;justify-content:space-between}
@@ -480,7 +482,7 @@ aside{
 
 .accommodationTools .accommodationSearch{display:grid;grid-template-columns:minmax(220px,2fr) repeat(4,minmax(120px,1fr));gap:10px;align-items:end}.accommodationSearch label{min-width:0}.accommodationSearch input,.accommodationSearch select{width:100%;box-sizing:border-box}.accommodationActiveToggle{display:flex;align-items:center;gap:7px;white-space:nowrap;padding-bottom:8px}.accommodationMatrixWrap{margin-top:14px;border:1px solid var(--line,#d8dee8);border-radius:14px;overflow:auto;background:#fff}.accommodationMatrix{border-collapse:separate;border-spacing:0;width:100%;min-width:0;table-layout:fixed}.accommodationMatrix th,.accommodationMatrix td{border-right:1px solid #e2e7ef;border-bottom:1px solid #e2e7ef}.accommodationMatrix thead th{position:sticky;top:0;z-index:4;background:#f7f8fb;padding:9px 5px;text-align:center;font-size:11px;color:#334155;line-height:1.15}.accommodationMatrix .accommodationMatrixCorner{position:sticky;left:0;z-index:6;width:145px;min-width:145px;text-align:left}.accommodationMatrix .accommodationMatrixStudent{position:sticky;left:0;z-index:3;background:#fbfcfe;width:145px;min-width:145px;text-align:left;padding:10px 9px;font-weight:700}.accommodationMatrixStudent button{border:0;background:transparent;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer}.accommodationMatrixStudent button:hover{text-decoration:underline}.accommodationMatrixCell{height:78px;vertical-align:top;padding:5px;background:#fff;cursor:pointer}.accommodationMatrixCell:hover{background:#f7fbff}.accommodationMatrixCell.empty{cursor:default;background:#fafbfc}.accommodationMatrixCell.empty:hover{background:#fafbfc}.accommodationMatrixCount{font-size:10px;color:#64748b;margin-bottom:3px}.accommodationMatrixItem{display:block;font-size:11px;line-height:1.2;padding:4px 4px;margin:2px 0;border-radius:7px;background:#edf4ff;color:#334e78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.accommodationMatrixItem.service{background:#f2eefb;color:#6f4b99}.accommodationMatrixMore{font-size:10px;color:#64748b;margin-top:2px}.accommodationSummary{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.accommodationSummaryStat{padding:7px 10px;border:1px solid #e0e6ef;border-radius:10px;background:#fafbfe}.accommodationFileCabinet{margin-top:14px}.accommodationFileCabinetButton{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;padding:14px 16px;border:1px solid #d8dee8;border-radius:12px;background:#fff;cursor:pointer}.accommodationFileCabinetButton:hover{background:#f8fafc}.accommodationFileCabinetMeta{display:block;font-size:12px;color:#64748b;margin-top:2px}.accommodationCards{display:none}.accommodationItem{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #e6eaf1}.accommodationItem:first-child{border-top:0}.accommodationText{font-weight:600;margin-top:4px}.accommodationBadge{font-size:11px;font-weight:700;border-radius:999px;padding:2px 7px;background:#edf4ff;color:#385b9d}.serviceItem .accommodationBadge{background:#f2eefb;color:#7652a8}.accommodationActions{display:flex;gap:5px;align-items:flex-start;flex-shrink:0}.sourceLine{margin-top:4px}.accommodationModal{max-width:720px}.accommodationModal .modalBody{display:grid;gap:12px}.inlineCheck{display:flex;gap:7px;align-items:center}.emptyState{margin-top:14px}.accommodationRecordList{display:grid;gap:9px}.accommodationRecordCard{border:1px solid #e0e6ef;border-radius:10px;padding:10px;background:#fff}.accommodationRecordCardHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.accommodationRecordActions{display:flex;gap:5px;flex-shrink:0}.accommodationDrilldownTitle{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.accommodationFileList{display:grid;gap:8px}.accommodationFileRow{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px;border:1px solid #e0e6ef;border-radius:10px;background:#fbfcfe}.accommodationFileRowMain{min-width:0}.accommodationFileRowMain b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.accommodationFileRowActions{display:flex;gap:5px;flex-shrink:0}.accommodationStatusGood{color:#176b46;font-weight:700}.accommodationStatusPending{color:#8a5a00;font-weight:700}.accommodationStatusError{color:#a12622;font-weight:700}@media(max-width:900px){.accommodationTools .accommodationSearch{grid-template-columns:1fr 1fr}}@media(max-width:600px){.accommodationTools .accommodationSearch{grid-template-columns:1fr}.accommodationItem{display:block}.accommodationActions{margin-top:8px}.accommodationActions button{min-height:40px}.accommodationFileRow{display:block}.accommodationFileRowActions{margin-top:8px}.accommodationFileRowActions button{min-height:40px}}.accommodationAIStatus{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.aiReviewList{display:grid;gap:10px}.aiReviewItem{border:1px solid #dfe5ee;border-radius:10px;padding:11px;background:#fff}.aiReviewItemHead{display:flex;gap:10px;align-items:flex-start}.aiReviewItem textarea,.aiReviewItem input:not([type="checkbox"]),.aiReviewItem select{width:100%;box-sizing:border-box}.aiReviewItemHead>input[type="checkbox"]{width:auto;flex:0 0 auto;margin-top:5px}.aiReviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.aiReviewMeta{font-size:12px;color:#697386;margin-top:6px}.aiWarning{background:#fff7e6;border:1px solid #f0d49a;border-radius:9px;padding:10px}
 .aiDisclaimer{margin-top:8px;font-size:.78rem;line-height:1.35;color:var(--muted,#6b7280)}
-.aiSetupBox{display:grid;gap:8px}.aiSetupBox input{width:100%;box-sizing:border-box}@media(max-width:600px){.aiReviewGrid{grid-template-columns:1fr}.aiReviewItem{padding:9px}}</style>
+.aiSetupBox{display:grid;gap:8px}.aiSetupBox input{width:100%;box-sizing:border-box}@media(max-width:600px){.aiReviewGrid{grid-template-columns:1fr}.aiReviewItem{padding:9px}}.setupGcMatchReview{margin-top:12px;border:1px solid #e6eaf1;border-radius:10px;padding:12px;background:#fff}.setupGcMatchRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,360px);gap:10px;align-items:center;padding:9px 0;border-top:1px solid #eef1f5}.setupGcMatchRow:first-of-type{border-top:0}.setupGcMatchRow select{width:100%;box-sizing:border-box}@media(max-width:700px){.setupGcMatchRow{grid-template-columns:1fr}}</style>
 
 <style>
 /* Version 2.1.1 — Lesson Planning */
@@ -686,7 +688,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.5";
+const APP_VERSION="3.1.12";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -728,11 +730,12 @@ const seed={
  lessonPlans:{entries:{}},
  lessonPlanSyncGroups:[],
  buttons:defaultButtons.map(([id,icon,label,type])=>({id,icon,label,type})),
- events:[],notes:[],schoolDays:[],totalSchoolDays:178,gradeCourses:[],
+ events:[],notes:[],schoolDays:[],gradeCourses:[],
  profileAvatar:"",
  calendarSettings:{firstStudentDay:"",lastStudentDay:""},
  setupComplete:false,
  pvaasSettings:{customEndDate:""},
+ googleClassroom:{clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:""},
  calendarOverrides:{},
  calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",earlydismissal:"#d58a2b",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
  calendarViewDate:new Date().toISOString().slice(0,7),
@@ -845,6 +848,10 @@ function ensureClassFields(){
     c.giveFinal=c.giveFinal!==undefined?!!c.giveFinal:true;
     c.usesRecommendations=!!c.usesRecommendations;
     c.recommendationRules=Array.isArray(c.recommendationRules)?c.recommendationRules:[];
+    c.classroomGradeSources=c.classroomGradeSources&&typeof c.classroomGradeSources==="object"?c.classroomGradeSources:{};
+    c.classroomGradeCache=c.classroomGradeCache&&typeof c.classroomGradeCache==="object"?c.classroomGradeCache:{};
+    c.classroomGradeOverrides=c.classroomGradeOverrides&&typeof c.classroomGradeOverrides==="object"?c.classroomGradeOverrides:{};
+    c.classroomGradePulled=c.classroomGradePulled&&typeof c.classroomGradePulled==="object"?c.classroomGradePulled:{};
     c.pvaasReported=!!c.pvaasReported;
     c.enrollmentPeriods=Array.isArray(c.enrollmentPeriods)?c.enrollmentPeriods:[];
     c.nickname=String(c.nickname||'').trim();
@@ -1768,6 +1775,308 @@ function studentDisplayName(s){
   const first=studentFirstName(s),last=studentLastName(s);
   return [first,last].filter(Boolean).join(" ") || s.name || "Unnamed Student";
 }
+function normalizeGoogleClassroomSettings(){
+  data.googleClassroom??={clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:""};
+  if(typeof data.googleClassroom.clientId!=="string")data.googleClassroom.clientId="";
+  if(typeof data.googleClassroom.lastImportAt!=="string")data.googleClassroom.lastImportAt="";
+}
+
+normalizeGoogleClassroomSettings();
+
+const GOOGLE_CLASSROOM_SCOPES="https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.course-work.readonly https://www.googleapis.com/auth/classroom.coursework.students.readonly https://www.googleapis.com/auth/classroom.student-submissions.students.readonly";
+window.googleClassroomState=window.googleClassroomState||{accessToken:"",expiresAt:0,tokenClient:null,courses:[],rosters:{},selected:new Set(),loading:false,status:"",gradeCatalogs:{}};
+
+function googleClassroomClientId(){normalizeGoogleClassroomSettings();return String(data.googleClassroom?.clientId||"").trim();}
+function googleClassroomConfigured(){return !!googleClassroomClientId();}
+function gcSetStatus(message){const state=window.googleClassroomState||{};state.status=message||"";window.googleClassroomState=state;const el=document.getElementById("setupGoogleClassroomStatus");if(el)el.textContent=state.status;}
+function gcEscapeMessage(err){return err?.message||"Google Classroom could not be accessed.";}
+
+function waitForGoogleIdentityServices(){
+  return new Promise((resolve,reject)=>{
+    if(window.google?.accounts?.oauth2){resolve();return;}
+    const started=Date.now();
+    const timer=setInterval(()=>{
+      if(window.google?.accounts?.oauth2){clearInterval(timer);resolve();return;}
+      if(Date.now()-started>10000){clearInterval(timer);reject(new Error("Google authorization tools did not finish loading. Please refresh the page and try again."));}
+    },100);
+  });
+}
+
+async function gcRequestAccess(){
+  const clientId=googleClassroomClientId();
+  if(!clientId){
+    alert("Enter your Google OAuth Web Client ID first. You only need to do this once for this dashboard.");
+    return;
+  }
+  try{
+    await waitForGoogleIdentityServices();
+    const state=window.googleClassroomState;
+    state.tokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:GOOGLE_CLASSROOM_SCOPES,
+      include_granted_scopes:true,
+      callback:response=>{
+        if(response?.error){gcSetStatus(response.error_description||response.error||"Google authorization was not completed.");return;}
+        state.accessToken=response.access_token||"";
+        state.expiresAt=Date.now()+Math.max(0,Number(response.expires_in||3600)-60)*1000;
+        gcLoadCourses();
+      },
+      error_callback:error=>gcSetStatus(error?.type||"Google authorization popup could not be opened.")
+    });
+    state.tokenClient.requestAccessToken({prompt:""});
+  }catch(err){
+    console.error(err);gcSetStatus(gcEscapeMessage(err));alert(gcEscapeMessage(err));
+  }
+}
+
+async function gcApi(path,params={}){
+  const state=window.googleClassroomState;
+  if(!state.accessToken||Date.now()>=state.expiresAt)throw new Error("Your Google Classroom connection has expired. Click Connect Google Classroom again.");
+  const url=new URL(`https://classroom.googleapis.com/v1/${path}`);
+  Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=="")url.searchParams.set(k,v)});
+  const res=await fetch(url.toString(),{headers:{Authorization:`Bearer ${state.accessToken}`}});
+  const payload=await res.json().catch(()=>({}));
+  if(!res.ok){
+    const detail=payload?.error?.message||`Google Classroom request failed (${res.status}).`;
+    if(res.status===401)state.expiresAt=0;
+    throw new Error(detail);
+  }
+  return payload;
+}
+
+async function gcListPages(path,params,key){
+  const out=[];let pageToken="";
+  do{
+    const payload=await gcApi(path,{...params,pageSize:100,...(pageToken?{pageToken}:{})});
+    if(Array.isArray(payload?.[key]))out.push(...payload[key]);
+    pageToken=payload?.nextPageToken||"";
+  }while(pageToken);
+  return out;
+}
+
+async function gcLoadGradeCatalog(courseId,force=false){
+  const state=window.googleClassroomState;
+  state.gradeCatalogs=state.gradeCatalogs||{};
+  if(!force&&state.gradeCatalogs[courseId])return state.gradeCatalogs[courseId];
+  const course=await gcApi(`courses/${encodeURIComponent(courseId)}`,{fields:"id,name,gradebookSettings"});
+  const courseWork=await gcListPages(`courses/${encodeURIComponent(courseId)}/courseWork`,{courseWorkStates:"PUBLISHED",orderBy:"updateTime desc",fields:"courseWork(id,title,maxPoints,gradeCategory,gradingPeriodId,state,dueDate,workType),nextPageToken"},"courseWork");
+  const gradeCategories=Array.isArray(course?.gradebookSettings?.gradeCategories)?course.gradebookSettings.gradeCategories:[];
+  const assignments=courseWork.filter(w=>Number(w?.maxPoints)>0&&w?.state!=="DELETED").map(w=>({
+    id:String(w.id),title:String(w.title||"Untitled assignment"),maxPoints:Number(w.maxPoints),
+    categoryId:String(w.gradeCategory?.id||""),categoryName:String(w.gradeCategory?.name||"Uncategorized"),
+    gradingPeriodId:String(w.gradingPeriodId||""),dueDate:w.dueDate||null,workType:String(w.workType||"")
+  }));
+  const catalog={courseId:String(courseId),calculationType:String(course?.gradebookSettings?.calculationType||"TOTAL_POINTS"),gradeCategories:gradeCategories.map(g=>({id:String(g.id||""),name:String(g.name||"Unnamed category"),weight:Number(g.weight||0)})),assignments,loadedAt:new Date().toISOString()};
+  state.gradeCatalogs[courseId]=catalog;return catalog;
+}
+function gcGradeSourceDefaults(c){
+  const out={};gradeComponents(c).forEach(x=>{out[x.id]=c.classroomGradeSources?.[x.id]||{type:"none",categoryId:"",categoryItems:[],assignmentId:""};});return out;
+}
+function gcGradeSourceLabel(src,catalog){
+  if(!src||src.type==="none")return "Not linked";
+  if(src.type==="category")return catalog?.gradeCategories?.find(x=>x.id===src.categoryId)?.name||"Category";
+  if(src.type==="combination")return (src.categoryItems||[]).map(x=>`${catalog?.gradeCategories?.find(g=>g.id===x.id)?.name||"Category"} (${Number(x.weight||0)}%)`).join(" + ")||"Category combination";
+  if(src.type==="assignment")return catalog?.assignments?.find(x=>x.id===src.assignmentId)?.title||"Assignment";
+  return "Not linked";
+}
+function gcCategoryPercent(submissions,assignments,categoryId,studentUserId){
+  const items=assignments.filter(a=>a.categoryId===categoryId);
+  let earned=0,total=0;
+  items.forEach(a=>{const sub=submissions.find(x=>String(x.courseWorkId)===a.id&&String(x.userId)===String(studentUserId));const grade=Number(sub?.assignedGrade);if(Number.isFinite(grade)&&Number.isFinite(a.maxPoints)&&a.maxPoints>0){earned+=grade;total+=a.maxPoints;}});
+  return total>0?earned/total*100:"";
+}
+function gcAssignmentPercent(submissions,assignments,assignmentId,studentUserId){
+  const a=assignments.find(x=>x.id===assignmentId);if(!a||!a.maxPoints)return "";
+  const sub=submissions.find(x=>String(x.courseWorkId)===a.id&&String(x.userId)===String(studentUserId));const grade=Number(sub?.assignedGrade);return Number.isFinite(grade)?grade/a.maxPoints*100:"";
+}
+function gcCalculateSourceValue(src,catalog,submissions,studentUserId){
+  if(!src||src.type==="none")return "";
+  if(src.type==="category")return gcCategoryPercent(submissions,catalog.assignments,src.categoryId,studentUserId);
+  if(src.type==="assignment")return gcAssignmentPercent(submissions,catalog.assignments,src.assignmentId,studentUserId);
+  if(src.type==="combination"){
+    const items=(src.categoryItems||[]).filter(x=>x.id&&Number(x.weight)>0);if(!items.length)return "";
+    const entered=items.map(x=>({v:gcCategoryPercent(submissions,catalog.assignments,x.id,studentUserId),w:Number(x.weight)})).filter(x=>x.v!==""&&Number.isFinite(x.v));
+    if(!entered.length)return "";const tw=entered.reduce((s,x)=>s+x.w,0);return tw>0?entered.reduce((s,x)=>s+x.v*x.w,0)/tw:"";
+  }
+  return "";
+}
+async function gcFetchGradesForClass(c){
+  if(!c?.googleClassroomCourseId)throw new Error("This class is not linked to Google Classroom.");
+  const catalog=await gcLoadGradeCatalog(c.googleClassroomCourseId,true);
+  const submissions=await gcListPages(`courses/${encodeURIComponent(c.googleClassroomCourseId)}/courseWork/-/studentSubmissions`,{fields:"studentSubmissions(courseWorkId,userId,assignedGrade,state),nextPageToken"},"studentSubmissions");
+  c.classroomGradeCache={courseId:c.googleClassroomCourseId,catalog,updatedAt:new Date().toISOString()};
+  c.grades??={};c.classroomGradeOverrides??={};
+  const sources=gcGradeSourceDefaults(c);
+  for(const st of data.students){
+    if(!(c.studentIds||[]).includes(st.id)||!st.googleClassroomUserId)continue;
+    c.grades[st.id]??={};c.classroomGradeOverrides[st.id]??={};c.classroomGradePulled[st.id]??={};
+    for(const comp of gradeComponents(c)){
+      const value=gcCalculateSourceValue(sources[comp.id],catalog,submissions,st.googleClassroomUserId);
+      const normalized=value===""?"":Number(value.toFixed(2));
+      c.classroomGradePulled[st.id][comp.id]=normalized;
+      if(c.classroomGradeOverrides[st.id][comp.id])continue;
+      c.grades[st.id][comp.id]=normalized;
+    }
+  }
+  c.classroomGradeLastPulledAt=new Date().toISOString();save();return {catalog,submissions};
+}
+window.gcLoadGradeSources=async cid=>{
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  try{gcSetStatus("Loading Google Classroom grade categories and assignments…");const catalog=await gcLoadGradeCatalog(c.googleClassroomCourseId,true);c.classroomGradeCache={...(c.classroomGradeCache||{}),courseId:c.googleClassroomCourseId,catalog};save();window.openGradeSettings(cid);}catch(err){console.error(err);alert(gcEscapeMessage(err));}
+};
+window.gcPullGrades=async cid=>{
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  try{gcSetStatus("Pulling quarter grades from Google Classroom…");await gcFetchGradesForClass(c);window.closeGradeSettings();render();toast=`Pulled Google Classroom grades for ${c.name}.`;}
+  catch(err){console.error(err);alert(gcEscapeMessage(err));}
+};
+window.gcRequestGradeAccess=async cid=>{
+  const state=window.googleClassroomState;
+  if(state.accessToken&&Date.now()<state.expiresAt){window.openGradeSettings(cid);return;}
+  const clientId=googleClassroomClientId();if(!clientId){alert("Google Classroom is not configured yet.");return;}
+  try{await waitForGoogleIdentityServices();state.tokenClient=google.accounts.oauth2.initTokenClient({client_id:clientId,scope:GOOGLE_CLASSROOM_SCOPES,include_granted_scopes:true,callback:response=>{if(response?.error){alert(response.error_description||response.error||"Google authorization was not completed.");return;}state.accessToken=response.access_token||"";state.expiresAt=Date.now()+Math.max(0,Number(response.expires_in||3600)-60)*1000;window.gcLoadGradeSources(cid);},error_callback:error=>alert(error?.type||"Google authorization popup could not be opened.")});state.tokenClient.requestAccessToken({prompt:""});}
+  catch(err){console.error(err);alert(gcEscapeMessage(err));}
+};
+function classroomGradeSourceEditor(c){
+  const catalog=c.classroomGradeCache?.catalog||null;const sources=gcGradeSourceDefaults(c);const comps=gradeComponents(c);
+  if(!catalog)return `<div class="classroomGradeSourcesEmpty"><p class="small">Connect Google Classroom and load the categories/assignments for this class before choosing grade sources.</p><button type="button" class="primary" onclick="window.gcRequestGradeAccess('${c.id}')">Connect / Load Classroom Grade Sources</button></div>`;
+  const catOptions=catalog.gradeCategories.map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('');
+  const assignmentOptions=catalog.assignments.map(a=>`<option value="${esc(a.id)}">${esc(a.title)}${a.categoryName?` · ${esc(a.categoryName)}`:""}</option>`).join('');
+  const rows=comps.map(comp=>{const src=sources[comp.id];const items=src.categoryItems||[];return `<div class="classroomGradeBucket" data-bucket="${esc(comp.id)}"><div class="classroomGradeBucketHead"><b>${esc(comp.label)}</b><select class="classroomSourceType" onchange="window.updateClassroomSourceUI('${c.id}','${comp.id}',this.value)"><option value="none" ${src.type==="none"?"selected":""}>Not linked</option><option value="category" ${src.type==="category"?"selected":""}>One category</option><option value="combination" ${src.type==="combination"?"selected":""}>Combination of categories</option><option value="assignment" ${src.type==="assignment"?"selected":""}>Specific assignment</option></select></div><div class="classroomSourceConfig" data-source-type="${esc(src.type)}">${classroomSourceConfigHTML(c.id,comp.id,src,catalog,catOptions,assignmentOptions)}</div></div>`;}).join('');
+  return `<div class="classroomGradeSources"><p class="small">Choose what Google Classroom should supply for each Grade Calculator bucket. This only fills Q1–Q4/Midterm/Final values; the existing Current Average and Recommendation calculations are unchanged.</p><div id="classroomGradeBuckets">${rows}</div><div class="classroomGradeActions"><button type="button" onclick="window.gcLoadGradeSources('${c.id}')">↻ Refresh Categories & Assignments</button><button type="button" class="primary" onclick="window.gcPullGrades('${c.id}')">Pull Grades from Classroom</button></div><p class="small">A bucket can be overridden for an individual student on the Grade Calculator. Overrides are not replaced by later pulls.</p></div>`;
+}
+function classroomSourceConfigHTML(cid,bucket,src,catalog,catOptions,assignmentOptions){
+  if(src.type==="category")return `<label>Category<br><select class="classroomCategorySelect" onchange="window.saveClassroomSourceField('${cid}','${bucket}','categoryId',this.value)"><option value="">Choose a category…</option>${catalog.gradeCategories.map(g=>`<option value="${esc(g.id)}" ${g.id===src.categoryId?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>`;
+  if(src.type==="assignment")return `<label>Assignment<br><select class="classroomAssignmentSelect" onchange="window.saveClassroomSourceField('${cid}','${bucket}','assignmentId',this.value)"><option value="">Choose an assignment…</option>${catalog.assignments.map(a=>`<option value="${esc(a.id)}" ${a.id===src.assignmentId?'selected':''}>${esc(a.title)}${a.categoryName?` · ${esc(a.categoryName)}`:""}</option>`).join('')}</select></label>`;
+  if(src.type==="combination")return `<div class="classroomCombinationList">${(src.categoryItems||[]).map((item,i)=>`<div class="classroomCombinationRow"><select onchange="window.updateClassroomCombination('${cid}','${bucket}',${i},'id',this.value)"><option value="">Choose category…</option>${catalog.gradeCategories.map(g=>`<option value="${esc(g.id)}" ${g.id===item.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select><input type="number" min="0" step="0.01" value="${esc(item.weight??'')}" placeholder="Weight %" onchange="window.updateClassroomCombination('${cid}','${bucket}',${i},'weight',this.value)"><button type="button" onclick="window.removeClassroomCombination('${cid}','${bucket}',${i})">Remove</button></div>`).join('')}<button type="button" onclick="window.addClassroomCombination('${cid}','${bucket}')">＋ Add Category</button></div>`;
+  return `<p class="small">No Google Classroom source selected for ${esc(bucket)}.</p>`;
+}
+function refreshClassroomGradeSourceConfig(cid){const c=data.classes.find(x=>x.id===cid);const host=document.querySelector("#classroomGradeBuckets");if(!c||!host)return;host.innerHTML=gradeComponents(c).map(comp=>{const src=gcGradeSourceDefaults(c)[comp.id];return `<div class="classroomGradeBucket" data-bucket="${esc(comp.id)}"><div class="classroomGradeBucketHead"><b>${esc(comp.label)}</b><select class="classroomSourceType" onchange="window.updateClassroomSourceUI('${c.id}','${comp.id}',this.value)"><option value="none" ${src.type==="none"?'selected':''}>Not linked</option><option value="category" ${src.type==="category"?'selected':''}>One category</option><option value="combination" ${src.type==="combination"?'selected':''}>Combination of categories</option><option value="assignment" ${src.type==="assignment"?'selected':''}>Specific assignment</option></select></div><div class="classroomSourceConfig" data-source-type="${esc(src.type)}">${classroomSourceConfigHTML(c.id,comp.id,src,c.classroomGradeCache.catalog,'','')}</div></div>`;}).join('');}
+window.updateClassroomSourceUI=(cid,bucket,type)=>{const c=data.classes.find(x=>x.id===cid);if(!c)return;c.classroomGradeSources??={};c.classroomGradeSources[bucket]={type,categoryId:"",categoryItems:type==="combination"?[{id:"",weight:100}]:[],assignmentId:""};save();refreshClassroomGradeSourceConfig(cid);};
+window.saveClassroomSourceField=(cid,bucket,field,value)=>{const c=data.classes.find(x=>x.id===cid);if(!c)return;c.classroomGradeSources??={};c.classroomGradeSources[bucket]??={type:"none",categoryId:"",categoryItems:[],assignmentId:""};c.classroomGradeSources[bucket][field]=value;save();};
+window.addClassroomCombination=(cid,bucket)=>{const c=data.classes.find(x=>x.id===cid);if(!c)return;c.classroomGradeSources??={};c.classroomGradeSources[bucket]??={type:"combination",categoryId:"",categoryItems:[],assignmentId:""};c.classroomGradeSources[bucket].categoryItems??=[];c.classroomGradeSources[bucket].categoryItems.push({id:"",weight:0});save();refreshClassroomGradeSourceConfig(cid);};
+window.updateClassroomCombination=(cid,bucket,index,field,value)=>{const c=data.classes.find(x=>x.id===cid);const items=c?.classroomGradeSources?.[bucket]?.categoryItems;if(!items?.[index])return;items[index][field]=field==="weight"?Number(value)||0:value;save();};
+window.removeClassroomCombination=(cid,bucket,index)=>{const c=data.classes.find(x=>x.id===cid);const items=c?.classroomGradeSources?.[bucket]?.categoryItems;if(!items)return;items.splice(index,1);save();refreshClassroomGradeSourceConfig(cid);};
+async function gcLoadCourses(){
+  const state=window.googleClassroomState;
+  state.loading=true;gcSetStatus("Loading your active Google Classroom classes…");renderSetupWizard();
+  try{
+    const courses=await gcListPages("courses",{teacherId:"me",courseStates:"ACTIVE",fields:"courses(id,name,section,courseState),nextPageToken"},"courses");
+    state.courses=courses.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+    state.selected=new Set(state.selected||[]);
+    gcSetStatus(`${state.courses.length} active class${state.courses.length===1?"":"es"} found.`);
+  }catch(err){console.error(err);gcSetStatus(gcEscapeMessage(err));alert(gcEscapeMessage(err));}
+  finally{state.loading=false;renderSetupWizard();}
+}
+
+window.gcToggleCourse=courseId=>{
+  const state=window.googleClassroomState;state.selected=state.selected||new Set();state.importPlan=null;
+  if(state.selected.has(courseId))state.selected.delete(courseId);else state.selected.add(courseId);
+  renderSetupWizard();
+};
+
+window.gcLoadSelectedRosters=async()=>{
+  const state=window.googleClassroomState;const ids=[...(state.selected||[])];
+  if(!ids.length){alert("Choose at least one Google Classroom class first.");return;}
+  gcSetStatus("Loading rosters…");renderSetupWizard();
+  try{
+    for(const courseId of ids){
+      const students=await gcListPages(`courses/${encodeURIComponent(courseId)}/students`,{},"students");
+      state.rosters[courseId]=students;
+    }
+    state.importPlan=null;gcSetStatus("Rosters loaded. Review the students before importing them.");
+  }catch(err){console.error(err);gcSetStatus(gcEscapeMessage(err));alert(gcEscapeMessage(err));}
+  renderSetupWizard();
+};
+
+function splitClassroomName(profile){
+  const given=String(profile?.name?.givenName||"").trim();
+  const family=String(profile?.name?.familyName||"").trim();
+  const full=String(profile?.name?.fullName||"").trim();
+  if(given||family)return {firstName:given,lastName:family,name:[given,family].filter(Boolean).join(" ")};
+  const parts=full.split(/\s+/).filter(Boolean);
+  if(parts.length>1)return {firstName:parts.shift(),lastName:parts.join(" "),name:full};
+  return {firstName:full,lastName:"",name:full||"Unnamed Student"};
+}
+
+function gcNameKey(info){return [String(info?.firstName||""),String(info?.lastName||"")].join(" ").trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
+function gcStudentCandidates(info){
+  const key=gcNameKey(info);if(!key)return [];
+  return data.students.filter(s=>gcNameKey({firstName:studentFirstName(s),lastName:studentLastName(s)})===key);
+}
+function gcBuildImportPlan(){
+  const state=window.googleClassroomState;const ids=[...(state.selected||[])];
+  const plan={students:[],matches:[],newStudents:0};const seenUsers=new Set();
+  ids.forEach(courseId=>{
+    const roster=state.rosters?.[courseId]||[];
+    roster.forEach(student=>{
+      const userId=String(student?.userId||"").trim();if(!userId||seenUsers.has(userId))return;seenUsers.add(userId);
+      const info=splitClassroomName(student.profile||{});
+      const local=data.students.find(s=>s.googleClassroomUserId===userId);
+      if(local){plan.students.push({userId,info,localId:local.id,source:student});return;}
+      const candidates=gcStudentCandidates(info);
+      if(candidates.length===1){plan.students.push({userId,info,localId:candidates[0].id,source:student,matchedByName:true});return;}
+      if(candidates.length>1){plan.matches.push({userId,info,candidates:candidates.map(s=>({id:s.id,name:studentDisplayName(s)})),source:student,localId:"",createNew:false});return;}
+      plan.students.push({userId,info,localId:"",source:student});plan.newStudents++;
+    });
+  });
+  return plan;
+}
+window.gcPrepareImport=()=>{
+  const state=window.googleClassroomState;const ids=[...(state.selected||[])];
+  if(!ids.length){alert("Choose at least one Google Classroom class first.");return;}
+  const missing=ids.filter(id=>!Array.isArray(state.rosters?.[id]));
+  if(missing.length){alert("Load the selected rosters first so you can review the students before importing them.");return;}
+  state.importPlan=gcBuildImportPlan();
+  gcSetStatus(state.importPlan.matches.length?`${state.importPlan.matches.length} possible duplicate student${state.importPlan.matches.length===1?"":"s"} need review before import.`:"Roster review complete. Ready to import.");
+  renderSetupWizard();
+};
+window.gcResolveMatch=(index,localId)=>{
+  const state=window.googleClassroomState;const m=state.importPlan?.matches?.[index];if(!m)return;
+  if(localId==="__new__"){m.localId="";m.createNew=true;}else{m.localId=localId;m.createNew=false;}
+  renderSetupWizard();
+};
+function gcUpsertStudent(student,forcedLocalId=""){
+  const userId=String(student?.userId||"").trim();if(!userId)return null;
+  const info=splitClassroomName(student.profile||{});
+  let local=forcedLocalId?data.students.find(s=>s.id===forcedLocalId):data.students.find(s=>s.googleClassroomUserId===userId);
+  if(!local){local={id:uid(),googleClassroomUserId:userId,googleClassroomImported:true,...info};data.students.push(local);}
+  else{local.googleClassroomUserId=userId;local.firstName=info.firstName;local.lastName=info.lastName;local.name=info.name;local.googleClassroomImported=true;}
+  return local.id;
+}
+window.gcImportSelected=async()=>{
+  const state=window.googleClassroomState;const courses=state.courses||[];const ids=[...(state.selected||[])];
+  if(!ids.length){alert("Choose at least one Google Classroom class first.");return;}
+  const missing=ids.filter(id=>!Array.isArray(state.rosters?.[id]));
+  if(missing.length){alert("Load the selected rosters first so you can review the students before importing them.");return;}
+  if(!state.importPlan)window.gcPrepareImport();
+  const plan=state.importPlan;if(!plan)return;
+  if((plan.matches||[]).some(m=>!m.localId&&!m.createNew)){alert("Please review each possible duplicate student before importing.");return;}
+  const studentIdByUser=new Map();
+  for(const item of plan.students)studentIdByUser.set(item.userId,gcUpsertStudent(item.source,item.localId));
+  for(const m of plan.matches)studentIdByUser.set(m.userId,gcUpsertStudent(m.source,m.localId||""));
+  const imported=[];
+  for(const courseId of ids){
+    const course=courses.find(x=>x.id===courseId);if(!course)continue;
+    const roster=state.rosters[courseId]||[];
+    const studentIds=roster.map(st=>studentIdByUser.get(String(st?.userId||""))).filter(Boolean);
+    let local=data.classes.find(c=>c.googleClassroomCourseId===courseId);
+    if(!local){local={id:uid(),name:String(course.name||"Google Classroom Class").trim(),nickname:String(course.section||"").trim(),studentIds,rules:[{id:uid(),periods:[],days:[1,2,3,4,5]}],periods:[],days:[1,2,3,4,5],terms:["fullYear"],graded:false,giveMidterm:true,giveFinal:true,usesRecommendations:false,recommendationRules:[],grades:{},classroomGradeSources:{},classroomGradeCache:{},classroomGradeOverrides:{},classroomGradePulled:{},reminders:[],pvaasReported:false,enrollmentPeriods:[],rosterHistory:[],googleClassroomCourseId:courseId,googleClassroomImported:true,setupComplete:false};data.classes.push(local);}
+    else{local.name=String(course.name||local.name||"Google Classroom Class").trim();if(course.section)local.nickname=String(course.section).trim();local.studentIds=studentIds;local.googleClassroomImported=true;local.googleClassroomCourseId=courseId;}
+    imported.push({course,studentCount:studentIds.length});
+  }
+  normalizeStudents();data.googleClassroom??={clientId:googleClassroomClientId(),lastImportAt:""};data.googleClassroom.lastImportAt=new Date().toISOString();save();
+  gcSetStatus(`Imported ${imported.length} class${imported.length===1?"":"es"} and ${imported.reduce((n,x)=>n+x.studentCount,0)} roster entries.`);
+  state.importPlan=null;window.setupDraft=window.setupDraft||{};window.setupDraft.googleClassroomImported=true;renderSetupWizard();
+};
+
+window.saveGoogleClassroomClientId=value=>{
+  data.googleClassroom??={clientId:"",lastImportAt:""};
+  data.googleClassroom.clientId=String(value||"").trim();
+  save();
+  window.googleClassroomState.accessToken="";window.googleClassroomState.expiresAt=0;window.googleClassroomState.tokenClient=null;
+  renderSetupWizard();
+};
+
 function normalizeStudents(){
   data.students??=[];
   data.students.forEach(s=>{
@@ -1951,17 +2260,103 @@ window.deleteAnnouncement=id=>{
   save();render();showToast("Announcement deleted.");
 };
 
+function studentMergeSummary(st){
+  if(!st)return "";
+  const classes=data.classes.filter(c=>(c.studentIds||[]).includes(st.id)).length;
+  const events=data.events.filter(e=>e.studentId===st.id).length;
+  const notes=data.notes.filter(n=>n.studentId===st.id).length;
+  const accom=(data.accommodations||[]).filter(a=>a.studentId===st.id).length;
+  const forms=(data.forms||[]).filter(f=>(f.targetStudentIds||[]).includes(st.id)||Object.prototype.hasOwnProperty.call(f.records||{},st.id)).length;
+  return `${classes} class${classes===1?"":"es"} · ${events} event${events===1?"":"s"} · ${notes} note${notes===1?"":"s"} · ${accom} accommodation${accom===1?"":"s"} · ${forms} form record${forms===1?"":"s"}`;
+}
+function mergeStudentData(target,source){
+  const targetId=target.id,sourceId=source.id;
+  data.classes.forEach(c=>{
+    const ids=c.studentIds||[];
+    if(ids.includes(sourceId))ids.push(targetId);
+    c.studentIds=[...new Set(ids.filter(id=>id!==sourceId))];
+    if(Array.isArray(c.enrollmentPeriods))c.enrollmentPeriods.forEach(x=>{if(x.studentId===sourceId)x.studentId=targetId;});
+    if(Array.isArray(c.rosterHistory))c.rosterHistory.forEach(x=>{if(x.studentId===sourceId)x.studentId=targetId;});
+  });
+  data.events.forEach(e=>{if(e.studentId===sourceId)e.studentId=targetId;});
+  data.notes.forEach(n=>{if(n.studentId===sourceId)n.studentId=targetId;});
+  (data.accommodations||[]).forEach(a=>{if(a.studentId===sourceId)a.studentId=targetId;});
+  (data.accommodationSources||[]).forEach(a=>{if(a.studentId===sourceId)a.studentId=targetId;});
+  (data.groups||[]).forEach(g=>{
+    if(Array.isArray(g.studentIds)&&g.studentIds.includes(sourceId))g.studentIds=[...new Set([...g.studentIds.filter(id=>id!==sourceId),targetId])];
+  });
+  (data.forms||[]).forEach(f=>{
+    if(Array.isArray(f.targetStudentIds)&&f.targetStudentIds.includes(sourceId))f.targetStudentIds=[...new Set([...f.targetStudentIds.filter(id=>id!==sourceId),targetId])];
+    f.records=f.records&&typeof f.records==='object'?f.records:{};
+    if(Object.prototype.hasOwnProperty.call(f.records,sourceId)){
+      const src=f.records[sourceId]&&typeof f.records[sourceId]==='object'?f.records[sourceId]:{};
+      const dst=f.records[targetId]&&typeof f.records[targetId]==='object'?f.records[targetId]:{};
+      f.records[targetId]={...src,...dst};
+      delete f.records[sourceId];
+    }
+  });
+  (data.gradeCourses||[]).forEach(c=>{
+    c.grades=c.grades&&typeof c.grades==='object'?c.grades:{};
+    if(Object.prototype.hasOwnProperty.call(c.grades,sourceId)){
+      const src=c.grades[sourceId]&&typeof c.grades[sourceId]==='object'?c.grades[sourceId]:{};
+      const dst=c.grades[targetId]&&typeof c.grades[targetId]==='object'?c.grades[targetId]:{};
+      c.grades[targetId]={...src,...dst};
+      delete c.grades[sourceId];
+    }
+  });
+  ensurePvaasData();
+  const targetCohort=data.pvaasStudentCohorts[targetId],sourceCohort=data.pvaasStudentCohorts[sourceId];
+  if(!targetCohort&&sourceCohort)data.pvaasStudentCohorts[targetId]=sourceCohort;
+  delete data.pvaasStudentCohorts[sourceId];
+  if(data.classroomTools?.randomStudentId===sourceId)data.classroomTools.randomStudentId=targetId;
+  (data.classroomTools?.groups||[]).forEach(group=>{
+    if(Array.isArray(group)&&group.includes(sourceId)){
+      const i=group.indexOf(sourceId);group.splice(i,1);if(!group.includes(targetId))group.push(targetId);
+    }
+  });
+  target.doNotSeatWith=[...new Set([...(target.doNotSeatWith||[]),...(source.doNotSeatWith||[])])].filter(id=>id!==targetId&&id!==sourceId);
+  data.students.forEach(st=>{
+    if(st.id===targetId)return;
+    if(Array.isArray(st.doNotSeatWith)&&st.doNotSeatWith.includes(sourceId)){
+      st.doNotSeatWith=[...new Set([...st.doNotSeatWith.filter(id=>id!==sourceId),targetId])];
+    }
+  });
+  // Keep the dashboard's existing name/display preference. Transfer the Classroom identity
+  // only when the kept record does not already have one. If both records have different
+  // Classroom identities, the caller blocks the merge because they may be different people.
+  if(!target.googleClassroomUserId&&source.googleClassroomUserId)target.googleClassroomUserId=source.googleClassroomUserId;
+  if(source.googleClassroomImported)target.googleClassroomImported=true;
+  data.students=data.students.filter(s=>s.id!==sourceId);
+}
+window.openStudentMergeModal=()=>{
+  normalizeStudents();
+  if(data.students.length<2){alert("You need at least two students before you can merge records.");return;}
+  document.querySelector('#studentMergeModal')?.remove();
+  const opts=data.students.slice().sort((a,b)=>studentDisplayName(a).localeCompare(studentDisplayName(b))).map(st=>`<option value="${esc(st.id)}">${esc(studentDisplayName(st))}${st.googleClassroomImported?" · Google Classroom":""}</option>`).join('');
+  document.body.insertAdjacentHTML('beforeend',`<div id="studentMergeModal" class="modalbg"><div class="modal studentMergePanel"><h3>Merge Student Records</h3><p class="small">Use this when the same student exists twice—for example, your dashboard says “Lizzy Corbett” while Google Classroom says “Elizabeth Corbett.” The record you keep supplies the name shown in Teacher Dashboard; the duplicate's data is moved into it.</p><div class="studentMergeGrid"><div class="studentMergeCard"><b>Keep this student</b><select id="mergeKeepStudent" style="width:100%;margin-top:7px"><option value="">Choose a student…</option>${opts}</select><div id="mergeKeepSummary" class="small" style="margin-top:8px"></div></div><div class="studentMergeArrow">→</div><div class="studentMergeCard"><b>Merge this duplicate into the kept student</b><select id="mergeSourceStudent" style="width:100%;margin-top:7px"><option value="">Choose a student…</option>${opts}</select><div id="mergeSourceSummary" class="small" style="margin-top:8px"></div></div></div><div id="mergeStudentWarning" class="mergeWarning small">Choose two different students to preview the merge.</div><div style="margin-top:16px"><button class="primary" onclick="window.mergeSelectedStudents()">Merge Records</button> <button onclick="window.closeStudentMergeModal()">Cancel</button></div></div></div>`);
+  const refresh=()=>{const k=document.getElementById('mergeKeepStudent')?.value,s=document.getElementById('mergeSourceStudent')?.value;const ks=data.students.find(x=>x.id===k),ss=data.students.find(x=>x.id===s);const a=document.getElementById('mergeKeepSummary'),b=document.getElementById('mergeSourceSummary'),w=document.getElementById('mergeStudentWarning');if(a)a.textContent=ks?studentMergeSummary(ks):"";if(b)b.textContent=ss?studentMergeSummary(ss):"";if(w){if(!k||!s)w.textContent="Choose two different students to preview the merge.";else if(k===s)w.textContent="Choose two different students.";else if(ks?.googleClassroomUserId&&ss?.googleClassroomUserId&&ks.googleClassroomUserId!==ss.googleClassroomUserId)w.textContent="These records have two different Google Classroom identities. Merge is blocked so we don't accidentally combine two different students.";else w.textContent="The kept student's name stays. Classes, events, notes, accommodations, forms, grades, PVAAS settings, groups, and Classroom identity will be combined. The duplicate record will then be removed.";}};
+  document.getElementById('mergeKeepStudent').onchange=refresh;document.getElementById('mergeSourceStudent').onchange=refresh;
+};
+window.closeStudentMergeModal=()=>document.querySelector('#studentMergeModal')?.remove();
+window.mergeSelectedStudents=()=>{
+  const keepId=document.getElementById('mergeKeepStudent')?.value,sourceId=document.getElementById('mergeSourceStudent')?.value;if(!keepId||!sourceId){alert("Choose the student record to keep and the duplicate record to merge into it.");return;}if(keepId===sourceId){alert("Choose two different student records.");return;}
+  const target=data.students.find(s=>s.id===keepId),source=data.students.find(s=>s.id===sourceId);if(!target||!source)return;
+  if(target.googleClassroomUserId&&source.googleClassroomUserId&&target.googleClassroomUserId!==source.googleClassroomUserId){alert("I can't merge these two records because they have different Google Classroom identities. That could combine two different students.");return;}
+  const ok=confirm(`Merge ${studentDisplayName(source)} into ${studentDisplayName(target)}?\n\n${studentMergeSummary(source)}\n\nThe kept student's name will remain ${studentDisplayName(target)}. This cannot be undone automatically.`);if(!ok)return;
+  mergeStudentData(target,source);save();window.closeStudentMergeModal();toast=`Merged ${studentDisplayName(source)} into ${studentDisplayName(target)}.`;render();
+};
+
 function students(){
   ensureClassFields(); normalizeStudents(); ensureGroups();
   const studentRows=sortedStudents(data.students).map(st=>`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0">
-      <span>${esc(st.name)}</span>
+      <span>${esc(studentDisplayName(st))}${st.googleClassroomImported?` <span class="small">· Google Classroom</span>`:""}</span>
       <span style="white-space:nowrap"><button onclick="window.openStudentModal('${st.id}')">Edit</button> <button onclick="window.openStudentAccommodations('${st.id}')">Accommodations</button> <button onclick="window.deleteStudent('${st.id}')">Delete</button></span>
     </div>`).join("")||"<p>No students yet.</p>";
   return `<header><h2>Students & Classes</h2></header>
   <div class="split">
     <section class="card">
-      <h3>Students</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Students</h3><button type="button" onclick="window.openStudentMergeModal()">Merge Students</button></div>
       <div class="add" style="align-items:end;flex-wrap:wrap">
         <label style="flex:1;min-width:170px">First Name<br><input id="newStudentFirstName" placeholder="First name" style="width:100%"></label>
         <label style="flex:1;min-width:170px">Last Name<br><input id="newStudentLastName" placeholder="Last name" style="width:100%"></label>
@@ -2804,6 +3199,10 @@ function recommendationFor(c,avg){
   }
   return "";
 }
+function classroomGradeSourceFor(c,bucket){return c?.classroomGradeSources?.[bucket]||null;}
+function classroomGradeIsLinked(c,bucket){const src=classroomGradeSourceFor(c,bucket);return !!src&&src.type&&src.type!=="none";}
+function classroomGradeIsOverridden(c,sid,bucket){return !!c?.classroomGradeOverrides?.[sid]?.[bucket];}
+window.resetClassroomGradeOverride=(cid,sid,bucket)=>{const c=data.classes.find(x=>x.id===cid);if(!c)return;c.classroomGradeOverrides??={};c.classroomGradeOverrides[sid]??={};delete c.classroomGradeOverrides[sid][bucket];c.grades??={};c.grades[sid]??={};c.grades[sid][bucket]=c.classroomGradePulled?.[sid]?.[bucket]??"";save();render();};
 function grades(){
   const courses=gradeEligibleClasses();
   const selectedId=window.gradeCourseId&&courses.some(c=>c.id===window.gradeCourseId)?window.gradeCourseId:courses[0]?.id||"";
@@ -2826,10 +3225,10 @@ function grades(){
     ${window.gradeViewMode==="student"?`<label>Student<br><select onchange="window.selectGradeStudent(this.value)">${studentOptions}</select></label>`:""}
     <button onclick="window.openGradeSettings('${c.id}')">⚙ Grade Settings</button>
   </div>
-  <div class="small" style="margin-top:10px">Midterm: <b>${c.giveMidterm?"Yes":"No"}</b> &nbsp; Final: <b>${c.giveFinal?"Yes":"No"}</b>${c.usesRecommendations?" &nbsp; • Recommendations enabled":""}</div></section>
+  <div class="small" style="margin-top:10px">Midterm: <b>${c.giveMidterm?"Yes":"No"}</b> &nbsp; Final: <b>${c.giveFinal?"Yes":"No"}</b>${c.usesRecommendations?" &nbsp; • Recommendations enabled":""}${Object.values(c.classroomGradeSources||{}).some(x=>x?.type&&x.type!=="none")?" &nbsp; • Classroom-linked buckets enabled":""}</div>${Object.values(c.classroomGradeSources||{}).some(x=>x?.type&&x.type!=="none")?`<p class="small" style="margin:8px 0 0">Editing a Classroom-linked bucket creates a manual override. ↩ restores the latest pulled Classroom value.</p>`:""}</section>
   <section class="card"><h3>${esc(c.name)}${window.gradeViewMode==="student"&&students[0]?` — ${esc(students[0].name)}`:""}</h3>
   <div style="overflow:auto"><table><thead><tr><th>Student</th>${comps.map(x=>`<th>${x.label}</th>`).join("")}<th>Current Average</th>${c.usesRecommendations?"<th>Recommendation</th>":""}</tr></thead>
-  <tbody>${students.map(s=>{const avg=currentAverage(c,s.id);return `<tr><td>${esc(s.name)}</td>${comps.map(x=>`<td><input class="grade" type="number" min="0" max="100" step="0.01" value="${esc(c.grades?.[s.id]?.[x.id]??"")}" oninput="window.setCourseGrade('${c.id}','${s.id}','${x.id}',this.value,true)"></td>`).join("")}<td class="currentAvg"><b>${avg===""?"—":avg.toFixed(2)+"%"}</b></td>${c.usesRecommendations?`<td class="recommendationCell">${esc(recommendationFor(c,avg)||"—")}</td>`:""}</tr>`}).join("")||`<tr><td colspan="${comps.length+2+(c.usesRecommendations?1:0)}">No students are assigned to this class.</td></tr>`}</tbody></table></div></section>`;
+  <tbody>${students.map(s=>{const avg=currentAverage(c,s.id);return `<tr><td>${esc(s.name)}</td>${comps.map(x=>{const linked=classroomGradeIsLinked(c,x.id),over=classroomGradeIsOverridden(c,s.id,x.id);return `<td><div class="gradeCellWrap"><input class="grade" type="number" min="0" max="100" step="0.01" value="${esc(c.grades?.[s.id]?.[x.id]??"")}" oninput="window.setCourseGrade('${c.id}','${s.id}','${x.id}',this.value,true)">${linked?`<div class="gradeSourceBadge ${over?'override':''}">${over?'Override':'Classroom'}${over?` <button type="button" class="gradeResetBtn" title="Restore the latest Classroom grade" onclick="window.resetClassroomGradeOverride('${c.id}','${s.id}','${x.id}')">↩</button>`:""}</div>`:""}</div></td>`}).join("")}<td class="currentAvg"><b>${avg===""?"—":avg.toFixed(2)+"%"}</b></td>${c.usesRecommendations?`<td class="recommendationCell">${esc(recommendationFor(c,avg)||"—")}</td>`:""}</tr>`}).join("")||`<tr><td colspan="${comps.length+2+(c.usesRecommendations?1:0)}">No students are assigned to this class.</td></tr>`}</tbody></table></div></section>`;
 }
 function defaultReportClassId(){
   const cls=currentClass();
@@ -3148,9 +3547,31 @@ function setupBellScreenHTML(){
 function setupBellReviewHTML(){
   return `<div class="setupReviewBox"><div class="setupReviewSubhead"><b>Review what I found</b><span class="small">${setupBellSchedules().length} schedule${setupBellSchedules().length===1?'':'s'} found</span></div><p class="small">Everything below is editable. Make sure the schedule marked Regular/default is the ordinary school day.</p>${setupBellHTML()}${setupEarlyDismissalAssignments()}</div>`;
 }
-function setupClassesScreenHTML(){
-  return `<div class="setupScreen"><div class="setupScreenIntro"><div><h4>Step 3 · Set Up Your Classes & Rosters</h4><p class="small">This is the next setup step. You'll be able to either enter your classes and rosters directly or connect Google Classroom to pull them in.</p></div><div class="setupSkipHint">You can skip this and come back later.</div></div><div class="setupComingSoonGrid"><div class="setupComingSoonCard"><div class="setupComingSoonIcon">👩‍🏫</div><b>Set Up Classes & Rosters</b><p class="small">Add classes, periods, and students directly.</p><button type="button" disabled>Coming soon</button></div><div class="setupComingSoonCard"><div class="setupComingSoonIcon">🟢</div><b>Connect Google Classroom</b><p class="small">Pull classes and rosters from Google Classroom.</p><button type="button" disabled>Coming soon</button></div></div></div>`;
+function setupManualClassesSummary(){
+  const classes=data.classes||[];
+  if(!classes.length)return `<p class="small">No classes have been added yet.</p>`;
+  return `<div class="setupManualClassList">${classes.map(c=>`<div class="setupManualClassRow"><div><b>${esc(c.name)}</b>${c.nickname?` <span class="small">${esc(c.nickname)}</span>`:""}<div class="small">${(c.studentIds||[]).length} student${(c.studentIds||[]).length===1?"":"s"}${c.googleClassroomImported?" · Google Classroom":""}</div></div><button type="button" onclick="window.openClassModal('${esc(c.id)}')">Edit</button></div>`).join('')}</div>`;
 }
+function setupImportedClassSummary(){
+  const classes=(data.classes||[]).filter(c=>c.googleClassroomImported);
+  if(!classes.length)return '';
+  return `<div class="setupImportedClassBox"><div class="setupReviewSubhead"><div><b>Imported Classes</b><span class="small">Finish setting up each class using the same options already in Teacher Dashboard.</span></div></div><div class="setupManualClassList">${classes.map(c=>`<div class="setupManualClassRow"><div><b>${esc(c.name)}</b>${c.nickname?` <span class="small">${esc(c.nickname)}</span>`:""}<div class="small">${(c.studentIds||[]).length} student${(c.studentIds||[]).length===1?"":"s"} · ${c.setupComplete?"Setup complete":"Needs class setup"}</div></div><button type="button" class="${c.setupComplete?"":"primary"}" onclick="${c.setupComplete?`window.openClassModal('${esc(c.id)}')`:`window.setupConfigureClass('${esc(c.id)}')`}">${c.setupComplete?"Edit Class":"Set Up Class"}</button></div>`).join('')}</div></div>`;
+}
+function setupGoogleClassroomHTML(){
+  const state=window.googleClassroomState||{courses:[],selected:new Set(),rosters:{},accessToken:""};
+  const configured=googleClassroomConfigured();
+  const selected=state.selected||new Set();
+  const courses=state.courses||[];
+  const rows=courses.map(c=>{const roster=state.rosters?.[c.id];return `<label class="setupGcCourseRow"><input type="checkbox" ${selected.has(c.id)?"checked":""} onchange="window.gcToggleCourse('${esc(c.id)}')"><span><b>${esc(c.name||"Untitled class")}</b>${c.section?`<span class="small"> · ${esc(c.section)}</span>`:""}<span class="small">${Array.isArray(roster)?` · ${roster.length} students loaded`:` · roster not loaded`}</span></span></label>`;}).join('');
+  const review=Array.from(selected).filter(id=>Array.isArray(state.rosters?.[id])).map(id=>{const c=courses.find(x=>x.id===id);const roster=state.rosters[id]||[];return `<div class="setupGcRosterCard"><div><b>${esc(c?.name||"Class")}</b><span class="small"> · ${roster.length} student${roster.length===1?"":"s"}</span></div><details><summary>Review students</summary><div class="setupGcStudentList">${roster.map(st=>`<span>${esc(st.profile?.name?.fullName||"Unnamed Student")}</span>`).join('')||'<span class="small">No students found.</span>'}</div></details></div>`;}).join('');
+  return `<div class="setupGcPanel"><div class="setupReviewSubhead"><div><b>Import from Google Classroom</b><span class="small">Read-only roster access</span></div>${configured?`<button type="button" onclick="window.gcRequestAccess()">${state.accessToken?"Reconnect Google Classroom":"Connect Google Classroom"}</button>`:""}</div>${configured?`<p class="small">Google Classroom will ask for permission to view your classes and class rosters. Nothing is imported until you choose the classes and click Import.</p><div id="setupGoogleClassroomStatus" class="small">${esc(state.status||"")}</div>${courses.length?`<div class="setupGcCourseList">${rows}</div><div class="setupGcActions"><button type="button" onclick="window.gcLoadSelectedRosters()">Load Selected Rosters</button><button type="button" onclick="window.gcPrepareImport()">Review for Duplicates</button><button type="button" class="primary" onclick="window.gcImportSelected()">Import Selected Classes</button></div>${review}${state.importPlan?.matches?.length?`<div class="setupGcMatchReview"><div class="setupReviewSubhead"><div><b>Possible existing-student matches</b><span class="small">Choose the existing student when this is the same person, or choose Create New Student.</span></div></div>${state.importPlan.matches.map((m,i)=>`<div class="setupGcMatchRow"><div><b>${esc(m.info.name||"Unnamed Student")}</b><span class="small">Google Classroom student</span></div><select onchange="window.gcResolveMatch(${i},this.value)"><option value="">— Choose —</option>${m.candidates.map(c=>`<option value="${esc(c.id)}" ${m.localId===c.id?'selected':''}>Use ${esc(c.name)}</option>`).join('')}<option value="__new__" ${m.createNew?'selected':''}>Create New Student</option></select></div>`).join('')}</div>`:''}`:`<div class="setupGcEmpty"><p class="small">Connect to load your active classes.</p><button type="button" class="primary" onclick="window.gcRequestAccess()">Connect Google Classroom</button></div>`}${setupImportedClassSummary()}`:`<div class="setupGcConfig"><p><b>One-time Google setup</b></p><p class="small">To connect Google Classroom, create a Google OAuth Web Client ID, enable the Classroom API, and authorize this site's GitHub Pages origin. Then paste the Client ID here.</p><label>Google OAuth Web Client ID<br><input id="setupGoogleClientId" type="text" placeholder="1234567890-abc123.apps.googleusercontent.com" value="${esc(data.googleClassroom?.clientId||"")}" style="width:100%"></label><div style="margin-top:8px"><button type="button" class="primary" onclick="window.saveGoogleClassroomClientId(document.getElementById('setupGoogleClientId')?.value)">Save Client ID</button></div><p class="small" style="margin-top:8px">The Client ID is not a password or secret. The app never stores your Google OAuth access token in Firebase.</p></div>`}</div>`;
+}
+function setupClassesScreenHTML(){
+  return `<div class="setupScreen"><div class="setupScreenIntro"><div><h4>Step 3 · Set Up Your Classes & Rosters</h4><p class="small">Choose the quickest way to get your classes and student rosters into Teacher Dashboard. You can import from Google Classroom or add classes manually.</p></div><div class="setupSkipHint">You can skip this and come back later.</div></div><div class="setupRosterChoiceGrid"><section class="setupRosterChoice"><div class="setupComingSoonIcon">🟢</div><h4>Import from Google Classroom</h4><p class="small">Connect Google Classroom, choose the classes you want, review each roster, and import them.</p>${setupGoogleClassroomHTML()}</section><section class="setupRosterChoice"><div class="setupComingSoonIcon">👩‍🏫</div><h4>Set Up Classes Manually</h4><p class="small">Use the same class editor already available in Students & Classes. Add a class, choose its schedule, and build its roster.</p><button type="button" class="primary" onclick="window.setupOpenManualClass()">＋ Add Class Manually</button><div style="margin-top:12px">${setupManualClassesSummary()}</div></section></div></div>`;
+}
+window.setupOpenManualClass=()=>{window.setupWizardManualClass=true;window.setupClassAfterSave=false;window.openClassModal();};
+window.setupConfigureClass=id=>{window.setupClassAfterSave=true;window.setupWizardManualClass=false;window.openClassModal(id);};
+
 window.openSetupWizard=()=>{
   document.querySelector('#setupWizardModal')?.remove();
   window.setupStep=1;
@@ -3250,17 +3671,16 @@ function settings(){
   const userLabel=currentUser?.displayName||currentUser?.email||"Google user";
   const cal=data.calendarSettings||{};
   return `<header><h2>Settings</h2><p class="small">Set up the parts of Teacher Dashboard that vary by school or district.</p></header>
-  <section class="card setupCard"><div><h3>🏫 School Setup</h3><p class="small">Import your district calendar and bell schedules, then review everything before it becomes part of your dashboard.</p></div><button class="primary" onclick="window.openSetupWizard()">${data.setupComplete?"Review School Setup":"Start School Setup"}</button></section>
+  <section class="card setupCard"><div><h3>🏫 School Setup</h3><p class="small">Import your district calendar and bell schedules, then set up classes and rosters — all with review before anything becomes official.</p></div><button class="primary" onclick="window.openSetupWizard()">${data.setupComplete?"Review School Setup":"Start School Setup"}</button></section>
   <section class="card"><h3>Account</h3><div class="accountRow">${avatarHTML()}<div><b>${esc(userLabel)}</b><div class="small">${esc(currentUser?.email||"")}</div></div></div>
   <div class="avatarActions"><button type="button" onclick="document.getElementById('avatarFile').click()">📷 Upload a picture</button>${data.profileAvatar?`<button type="button" onclick="window.useGooglePhoto()">Use Google picture</button>`:""}</div>
   <input id="avatarFile" type="file" accept="image/*" style="display:none" onchange="window.uploadAvatar(this)"><button style="margin-top:12px" onclick="window.signOut()">Sign out</button></section>
   <section class="card"><h3>Sidebar Layout</h3><p class="small">Choose which sections appear in your sidebar and arrange them in the order you prefer.</p><div class="sidebarEditorList">${sidebarSettingsHTML()}</div><button type="button" onclick="window.resetSidebarLayout()">Reset to Default</button></section>
   <section class="card"><h3>📅 Calendar & PVAAS</h3><div class="settingsGrid"><label>First Student Day<br><input type="date" value="${esc(cal.firstStudentDay||"")}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input type="date" value="${esc(cal.lastStudentDay||"")}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label><label>PVAAS End Date<br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label></div><p class="small">PVAAS uses this end date when it is set; otherwise it uses the last student day.</p></section>
   <section class="card"><h3>🧮 Grade Calculator Defaults</h3><p class="small">Scoring is configured separately for each class from the Grade Calculator. Your existing JM defaults remain unchanged.</p></section>
-  <section class="card"><h3>👩‍🎓 Google Classroom</h3><p class="small">Roster syncing is the next integration. It will let you authorize Google Classroom and import selected classes without typing rosters by hand.</p><button type="button" disabled>Connect Google Classroom — coming next</button></section>
+  <section class="card"><h3>👩‍🎓 Google Classroom</h3><p class="small">Connect Google Classroom to import classes and student rosters. Your OAuth client ID is a public web-app identifier, not a secret.</p><label>Google OAuth Web Client ID<br><input type="text" value="${esc(data.googleClassroom?.clientId||"")}" placeholder="1234567890-abc123.apps.googleusercontent.com" style="width:min(100%,720px)" onchange="window.saveGoogleClassroomClientId(this.value)"></label><p class="small" style="margin-top:8px">This must be a Web application OAuth client with this dashboard's GitHub Pages origin authorized in Google Cloud.</p></section>
   <section class="card"><h3>Data Storage</h3><p><b>☁️ ${esc(cloudStatus)}</b></p><div class="syncTime"><b>Last sync:</b> ${esc(formatSync(lastSyncAt))}</div><p class="small">Your dashboard is stored separately for each signed-in Google account.</p></section>
-  <section class="card"><h3>Keystone Tracking</h3><label>Total counted school days<br><input type="number" value="${data.totalSchoolDays}" onchange="window.setTotalDays(this.value)"></label></section>
-  <section class="card"><h3>Local Data Backup</h3><p class="small">Download a backup before major updates. You can also import it later.</p><button onclick="window.exportData()">Download backup</button> <button onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="window.importData(this)"></section>
+    <section class="card"><h3>Local Data Backup</h3><p class="small">Download a backup before major updates. You can also import it later.</p><button onclick="window.exportData()">Download backup</button> <button onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="window.importData(this)"></section>
   <section class="card"><button onclick="window.resetData()">Reset this dashboard to demo data</button></section>`;
 }
 
@@ -3808,7 +4228,7 @@ window.openClassModal=(id="")=>{
   const studentChecks=sortedStudents(data.students).map(st=>`<label><input type="checkbox" name="classStudent" value="${esc(st.id)}" ${(c.studentIds||[]).includes(st.id)?"checked":""}> ${esc(st.name)}</label>`).join("")||"<span class='small emptyStudents'>No students yet.</span>";
   document.body.insertAdjacentHTML("beforeend",`
     <div id="classModal" class="modalbg"><div class="modal classEditor">
-      <h3>${existing?"Edit":"Add"} Class</h3>
+      <h3>${window.setupClassAfterSave?"Set Up Class":(existing?"Edit Class":"Add Class")}</h3>
 
       <section class="courseEditorSection">
         <h4>Course Information</h4>
@@ -3880,11 +4300,21 @@ window.saveClass=oldId=>{
   const previous=old||{};
   const item={id:oldId||uid(),name,nickname,studentIds,rules,periods:[...new Set(rules.flatMap(r=>r.periods))],days:[...new Set(rules.flatMap(r=>r.days))],terms,
   graded:!!$("#classGraded")?.checked,giveMidterm:!!$("#classMidterm")?.checked,giveFinal:!!$("#classFinal")?.checked,
-  usesRecommendations:!!$("#classRecommendations")?.checked,recommendationRules:previous.recommendationRules||[],grades:previous.grades||{},
+  usesRecommendations:!!$("#classRecommendations")?.checked,recommendationRules:previous.recommendationRules||[],grades:previous.grades||{},classroomGradeSources:previous.classroomGradeSources||{},classroomGradeCache:previous.classroomGradeCache||{},classroomGradeOverrides:previous.classroomGradeOverrides||{},classroomGradePulled:previous.classroomGradePulled||{},classroomGradeLastPulledAt:previous.classroomGradeLastPulledAt||"",
   reminders,
-  pvaasReported:!!$("#classPvaas")?.checked,enrollmentPeriods:previous.enrollmentPeriods||[],rosterHistory:previous.rosterHistory||[]};
+  pvaasReported:!!$("#classPvaas")?.checked,enrollmentPeriods:previous.enrollmentPeriods||[],rosterHistory:previous.rosterHistory||[],googleClassroomCourseId:previous.googleClassroomCourseId||"",googleClassroomImported:!!previous.googleClassroomImported,setupComplete:previous.setupComplete===true};
   if(oldId){const i=data.classes.findIndex(c=>c.id===oldId);if(i>=0)data.classes[i]=item;}else data.classes.push(item);
-  save();window.closeClassModal();render();
+  if(window.setupClassAfterSave){
+    item.setupComplete=!item.graded;
+  }
+  save();window.closeClassModal();
+  if(window.setupClassAfterSave&&item.graded){
+    window.setupGradeSettingsForClass=item.id;
+    window.setupClassAfterSave=false;
+    window.openGradeSettings(item.id);
+  }else if(document.getElementById("setupWizardModal")){
+    window.setupClassAfterSave=false;window.renderSetupWizard();
+  }else{window.setupClassAfterSave=false;render();}
 }
 window.deleteClass=id=>{const c=data.classes.find(x=>x.id===id);if(!c)return;if(!confirm(`Delete ${c.name}? This will not delete the students themselves.`))return;data.classes=data.classes.filter(x=>x.id!==id);save();render();}
 window.addClass=()=>window.openClassModal();
@@ -3909,7 +4339,7 @@ window.selectGradeCourse=id=>{window.gradeCourseId=id;window.gradeStudentId="";r
 window.setGradeView=mode=>{window.gradeViewMode=mode;render();}
 window.selectGradeStudent=id=>{window.gradeStudentId=id;render();}
 window.setCourseGrade=(cid,sid,key,val,live=false)=>{
- const c=data.classes.find(x=>x.id===cid);if(!c)return;c.grades??={};c.grades[sid]??={};c.grades[sid][key]=val===""?"":Number(val);save();
+ const c=data.classes.find(x=>x.id===cid);if(!c)return;c.grades??={};c.grades[sid]??={};c.grades[sid][key]=val===""?"":Number(val);if(classroomGradeIsLinked(c,key)){c.classroomGradeOverrides??={};c.classroomGradeOverrides[sid]??={};c.classroomGradeOverrides[sid][key]=true;}save();
  const row=document.querySelector(`input[oninput*="'${cid}','${sid}'"]`)?.closest("tr");
  if(row){const avg=currentAverage(c,sid);const a=row.querySelector(".currentAvg");if(a)a.innerHTML=`<b>${avg===""?"—":avg.toFixed(2)+"%"}</b>`;const r=row.querySelector(".recommendationCell");if(r)r.textContent=recommendationFor(c,avg)||"—";}
 }
@@ -3925,6 +4355,7 @@ window.openGradeSettings=id=>{
   <label><input id="gsRecommendations" type="checkbox" ${c.usesRecommendations?"checked":""}> Uses Recommendations</label>
   </div></details>
   <details class="collapsibleFieldset" open><summary>⚖️ Score Weights</summary><div class="collapsibleInner"><p class="small">Adjust how each component contributes to the calculated average. These settings apply only to this class.</p><div class="gradeWeightGrid">${gradeComponents(c).map(x=>`<label>${esc(x.label)}<br><input class="gradeWeightInput" data-weight-id="${esc(x.id)}" type="number" min="0" step="0.01" value="${esc(baseWeights(c)[x.id])}"></label>`).join("")}</div></div></details>
+  <details class="collapsibleFieldset" open><summary>☁️ Google Classroom Grade Sources</summary><div class="collapsibleInner">${c.googleClassroomCourseId?classroomGradeSourceEditor(c):`<p class="small">This class is not linked to Google Classroom. Its grades will continue to be entered manually.</p>`}</div></details>
   <details class="collapsibleFieldset"><summary>🎓 Recommendation Rules</summary><div class="collapsibleInner"><p class="small">Rules are evaluated from top to bottom. The first matching rule wins.</p>
   <div id="recommendationRules">${rules}</div><button type="button" onclick="window.addRecommendationRule()">＋ Add Rule</button></div></details>
   <div style="margin-top:16px"><button class="primary" onclick="window.saveGradeSettings('${c.id}')">Save Settings</button> <button onclick="window.closeGradeSettings()">Cancel</button></div></div></div>`);
@@ -3942,9 +4373,13 @@ window.saveGradeSettings=id=>{
  c.graded=!!$("#gsGraded")?.checked;c.giveMidterm=!!$("#gsMidterm")?.checked;c.giveFinal=!!$("#gsFinal")?.checked;c.usesRecommendations=!!$("#gsRecommendations")?.checked;
  c.gradeWeights={};document.querySelectorAll('.gradeWeightInput').forEach(el=>{const v=Number(el.value);if(Number.isFinite(v)&&v>=0)c.gradeWeights[el.dataset.weightId]=v;});
  c.recommendationRules=[...document.querySelectorAll(".recommendationRule")].map(el=>({op:el.querySelector(".rrOp").value,a:el.querySelector(".rrA").value,b:el.querySelector(".rrB")?.value||"",title:el.querySelector(".rrTitle").value.trim()})).filter(r=>r.title&&r.a!=="");
- save();window.closeGradeSettings();render();
+ save();window.closeGradeSettings();
+ if(window.setupGradeSettingsForClass===id){
+   const setupClass=data.classes.find(x=>x.id===id);if(setupClass)setupClass.setupComplete=true;
+   window.setupGradeSettingsForClass="";save();
+   if(document.getElementById("setupWizardModal"))window.renderSetupWizard();else render();
+ }else render();
 }
-window.setTotalDays=v=>{data.totalSchoolDays=Number(v);save()}
 window.uploadAvatar=input=>{
   const file=input.files?.[0];if(!file)return;
   if(file.size>500000){alert("Please choose an image smaller than 500 KB so your dashboard stays lightweight.");input.value="";return}
@@ -4139,6 +4574,7 @@ window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("ac
   #content .lessonStatusAll .lessonStatusShort{font-weight:700!important;}
 }
 
+.setupRosterChoiceGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.setupRosterChoice{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;background:#fff}.setupRosterChoice h4{margin:0 0 6px}.setupGcPanel{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupGcCourseList{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:280px;overflow:auto}.setupGcCourseRow{display:flex;gap:9px;align-items:flex-start;border:1px solid #e2e6ed;border-radius:9px;padding:9px;background:#fafbfe}.setupGcCourseRow input{margin-top:3px}.setupGcCourseRow span{display:flex;flex-wrap:wrap;gap:2px}.setupGcActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.setupGcRosterCard{border:1px solid #e2e6ed;border-radius:9px;padding:9px;margin-top:7px;background:#fff}.setupGcStudentList{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:4px;margin-top:8px}.setupGcConfig{padding:12px;border:1px dashed #cfd6e2;border-radius:10px;background:#fafbfe}.setupGcEmpty{text-align:center;padding:14px}.setupManualClassList{display:flex;flex-direction:column;gap:6px}.setupManualClassRow{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid #e2e6ed;border-radius:9px;padding:8px;background:#fafbfe}.setupImportedClassBox{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}@media(max-width:760px){.setupRosterChoiceGrid{grid-template-columns:1fr}}
 .setupWizardModal{max-width:1120px;width:min(1120px,calc(100vw - 32px));box-sizing:border-box}.setupWizardModal .modalBody{overflow-x:hidden}.setupReviewBox{min-width:0}.setupStep,.setupReviewBox{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfe}.setupStep h4,.setupReviewBox h4{margin:0 0 7px}.setupReviewSection{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.settingsGrid,.gradeWeightGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.gradeWeightGrid input{width:100%;box-sizing:border-box}.pvaasEndSetting{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupCard{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.setupReviewSubhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 8px}.setupReviewSubhead button,.setupScheduleEditor>button,.setupAddSchedule{font-size:13px;padding:6px 9px}.setupEditableList{display:flex;flex-direction:column;gap:6px}.setupEditableRow{display:grid;grid-template-columns:150px minmax(150px,1fr) auto;gap:7px;align-items:center}.setupExceptionRow{grid-template-columns:145px 170px minmax(220px,1fr) auto}.setupMarkingPeriodCard{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupMarkingPeriodHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.setupMarkingPeriodGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px}.setupMarkingPeriodRow{display:grid;grid-template-columns:95px minmax(130px,1fr) 18px minmax(130px,1fr) auto;gap:6px;align-items:center}.setupMarkingPeriodRow input{width:100%;box-sizing:border-box}.setupMarkingPeriodRow button{padding:5px 8px}.setupMarkingPeriodHint{font-size:12px;color:var(--muted,#667085);margin:0 0 8px}.setupEditableRow input,.setupEditableRow select{width:100%;box-sizing:border-box}.setupEditableRow button,.setupScheduleHead button{flex:0 0 auto}.setupMarkerRow{grid-template-columns:150px minmax(190px,1fr) minmax(150px,1fr) auto}.setupEmpty{padding:8px 0;margin:0}.setupScheduleEditor{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupScheduleHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}.setupScheduleName{font-size:16px;font-weight:700;padding:6px 8px;border:1px solid var(--line,#d8dee8);border-radius:7px}.setupRegularChoice{margin-left:10px;white-space:nowrap}.setupPeriodRow{display:grid;grid-template-columns:minmax(150px,1fr) 110px auto 110px auto;gap:7px;align-items:center;margin-bottom:6px}.setupPeriodRow input{width:100%;box-sizing:border-box}.setupAddSchedule{margin-top:8px}@media(max-width:760px){.setupExceptionRow,.setupEditableRow,.setupMarkerRow{grid-template-columns:1fr auto}.setupExceptionRow select,.setupExceptionRow input:nth-child(3){grid-column:1}.setupMarkingPeriodGrid{grid-template-columns:1fr}.setupMarkingPeriodRow{grid-template-columns:1fr 1fr auto}.setupMarkingPeriodRow span:first-child{grid-column:1/-1}.setupMarkingPeriodRow span:nth-child(3){display:none}}@media(max-width:650px){.setupEditableRow,.setupMarkerRow{grid-template-columns:1fr auto}.setupEditableRow input:nth-child(2),.setupMarkerRow input:nth-child(3),.setupMarkerRow select{grid-column:1}.setupPeriodRow{grid-template-columns:1fr 100px auto 100px auto}.setupScheduleHead{align-items:flex-start;flex-direction:column}.setupRegularChoice{display:block;margin:6px 0 0}}
 
 .setupWizardModal{max-width:1120px;width:min(1120px,calc(100vw - 24px));box-sizing:border-box}.setupWizardModal .modalBody{overflow-x:hidden}.setupWizardSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}.setupWizardStep{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--line,#d8dee8);border-radius:10px;background:#f8fafc;color:var(--muted,#667085)}.setupWizardStep>span{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#e8edf5;font-weight:700;flex:0 0 auto}.setupWizardStep b{display:block;font-size:13px}.setupWizardStep small{display:block;margin-top:1px}.setupWizardStep.active{border-color:#9bbcf0;background:#f5f9ff;color:inherit}.setupWizardStep.active>span{background:#dbeafe;color:#1557a6}.setupWizardStep.done{color:#246b45}.setupWizardStep.done>span{background:#dff4e7;color:#246b45}.setupScreenIntro{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:12px}.setupScreenIntro h4{margin:0 0 7px}.setupSkipHint{font-size:12px;color:var(--muted,#667085);padding-top:3px;white-space:nowrap}.setupUploadCard{display:flex;align-items:center;gap:9px;flex-wrap:wrap;border:1px solid var(--line,#d8dee8);border-radius:10px;padding:12px;background:#fbfcfe;margin-bottom:12px}.setupUploadCard input[type=file]{min-width:260px;flex:1}.setupReviewBox{min-width:0;border:1px solid var(--line,#d8dee8);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfe}.setupReviewBox h4{margin:0 0 7px}.setupReviewSection{margin-top:12px;padding-top:12px;border-top:1px solid #e5e8ee}.setupReviewSubhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 8px}.setupReviewSubhead button,.setupScheduleEditor>button,.setupAddSchedule{font-size:13px;padding:6px 9px}.setupEditableList{display:flex;flex-direction:column;gap:6px}.setupEditableRow{display:grid;grid-template-columns:145px 175px minmax(220px,1fr) auto;gap:7px;align-items:center}.setupExceptionRow input,.setupExceptionRow select{min-width:0}.setupMarkingPeriodCard{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupMarkingPeriodHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.setupMarkingPeriodGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px}.setupMarkingPeriodRow{display:grid;grid-template-columns:95px minmax(130px,1fr) 18px minmax(130px,1fr);gap:6px;align-items:center}.setupMarkingPeriodRow input{width:100%;box-sizing:border-box}.setupMarkingPeriodHint{font-size:12px;color:var(--muted,#667085);margin:0 0 8px}.setupEditableRow input,.setupEditableRow select{width:100%;box-sizing:border-box}.setupEditableRow button,.setupScheduleHead button{flex:0 0 auto}.setupEmpty{padding:8px 0;margin:0}.setupScheduleEditor{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.setupScheduleHead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}.setupScheduleName{font-size:16px;font-weight:700;padding:6px 8px;border:1px solid var(--line,#d8dee8);border-radius:7px;min-width:260px}.setupRegularChoice{margin-left:10px;white-space:nowrap}.setupPeriodRow{display:grid;grid-template-columns:minmax(170px,1fr) 130px auto 130px auto;gap:7px;align-items:center;margin-bottom:6px}.setupPeriodRow input{width:100%;box-sizing:border-box}.setupAddSchedule{margin-top:8px}.setupComingSoonGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.setupComingSoonCard{border:1px solid var(--line,#d8dee8);border-radius:12px;padding:18px;background:#fbfcfe}.setupComingSoonCard b{display:block;font-size:16px;margin-bottom:5px}.setupComingSoonCard button{margin-top:6px}.setupComingSoonIcon{font-size:25px;margin-bottom:8px}.setupSkipButton{font-weight:700}.setupWizardModal .modalActions{display:flex;align-items:center;gap:8px}.setupWizardModal .modalActions .setupSkipButton{margin-right:auto}@media(max-width:760px){.setupWizardSteps{grid-template-columns:1fr}.setupScreenIntro{flex-direction:column;gap:5px}.setupSkipHint{white-space:normal}.setupEditableRow{grid-template-columns:1fr auto}.setupExceptionRow select,.setupExceptionRow input:nth-child(3){grid-column:1}.setupMarkingPeriodGrid{grid-template-columns:1fr}.setupMarkingPeriodRow{grid-template-columns:1fr 1fr auto}.setupMarkingPeriodRow span:first-child{grid-column:1/-1}.setupMarkingPeriodRow span:nth-child(3){display:none}.setupComingSoonGrid{grid-template-columns:1fr}.setupPeriodRow{grid-template-columns:1fr 120px auto 120px auto}.setupScheduleHead{align-items:flex-start;flex-direction:column}.setupRegularChoice{display:block;margin:6px 0 0}.setupScheduleName{min-width:0;width:100%}}@media(max-width:600px){.setupUploadCard{align-items:stretch}.setupUploadCard input[type=file]{min-width:0}.setupWizardModal .modalActions{flex-wrap:wrap}.setupWizardModal .modalActions .setupSkipButton{margin-right:0;order:3}.setupWizardModal .modalActions #setupNextButton{order:2}.setupWizardModal .modalActions #setupBackButton{order:1}}
@@ -4181,6 +4617,8 @@ window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("ac
 @media(max-width:900px){.setupYearGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:720px){.setupYearGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.setupAssignmentRow{grid-template-columns:1fr}.setupEditableRow{grid-template-columns:1fr auto}.setupExceptionRow select,.setupExceptionRow input:nth-child(3){grid-column:1/-1}}
 @media(max-width:480px){.setupYearGrid{grid-template-columns:1fr}.setupViewToggle{width:100%}.setupViewToggle button{flex:1}}
+
+.gradeCellWrap{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:86px}.gradeCellWrap .grade{width:78px;box-sizing:border-box}.gradeSourceBadge{font-size:10px;line-height:1.1;color:#356b4a;white-space:nowrap}.gradeSourceBadge.override{color:#9a5b00;font-weight:700}.gradeResetBtn{border:0;background:transparent;padding:0 2px;font-size:12px;cursor:pointer}.classroomGradeBucket{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.classroomGradeBucketHead{display:grid;grid-template-columns:minmax(100px,1fr) minmax(220px,1.5fr);gap:10px;align-items:center}.classroomGradeBucketHead select{width:100%;box-sizing:border-box}.classroomSourceConfig{margin-top:9px}.classroomSourceConfig select,.classroomSourceConfig input{width:100%;box-sizing:border-box}.classroomCombinationList{display:flex;flex-direction:column;gap:7px}.classroomCombinationRow{display:grid;grid-template-columns:minmax(150px,1fr) 110px auto;gap:7px;align-items:center}.classroomGradeActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.classroomGradeSourcesEmpty{padding:8px 0}.classroomGradeSources{margin-top:6px}@media(max-width:650px){.classroomGradeBucketHead{grid-template-columns:1fr}.classroomCombinationRow{grid-template-columns:1fr 100px auto}}
 </style>
 
 </body>
