@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V3.0.1</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V3.1.18</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -688,7 +688,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.13";
+const APP_VERSION="3.1.18";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1833,9 +1833,9 @@ function gcRequestAccess(){
   }
 }
 
-window.gcRequestAccess=gcRequestAccess;
+window.gcRequestAccess = gcRequestAccess;
 
-function gcApi(path,params={}){
+async function gcApi(path,params={}){
   const state=window.googleClassroomState;
   if(!state.accessToken||Date.now()>=state.expiresAt)throw new Error("Your Google Classroom connection has expired. Click Connect Google Classroom again.");
   const url=new URL(`https://classroom.googleapis.com/v1/${path}`);
