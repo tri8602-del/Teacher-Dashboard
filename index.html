@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V3.1.20</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V3.1.21</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -50,10 +50,10 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 .reportgrid{display:flex;gap:10px;flex-wrap:wrap}.stat{background:#f1f4fa;border-radius:9px;padding:12px;min-width:100px;display:flex;flex-direction:column}.reportControls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.reportControls label{min-width:180px;flex:1}.reportControls input,.reportControls select{width:100%;box-sizing:border-box}.tableWrap{overflow-x:auto}.reportMatrix{min-width:760px}.reportMatrix th,.reportMatrix td{text-align:center;white-space:nowrap}.reportMatrix th:first-child,.reportMatrix td:first-child{text-align:left;position:sticky;left:0;background:#fff}.reportMatrix th span{font-size:11px;font-weight:500;white-space:normal;display:inline-block;max-width:72px;line-height:1.1}.stat b{font-size:24px}
 .calendarSettings{display:flex;gap:18px;align-items:end;flex-wrap:wrap}.calendarSettings label{font-weight:600}
 .calendarCount{margin-left:auto;background:#f1f4fa;padding:10px 18px;border-radius:9px;display:flex;flex-direction:column;text-align:center}.calendarCount b{font-size:24px}
-.upcomingDates{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}.upcomingCard{border:1px solid #e0e4ec;border-left:4px solid var(--event-color,#8b6bb8);border-radius:10px;padding:11px;background:#fff}.upcomingCard b{display:block;font-size:13px}.upcomingCard span{display:block;font-size:11px;color:var(--muted);margin-top:3px}.markerPill{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:999px;background:#fff9;border:1px solid #00000012;font-size:10px;font-weight:800;line-height:1.15}.noteSnippet{font-size:10px;margin-top:4px;color:#556070;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}.markerCard{font-size:10px;font-weight:800;margin-right:3px;padding:2px 4px;border-radius:5px;background:#fff;border:1px solid currentColor;display:inline-block;line-height:1.1}
+.upcomingDates{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}.upcomingCard{border:1px solid #e0e4ec;border-left:4px solid var(--event-color,#8b6bb8);border-radius:10px;padding:11px;background:#fff}.upcomingCard b{display:block;font-size:13px}.upcomingCard span{display:block;font-size:11px;color:var(--muted);margin-top:3px}.markerPill{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:999px;background:#fff9;border:1px solid #00000012;font-size:10px;font-weight:800;line-height:1.15}.noteSnippet{font-size:10px;margin-top:4px;color:#556070;white-space:normal;overflow-wrap:anywhere;word-break:break-word;min-width:0;width:100%;max-width:100%;display:block;line-height:1.2}.markerCard{font-size:10px;font-weight:800;margin-right:3px;padding:2px 4px;border-radius:5px;background:#fff;border:1px solid currentColor;display:inline-block;line-height:1.1}
 .calHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.calHead h3{margin:0}
 .weekdays,.calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.weekdays span{text-align:center;font-size:11px;color:var(--muted);font-weight:700;padding:5px}
-.calBlank{min-height:82px}.calDay{min-height:82px;text-align:left;padding:7px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid #e0e4ec;border-left:4px solid var(--cal-color,#e0e4ec);background:var(--cal-bg,#fff)}
+.calBlank{min-height:82px}.calDay{min-height:82px;min-width:0;text-align:left;padding:7px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid #e0e4ec;border-left:4px solid var(--cal-color,#e0e4ec);background:var(--cal-bg,#fff)}
 .calDay.outside{background:#f7f8fa;color:#a1a8b5;border-left-color:#e0e4ec}.calDay.today{outline:2px solid var(--nav)}
 .dayNum{font-size:10px;color:var(--muted);margin-top:2px}.calMarks{font-size:14px;margin-top:auto;line-height:1.3}.calMark{font-weight:800;margin-right:3px}.calNote{font-size:11px;margin-top:3px;color:#556070}.colorGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.colorGrid label{font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px}.colorGrid input[type=color]{width:46px;height:32px;padding:2px}.todayNotes{border-left:4px solid #4c79c6}.todayNotes h3{margin-bottom:8px}.todayNotes ul{margin:8px 0 0;padding-left:22px}.todayNotes li{margin:6px 0}
 .altScheduleTag,.calendarTypeTag{font-size:10px;font-weight:700;margin-top:auto;padding:2px 6px;border-radius:999px;background:#fff9;border:1px solid #00000012;color:inherit;max-width:100%;white-space:normal;line-height:1.15}.calendarTypeTag{margin-top:4px}.bellScheduleList{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:16px}.bellScheduleCard{border:1px solid #e0e4ec;border-radius:12px;padding:12px;background:#fff}.bellScheduleCard h4{margin:0 0 5px}.bellScheduleCard p{margin:0 0 10px}.scheduleTable{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}.scheduleTable th,.scheduleTable td{border-bottom:1px solid #e5e8ee;padding:7px;text-align:left}.scheduleTable input{width:100%;box-sizing:border-box}.scheduleActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.scheduleEditor{max-width:760px}.scheduleRows{max-height:48vh;overflow:auto;border:1px solid #e0e4ec;border-radius:10px;padding:8px}.scheduleRow{display:grid;grid-template-columns:1.8fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}.scheduleRow input{min-width:0}.scheduleRow button{padding:7px 9px}.scheduleMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.scheduleMeta input{flex:1;min-width:180px}@media(max-width:620px){.scheduleRow{grid-template-columns:1fr 1fr 1fr}.scheduleRow input:first-child{grid-column:1/-1}.scheduleRow button{grid-column:3}}.calEventTag{font-size:10px;font-weight:700;margin-top:4px;line-height:1.2}
@@ -688,7 +688,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.20";
+const APP_VERSION="3.1.21";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1795,7 +1795,7 @@ function googleClassroomCourseLabel(course){return [String(course?.name||"Google
 function googleClassroomCourseOptions(selectedId=""){
   const state=window.googleClassroomState||{};const courses=Array.isArray(state.courses)?state.courses:[];
   if(!courses.length)return `<option value="">${googleClassroomSessionConnected()?"No active Classroom courses loaded yet":"Connect Google Classroom to load courses"}</option>`;
-  return `<option value="">Not linked</option>`+courses.map(course=>`<option value="${esc(course.id)}" ${String(course.id)===String(selectedId)?"selected":""}>${esc(googleClassroomCourseLabel(course))}</option>`).join("");
+  return `<option value="">Select a Google Classroom course…</option>`+courses.map(course=>`<option value="${esc(course.id)}" ${String(course.id)===String(selectedId)?"selected":""}>${esc(googleClassroomCourseLabel(course))}</option>`).join("");
 }
 function gcSetStatus(message){const state=window.googleClassroomState||{};state.status=message||"";window.googleClassroomState=state;const el=document.getElementById("setupGoogleClassroomStatus");if(el)el.textContent=state.status;}
 function gcEscapeMessage(err){return err?.message||"Google Classroom could not be accessed.";}
@@ -1953,7 +1953,7 @@ window.gcPullGrades=async cid=>{
 };
 window.gcRequestGradeAccess=cid=>{
   const state=window.googleClassroomState;
-  if(state.accessToken&&Date.now()<state.expiresAt){window.openGradeSettings(cid);return;}
+  if(state.accessToken&&Date.now()<state.expiresAt){window.gcLoadGradeSources(cid);return;}
   const clientId=googleClassroomClientId();
   if(!window.google?.accounts?.oauth2){alert("Google authorization tools are not available yet. Please refresh the dashboard and try again.");return;}
   try{
@@ -1974,7 +1974,7 @@ window.gcRequestGradeAccess=cid=>{
 };
 function classroomGradeSourceEditor(c){
   const catalog=c.classroomGradeCache?.catalog||null;const sources=gcGradeSourceDefaults(c);const comps=gradeComponents(c);
-  if(!catalog)return `<div class="classroomGradeSourcesEmpty"><p class="small">Connect Google Classroom and load the categories/assignments for this class before choosing grade sources.</p><button type="button" class="primary" onclick="window.gcRequestGradeAccess('${c.id}')">Connect / Load Classroom Grade Sources</button></div>`;
+  if(!catalog)return `<div class="classroomGradeSourcesEmpty"><p class="small">${googleClassroomSessionConnected()?"Google Classroom is connected. Load this class’s categories and assignments to choose grade sources.":"Connect Google Classroom and load the categories/assignments for this class before choosing grade sources."}</p><button type="button" class="primary" onclick="window.gcRequestGradeAccess('${c.id}')">${googleClassroomSessionConnected()?"Load Categories & Assignments":"Connect / Load Classroom Grade Sources"}</button></div>`;
   const catOptions=catalog.gradeCategories.map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('');
   const assignmentOptions=catalog.assignments.map(a=>`<option value="${esc(a.id)}">${esc(a.title)}${a.categoryName?` · ${esc(a.categoryName)}`:""}</option>`).join('');
   const rows=comps.map(comp=>{const src=sources[comp.id];const items=src.categoryItems||[];return `<div class="classroomGradeBucket" data-bucket="${esc(comp.id)}"><div class="classroomGradeBucketHead"><b>${esc(comp.label)}</b><select class="classroomSourceType" onchange="window.updateClassroomSourceUI('${c.id}','${comp.id}',this.value)"><option value="none" ${src.type==="none"?"selected":""}>Not linked</option><option value="category" ${src.type==="category"?"selected":""}>One category</option><option value="combination" ${src.type==="combination"?"selected":""}>Combination of categories</option><option value="assignment" ${src.type==="assignment"?"selected":""}>Specific assignment</option></select></div><div class="classroomSourceConfig" data-source-type="${esc(src.type)}">${classroomSourceConfigHTML(c.id,comp.id,src,catalog,catOptions,assignmentOptions)}</div></div>`;}).join('');
@@ -2029,7 +2029,7 @@ window.gcLinkClass=cid=>{
 window.gcUnlinkClass=cid=>{
   const c=data.classes.find(x=>x.id===cid);if(!c)return;
   const sel=document.querySelector("#classroomCourseLink");if(sel)sel.value="";
-  const status=document.querySelector("#classroomCourseLinkStatus");if(status)status.textContent="Not linked. Click Save Class to apply. Your Dashboard roster and manually entered grades will stay in place.";
+  const status=document.querySelector("#classroomCourseLinkStatus");if(status)status.textContent="No Google Classroom course selected. Select one above to link this Dashboard class. Your Dashboard roster and manually entered grades will stay in place.";
 };
 function refreshClassroomCourseSelect(cid){
   const sel=document.querySelector("#classroomCourseLink");if(!sel)return;
@@ -2041,7 +2041,7 @@ function refreshClassroomCourseSelect(cid){
 window.updateClassroomCourseLinkStatus=(courseId,cid)=>{
   const c=data.classes.find(x=>x.id===cid);const status=document.querySelector("#classroomCourseLinkStatus");if(!c||!status)return;
   const course=(window.googleClassroomState.courses||[]).find(x=>String(x.id)===String(courseId));
-  status.textContent=course?`Selected ${googleClassroomCourseLabel(course)}. Your Dashboard roster stays separate.`:courseId?`Selected Google Classroom course ${c.googleClassroomCourseName||courseId}. Your Dashboard roster stays separate.`:"Not linked. Linking will not import or replace students.";
+  status.textContent=course?`Selected ${googleClassroomCourseLabel(course)}. Your Dashboard roster stays separate.`:courseId?`Selected Google Classroom course ${c.googleClassroomCourseName||courseId}. Your Dashboard roster stays separate.`:"No Google Classroom course selected. Select one above to link this Dashboard class.";
 };
 window.gcMatchClassRoster=async cid=>{
   const c=data.classes.find(x=>x.id===cid);if(!c)return;
@@ -3294,8 +3294,12 @@ function baseWeights(c){
   else if(ex.length===1){[...qs,...ex].forEach(x=>defaults[x.id]=1)}
   else qs.forEach(x=>defaults[x.id]=1);
   const saved=c.gradeWeights&&typeof c.gradeWeights==="object"?c.gradeWeights:{};
+  const raw={};
+  comps.forEach(x=>{const v=Number(saved[x.id]);raw[x.id]=Number.isFinite(v)&&v>=0?v:defaults[x.id]||0;});
+  const total=Object.values(raw).reduce((s,v)=>s+v,0);
+  if(total<=0)return comps.reduce((o,x)=>(o[x.id]=0,o),{});
   const w={};
-  comps.forEach(x=>{const v=Number(saved[x.id]);w[x.id]=Number.isFinite(v)&&v>=0?v:defaults[x.id]||0;});
+  comps.forEach(x=>w[x.id]=raw[x.id]/total*100);
   return w;
 }
 function currentAverage(c,sid){
@@ -3688,7 +3692,7 @@ function setupGoogleClassroomHTML(){
     <p class="small setupGcIntro">Teacher Dashboard uses Google Classroom only when you ask it to. You choose which classes to import, and nothing is added until you review and import them.</p>
     <div class="setupGcConnectRow"><button type="button" class="primary" onclick="window.gcRequestAccess()">${connected?'Reconnect Google Classroom':'Connect Google Classroom'}</button><span class="small">Read-only access to classes and rosters</span></div>
     <div id="setupGoogleClassroomStatus" class="small setupGcStatus">${esc(status)}</div>
-    ${courses.length?`<div class="setupGcSection"><div class="setupReviewSubhead"><div><b>Choose classes to import</b><span class="small">${courses.length} active class${courses.length===1?'':'es'} found</span></div></div><div class="setupGcCourseList">${rows}</div><div class="setupGcActions"><button type="button" onclick="window.gcLoadSelectedRosters()">Load Selected Rosters</button><button type="button" onclick="window.gcPrepareImport()">Review for Duplicates</button><button type="button" class="primary" onclick="window.gcImportSelected()">Import Selected Classes</button></div>${review}${matchReview}</div>`:`<div class="setupGcEmpty"><div class="setupGcEmptyIcon">G</div><b>Connect to load your active classes</b><p class="small">Google will ask you to authorize read-only Classroom access.</p></div>`}
+    ${courses.length?`<div class="setupGcSection"><div class="setupReviewSubhead"><div><b>Choose classes to import</b><span class="small">${courses.length} active class${courses.length===1?'':'es'} found</span></div></div><div class="setupGcCourseList">${rows}</div><p class="small setupGcImportHint">Already have the class in Teacher Dashboard? Use <b>Google Classroom course</b> in that class’s editor to link it instead. This button creates a new Dashboard class from the selected Classroom course.</p><div class="setupGcActions"><button type="button" onclick="window.gcLoadSelectedRosters()">Load Selected Rosters</button><button type="button" onclick="window.gcPrepareImport()">Review for Duplicates</button><button type="button" class="primary" onclick="window.gcImportSelected()">Create Dashboard Classes</button></div>${review}${matchReview}</div>`:`<div class="setupGcEmpty"><div class="setupGcEmptyIcon">G</div><b>Connect to load your active classes</b><p class="small">Google will ask you to authorize read-only Classroom access.</p></div>`}
     ${setupImportedClassSummary()}
   </div>`;
 }
@@ -4402,7 +4406,7 @@ window.openClassModal=(id="")=>{
             <button type="button" onclick="window.gcLoadCoursesForClassModal('${c.id}')">↻ Load Courses</button>
           </div>
           <div style="margin-top:10px"><button type="button" onclick="window.gcMatchClassRoster('${c.id}')">🔗 Match Classroom Roster to This Class</button></div>
-          <p id="classroomCourseLinkStatus" class="small" style="margin:8px 0 0">${c.googleClassroomCourseId?`Linked to ${esc(c.googleClassroomCourseName||c.googleClassroomCourseId)}. Your Dashboard roster stays separate.`:"Not linked. Linking will not import or replace students."}</p>
+          <p id="classroomCourseLinkStatus" class="small" style="margin:8px 0 0">${c.googleClassroomCourseId?`Linked to ${esc(c.googleClassroomCourseName||c.googleClassroomCourseId)}. Your Dashboard roster stays separate.`:"No Google Classroom course selected. Select one above to link this Dashboard class."}</p>
           ${c.googleClassroomCourseId?`<button type="button" style="margin-top:8px" onclick="window.gcUnlinkClass('${c.id}')">Unlink from Google Classroom</button>`:""}
         </div>
       </details>
@@ -4504,7 +4508,7 @@ window.openGradeSettings=id=>{
   <label><input id="gsFinal" type="checkbox" ${c.giveFinal?"checked":""}> Give Final</label><br>
   <label><input id="gsRecommendations" type="checkbox" ${c.usesRecommendations?"checked":""}> Uses Recommendations</label>
   </div></details>
-  <details class="collapsibleFieldset" open><summary>⚖️ Score Weights</summary><div class="collapsibleInner"><p class="small">Adjust how each component contributes to the calculated average. These settings apply only to this class.</p><div class="gradeWeightGrid">${gradeComponents(c).map(x=>`<label>${esc(x.label)}<br><input class="gradeWeightInput" data-weight-id="${esc(x.id)}" type="number" min="0" step="0.01" value="${esc(baseWeights(c)[x.id])}"></label>`).join("")}</div></div></details>
+  <details class="collapsibleFieldset" open><summary>⚖️ Score Weights</summary><div class="collapsibleInner"><p class="small">Set the percentage each component contributes to the calculated average. Percentages should add to 100%.</p><div class="gradeWeightGrid">${gradeComponents(c).map(x=>`<label>${esc(x.label)}<br><input class="gradeWeightInput" data-weight-id="${esc(x.id)}" type="number" min="0" max="100" step="0.1" value="${esc(Number(baseWeights(c)[x.id]).toFixed(1))}"><span class="small">%</span></label>`).join("")}</div></div></details>
   <details class="collapsibleFieldset" open><summary>☁️ Google Classroom Grade Sources</summary><div class="collapsibleInner">${c.googleClassroomCourseId?classroomGradeSourceEditor(c):`<p class="small">This class is not linked to Google Classroom. Its grades will continue to be entered manually.</p>`}</div></details>
   <details class="collapsibleFieldset"><summary>🎓 Recommendation Rules</summary><div class="collapsibleInner"><p class="small">Rules are evaluated from top to bottom. The first matching rule wins.</p>
   <div id="recommendationRules">${rules}</div><button type="button" onclick="window.addRecommendationRule()">＋ Add Rule</button></div></details>
@@ -4521,7 +4525,12 @@ window.closeGradeSettings=()=>document.querySelector("#gradeSettingsModal")?.rem
 window.saveGradeSettings=id=>{
  const c=data.classes.find(x=>x.id===id);if(!c)return;
  c.graded=!!$("#gsGraded")?.checked;c.giveMidterm=!!$("#gsMidterm")?.checked;c.giveFinal=!!$("#gsFinal")?.checked;c.usesRecommendations=!!$("#gsRecommendations")?.checked;
- c.gradeWeights={};document.querySelectorAll('.gradeWeightInput').forEach(el=>{const v=Number(el.value);if(Number.isFinite(v)&&v>=0)c.gradeWeights[el.dataset.weightId]=v;});
+ const weightEls=[...document.querySelectorAll('.gradeWeightInput')];
+ const weights={};
+ for(const el of weightEls){const v=Number(el.value);if(!Number.isFinite(v)||v<0||v>100){alert("Each score weight must be between 0% and 100%.");return;}weights[el.dataset.weightId]=v;}
+ const weightTotal=Object.values(weights).reduce((sum,v)=>sum+v,0);
+ if(Math.abs(weightTotal-100)>0.05){alert(`Score weights must add to 100%. Current total: ${weightTotal.toFixed(1)}%.`);return;}
+ c.gradeWeights=weights;
  c.recommendationRules=[...document.querySelectorAll(".recommendationRule")].map(el=>({op:el.querySelector(".rrOp").value,a:el.querySelector(".rrA").value,b:el.querySelector(".rrB")?.value||"",title:el.querySelector(".rrTitle").value.trim()})).filter(r=>r.title&&r.a!=="");
  save();window.closeGradeSettings();
  if(window.setupGradeSettingsForClass===id){
