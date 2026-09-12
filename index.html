@@ -702,7 +702,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.30";
+const APP_VERSION="3.1.31";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1724,7 +1724,7 @@ function lessonplans(){
     }).join('');
 
     const todoCard=lessonPlanTodoHTML(rows,dates);
-    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions"><button onclick="window.openDailySubPlanModal(isoDate(lessonWeekDates()[0]))">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button><button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>`;
+    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions"><button onclick="window.openDailySubPlanModal(window.lessonPlanWeekStart || new Date().toISOString().slice(0,10))">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button><button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>`;
   }catch(err){
     console.error('Lesson Plans error:',err);
     return `<header><div><h2>Lesson Plans</h2><p>Something went wrong while loading this page.</p></div></header><section class="card"><p><b>The rest of your dashboard is safe.</b></p><p class="small">${esc(err?.message||String(err))}</p><button onclick="window.openLessonPlanManager()">Open Lesson Plan Customize</button></section>`;
