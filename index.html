@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.0.2</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.0.3</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -702,7 +702,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.0.2";
+const APP_VERSION="4.0.3";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -876,6 +876,8 @@ function ensureSubPlans(){
   data.subPlans.template.subtitle=String(data.subPlans.template.subtitle||"");
   data.subPlans.template.defaultGeneralNotes=String(data.subPlans.template.defaultGeneralNotes||"");
   data.subPlans.template.closingText=String(data.subPlans.template.closingText||"");
+  data.subPlans.template.signatureName=String(data.subPlans.template.signatureName||"");
+  data.subPlans.template.signatureImage=String(data.subPlans.template.signatureImage||"");
   data.subPlans.template.duties=Array.isArray(data.subPlans.template.duties)?data.subPlans.template.duties:[];
   data.subPlans.template.duties=data.subPlans.template.duties.map((d,i)=>({
     id:d.id||`duty_${Date.now()}_${i}`,name:String(d.name||"Duty"),periodLabel:String(d.periodLabel||""),
@@ -991,28 +993,41 @@ window.closeDailySubPlanAndPrint=(date)=>{
   const status=info.type==='instructional'?'':` · ${info.type==='earlydismissal'?'Early Dismissal':info.type==='inservice'?'In-Service':'No School'}`;
   const timeLabel=(p)=>p.start&&p.end?`${esc(p.start)}–${esc(p.end)}`:'';
   const lines=(items)=>items.filter(Boolean).join('<br>');
+  const t=data.subPlans.template;
   let body=`<div class="sheet"><header class="subPrintHeader"><div class="subPrintTitleLine"><strong>${esc(title)}</strong><span>${esc(dateLabel)}</span><span>${esc(schedule?.name||'No Bell Schedule')}${esc(status)}</span></div>`;
-  if(data.subPlans.template.defaultGeneralNotes||d.dayNotes)body+=`<div class="subPrintGeneralNotes">${[data.subPlans.template.defaultGeneralNotes,d.dayNotes].filter(Boolean).map(t=>esc(t).replace(/\n/g,'<br>')).join('<br>')}</div>`;
+  if(t.defaultGeneralNotes||d.dayNotes)body+=`<div class="subPrintGeneralNotes">${[t.defaultGeneralNotes,d.dayNotes].filter(Boolean).map(x=>esc(x).replace(/\n/g,'<br>')).join('<br>')}</div>`;
   body+=`</header><div class="subPrintScheduleRows">`;
   periods.forEach(p=>{
     const duties=p.duties&&p.duties.length?p.duties:(p.duty?[p.duty]:[]);
-    const courseParts=duties.map(du=>`<strong>${esc(du.name)}</strong>`).concat((p.plans||[]).map(pl=>`<strong>${esc(pl.name)}</strong>`));
-    if(!courseParts.length){const implied=subPlanImpliedCourse(p);if(implied)courseParts.push(`<strong>${esc(implied)}</strong>`);}
+    const courseParts=duties.map(du=>esc(du.name)).concat((p.plans||[]).map(pl=>esc(pl.name)));
+    const implied=!courseParts.length?subPlanImpliedCourse(p):'';
+    if(implied)courseParts.push(esc(implied));
     const planParts=duties.map(du=>du.note?esc(du.note).replace(/\n/g,'<br>'):'').concat((p.plans||[]).map(pl=>pl.text?esc(pl.text).replace(/\n/g,'<br>'):'')).filter(Boolean);
-    if(!planParts.length)planParts.push('<span class="subPrintEmpty">—</span>');
+    const nonTeaching=!!implied&&!duties.length&&!(p.plans||[]).length;
+    if(!planParts.length&&!nonTeaching)planParts.push('<span class="subPrintEmpty">—</span>');
     const note=d.periodNotes?.[p.key]||'';
-    body+=`<section class="subPrintRow"><div class="subPrintRowMain"><div class="subPrintPeriodName">${esc(subPlanDisplayPeriodLabel(p.label))}</div><div class="subPrintTime">${timeLabel(p)}</div><div class="subPrintCourse">${lines(courseParts)}</div><div class="subPrintPlan">${lines(planParts)}</div></div>${note?`<div class="subPrintRowNote">${esc(note).replace(/\n/g,'<br>')}</div>`:''}</section>`;
+    body+=`<section class="subPrintRow"><div class="subPrintRowMain"><div class="subPrintPeriodName">${esc(subPlanDisplayPeriodLabel(p.label))}</div><div class="subPrintTime">${timeLabel(p)}</div><div class="subPrintCourse">${lines(courseParts)}</div><div class="subPrintPlan">${lines(planParts)}</div></div>${note?`<div class="subPrintRowNote"><span class="subPrintNoteLabel">Note</span><div>${esc(note).replace(/\n/g,'<br>')}</div></div>`:''}</section>`;
   });
   body+=`</div>`;
-  if(data.subPlans.template.closingText)body+=`<div class="subPrintClosing">${esc(data.subPlans.template.closingText).replace(/\n/g,'<br>')}</div>`;
+  const signName=String(t.signatureName||'').trim();
+  const signImg=String(t.signatureImage||'').trim();
+  if(t.closingText||signName||signImg){
+    body+=`<div class="subPrintClosing">`;
+    if(t.closingText)body+=`<div class="subPrintClosingText">${esc(t.closingText).replace(/\n/g,'<br>')}</div>`;
+    body+=`<div class="subPrintSign">`;
+    if(signImg)body+=`<img src="${signImg}" alt="Signature">`;
+    else if(signName)body+=`<div class="subPrintSignName">${esc(signName)}</div>`;
+    if(signImg&&signName)body+=`<div class="subPrintSignPrinted">${esc(signName)}</div>`;
+    body+=`</div></div>`;
+  }
   body+=`</div>`;
   document.querySelector('#dailySubPlanModal')?.remove();
   const w=window.open('','_blank','width=820,height=1060');
   if(!w){alert('Please allow pop-ups for Teacher Dashboard so the daily plan can open for printing.');return;}
-  const css="@page{size:letter portrait;margin:0.42in}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111}body,body *{font-family:'Segoe UI',Calibri,Arial,Helvetica,sans-serif;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:'lnum' 1,'tnum' 1}body{width:7.66in;font-size:10.5pt;line-height:1.28}.sheet{width:7.66in;display:flex;flex-direction:column}.subPrintHeader{flex:0 0 auto;border-bottom:2px solid #111;padding:0 0 7px;margin:0 0 2px}.subPrintTitleLine{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:baseline}.subPrintTitleLine strong{font-size:18pt;line-height:1.1;font-weight:800}.subPrintTitleLine span{font-size:10.5pt;font-weight:700}.subPrintGeneralNotes{margin-top:7px;font-size:10pt;line-height:1.32}.subPrintScheduleRows{display:flex;flex-direction:column;flex:0 0 auto}.subPrintRow{display:flex;flex-direction:column;gap:5px;padding:6px 2px 12px;border-bottom:1px solid #c8c8c8;flex:0 0 auto;break-inside:avoid;page-break-inside:avoid}.subPrintRowMain{display:grid;grid-template-columns:1.25fr 0.85fr 1.45fr 2.45fr;column-gap:12px;align-items:start}.subPrintPeriodName{font-weight:800}.subPrintTime{white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}.subPrintCourse strong,.subPrintPlan{overflow-wrap:anywhere}.subPrintEmpty{color:#666}.subPrintRowNote{width:100%;font-size:10.5pt;line-height:1.35}.subPrintClosing{flex:0 0 auto;margin-top:8px;padding-top:7px;border-top:2px solid #111;font-size:10.5pt;line-height:1.32}@media print{body,.sheet{width:auto}.subPrintRow{break-inside:avoid;page-break-inside:avoid}}";
-  const fit="window.addEventListener('load',function(){setTimeout(function(){var rows=[].slice.call(document.querySelectorAll('.subPrintRow'));var after=12;var minAfter=6;var limit=(11-0.84)*96;function tooTall(){return document.documentElement.scrollHeight>limit+1;}while(after>minAfter&&tooTall()){after-=1;rows.forEach(function(el){el.style.paddingBottom=after+'px';});}window.print();},80);});";
+  const css="@page{size:letter portrait;margin:0.42in}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111}body{width:7.66in;font-family:'Segoe UI',Calibri,Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.28;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:'lnum' 1,'tnum' 1}.sheet{width:7.66in;display:flex;flex-direction:column}.subPrintHeader{flex:0 0 auto;border-bottom:2px solid #111;padding:0 0 7px;margin:0 0 2px}.subPrintTitleLine{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:baseline}.subPrintTitleLine strong{font-size:18pt;line-height:1.1;font-weight:800}.subPrintTitleLine span{font-size:10.5pt;font-weight:700}.subPrintGeneralNotes{margin-top:7px;font-size:10pt;line-height:1.32}.subPrintScheduleRows{display:flex;flex-direction:column;flex:0 0 auto}.subPrintRow{display:flex;flex-direction:column;gap:0;padding:6px 2px 12px;border-bottom:1px solid #c8c8c8;flex:0 0 auto;break-inside:avoid;page-break-inside:avoid}.subPrintRowMain{display:grid;grid-template-columns:1.25fr 0.85fr 1.45fr 2.45fr;column-gap:12px;align-items:start}.subPrintPeriodName{font-weight:600;color:#333}.subPrintTime{white-space:nowrap;font-weight:400;color:#555;font-variant-numeric:lining-nums tabular-nums}.subPrintCourse{font-weight:700}.subPrintPlan,.subPrintCourse{overflow-wrap:anywhere}.subPrintEmpty{color:#666;font-weight:400}.subPrintRowNote{margin-top:8px;padding:8px 10px;background:#f3f5f7;border-left:3px solid #9aa3ad;line-height:1.4}.subPrintNoteLabel{display:block;font-size:8pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5f6b76;margin-bottom:3px}.subPrintClosing{flex:0 0 auto;margin-top:10px;padding-top:8px;border-top:2px solid #111}.subPrintClosingText{font-size:10.5pt;line-height:1.32}.subPrintSign{margin-top:10px}.subPrintSign img{display:block;height:54px;width:auto;max-width:260px;object-fit:contain}.subPrintSignName{font-family:Caveat,'Segoe Script','Bradley Hand','Ink Free',cursive;font-size:26pt;line-height:1;font-weight:600}.subPrintSignPrinted{margin-top:2px;font-size:9pt;color:#444}@media print{body,.sheet{width:auto}.subPrintRow{break-inside:avoid;page-break-inside:avoid}}";
+  const fit="function go(){var rows=[].slice.call(document.querySelectorAll('.subPrintRow'));var after=12;var minAfter=6;var limit=(11-0.84)*96;function tooTall(){return document.documentElement.scrollHeight>limit+1;}while(after>minAfter&&tooTall()){after-=1;rows.forEach(function(el){el.style.paddingBottom=after+'px';});}window.print();}window.addEventListener('load',function(){var ready=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();Promise.resolve(ready).then(function(){setTimeout(go,60);});});";
   w.document.open();
-  w.document.write("<!doctype html><html><head><meta charset=\"utf-8\"><title>"+esc(title)+" - "+esc(dateLabel)+"</title><style>"+css+"</style></head><body>"+body+"<script>"+fit+"<\/script></body></html>");
+  w.document.write("<!doctype html><html><head><meta charset=\"utf-8\"><title>"+esc(title)+" - "+esc(dateLabel)+"</title><link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap\"><style>"+css+"</style></head><body>"+body+"<script>"+fit+"<\/script></body></html>");
   w.document.close();
 };
 
@@ -1035,10 +1050,39 @@ window.openSubPlanTemplateModal=()=>{
   const dayChecks=(days,id)=>dayNames.map(([n,label])=>`<label class="subPlanDayCheck"><input type="checkbox" data-duty-day="${id}" value="${n}" ${(days||[]).includes(n)?'checked':''}>${label}</label>`).join('');
   const scheduleLabels=[...new Set(data.bellSchedules.flatMap(s=>(s.periods||[]).map(p=>String(p[0]))))];
   const dutyRows=(t.duties||[]).map((d,i)=>`<div class="subPlanDutyRow" data-id="${esc(d.id)}"><div class="subPlanDutyGrid"><label>Assignment<input class="subPlanDutyName" value="${esc(d.name)}" placeholder="Cafeteria Duty"></label><label>Schedule period<select class="subPlanDutyPeriod"><option value="">Select schedule period…</option>${scheduleLabels.map(x=>`<option value="${esc(x)}" ${x===d.periodLabel?'selected':''}>${esc(x)}</option>`).join('')}</select></label></div><div class="subPlanDutyDays">${dayChecks(d.days,d.id)}</div><div class="subPlanDutyActions"><input class="subPlanDutyNote" value="${esc(d.note||'')}" placeholder="Optional default note"><button type="button" class="danger" onclick="this.closest('.subPlanDutyRow').remove()">Remove</button></div></div>`).join('');
-  document.body.insertAdjacentHTML('beforeend',`<div id="subPlanTemplateModal" class="modalbg"><div class="modal subPlanTemplateModal"><h3>📝 Sub Plan Defaults</h3><p class="small">Set the pieces that should be reused on every daily sub plan. The daily generator will add the date, bell schedule, classes, and lesson plans automatically.</p><label>Heading<input id="subPlanTemplateTitle" value="${esc(t.title||'Sub Plans')}" placeholder="Sub Plans"></label><label>General notes — appear on every plan<textarea id="subPlanDefaultNotes" placeholder="Cell phones and backpacks are not permitted.&#10;Students should remain in assigned seats.">${esc(t.defaultGeneralNotes||'')}</textarea></label><label>Closing — appear on every plan<textarea id="subPlanClosing" placeholder="Thanks and have a great day! If you need anything, please call or text me at...">${esc(t.closingText||'')}</textarea></label><hr class="subPlanPlanDivider"><h4>Default Duties</h4><p class="small">Assign a recurring duty to a schedule period and choose the days it applies. On those days it prints in that period’s lesson-plan slot, with the duty name and notes where the class plan would go.</p><div id="subPlanDutyList">${dutyRows||'<p class="small emptyDutyRows">No recurring duties yet.</p>'}</div><button type="button" onclick="window.addSubPlanDuty()">＋ Add Default Duty</button><div class="subPlanModalActions"><button class="primary" onclick="window.saveSubPlanTemplate()">Save Defaults</button><button onclick="document.querySelector('#subPlanTemplateModal')?.remove()">Cancel</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div id="subPlanTemplateModal" class="modalbg"><div class="modal subPlanTemplateModal"><h3>📝 Sub Plan Defaults</h3><p class="small">Set the pieces that should be reused on every daily sub plan. The daily generator will add the date, bell schedule, classes, and lesson plans automatically.</p><label>Heading<input id="subPlanTemplateTitle" value="${esc(t.title||'Sub Plans')}" placeholder="Sub Plans"></label><label>General notes — appear on every plan<textarea id="subPlanDefaultNotes" placeholder="Cell phones and backpacks are not permitted.&#10;Students should remain in assigned seats.">${esc(t.defaultGeneralNotes||'')}</textarea></label><label>Closing — appear on every plan<textarea id="subPlanClosing" placeholder="Thanks and have a great day! If you need anything, please call or text me at...">${esc(t.closingText||'')}</textarea></label><div class="subPlanSignatureEditor"><h4>Signature</h4><p class="small">This prints after the closing. Upload a photo of your written signature, or leave the image blank and the signed name will print in a handwriting style.</p><label>Signed name<input id="subPlanSignatureName" value="${esc(t.signatureName||'')}" placeholder="Lindsay"></label><div class="subPlanSignaturePreview">${t.signatureImage?`<img src="${t.signatureImage}" alt="Signature preview" style="height:56px;width:auto;max-width:240px;display:block;margin:8px 0;object-fit:contain">`:'<p class="small">No signature image yet.</p>'}<input id="subPlanSignatureFile" type="file" accept="image/*" style="display:none" onchange="window.uploadSubPlanSignature(this)"><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" onclick="document.querySelector('#subPlanSignatureFile').click()">Upload signature image</button>${t.signatureImage?`<button type="button" class="danger" onclick="window.removeSubPlanSignature()">Remove image</button>`:''}</div></div></div><hr class="subPlanPlanDivider"><h4>Default Duties</h4><p class="small">Assign a recurring duty to a schedule period and choose the days it applies. On those days it prints in that period’s lesson-plan slot, with the duty name and notes where the class plan would go.</p><div id="subPlanDutyList">${dutyRows||'<p class="small emptyDutyRows">No recurring duties yet.</p>'}</div><button type="button" onclick="window.addSubPlanDuty()">＋ Add Default Duty</button><div class="subPlanModalActions"><button class="primary" onclick="window.saveSubPlanTemplate()">Save Defaults</button><button onclick="document.querySelector('#subPlanTemplateModal')?.remove()">Cancel</button></div></div></div>`);
+};
+window.stashSubPlanTemplateFields=()=>{
+  ensureSubPlans();
+  const title=document.querySelector('#subPlanTemplateTitle');
+  if(title)data.subPlans.template.title=title.value.trim()||'Sub Plans';
+  const notes=document.querySelector('#subPlanDefaultNotes');
+  if(notes)data.subPlans.template.defaultGeneralNotes=notes.value.trim();
+  const closing=document.querySelector('#subPlanClosing');
+  if(closing)data.subPlans.template.closingText=closing.value.trim();
+  const name=document.querySelector('#subPlanSignatureName');
+  if(name)data.subPlans.template.signatureName=name.value.trim();
+};
+window.uploadSubPlanSignature=input=>{
+  const file=input.files?.[0];if(!file)return;
+  if(file.size>700000){alert("Please choose a signature image smaller than 700 KB.");input.value="";return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    window.stashSubPlanTemplateFields();
+    data.subPlans.template.signatureImage=e.target.result;
+    save();
+    window.openSubPlanTemplateModal();
+  };
+  reader.readAsDataURL(file);
+};
+window.removeSubPlanSignature=()=>{
+  window.stashSubPlanTemplateFields();
+  data.subPlans.template.signatureImage="";
+  save();
+  window.openSubPlanTemplateModal();
 };
 window.addSubPlanDuty=()=>{const host=document.querySelector('#subPlanDutyList');if(!host)return;host.querySelector('.emptyDutyRows')?.remove();const id='duty_'+uid();const labels=[...new Set(data.bellSchedules.flatMap(s=>(s.periods||[]).map(p=>String(p[0]))))];host.insertAdjacentHTML('beforeend',`<div class="subPlanDutyRow" data-id="${id}"><div class="subPlanDutyGrid"><label>Assignment<input class="subPlanDutyName" placeholder="Cafeteria Duty"></label><label>Schedule period<select class="subPlanDutyPeriod"><option value="">Select schedule period…</option>${labels.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></label></div><div class="subPlanDutyDays">${[[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri']].map(([n,l])=>`<label class="subPlanDayCheck"><input type="checkbox" data-duty-day="${id}" value="${n}" checked>${l}</label>`).join('')}</div><div class="subPlanDutyActions"><input class="subPlanDutyNote" placeholder="Optional default note"><button type="button" class="danger" onclick="this.closest('.subPlanDutyRow').remove()">Remove</button></div></div>`);};
-window.saveSubPlanTemplate=()=>{ensureSubPlans();const rows=[...document.querySelectorAll('#subPlanDutyList .subPlanDutyRow')];data.subPlans.template.title=document.querySelector('#subPlanTemplateTitle').value.trim()||'Sub Plans';data.subPlans.template.defaultGeneralNotes=document.querySelector('#subPlanDefaultNotes').value.trim();data.subPlans.template.closingText=document.querySelector('#subPlanClosing').value.trim();data.subPlans.template.duties=rows.map((el,i)=>({id:el.dataset.id||`duty_${i+1}`,name:el.querySelector('.subPlanDutyName').value.trim()||'Duty',periodLabel:el.querySelector('.subPlanDutyPeriod').value,days:[...el.querySelectorAll('[data-duty-day]:checked')].map(x=>Number(x.value)),note:el.querySelector('.subPlanDutyNote').value.trim()})).filter(d=>d.name&&d.periodLabel&&d.days.length);save();document.querySelector('#subPlanTemplateModal')?.remove();toast='Sub plan defaults saved.';render();};
+window.saveSubPlanTemplate=()=>{ensureSubPlans();const rows=[...document.querySelectorAll('#subPlanDutyList .subPlanDutyRow')];data.subPlans.template.title=document.querySelector('#subPlanTemplateTitle').value.trim()||'Sub Plans';data.subPlans.template.defaultGeneralNotes=document.querySelector('#subPlanDefaultNotes').value.trim();data.subPlans.template.closingText=document.querySelector('#subPlanClosing').value.trim();data.subPlans.template.signatureName=(document.querySelector('#subPlanSignatureName')?.value||'').trim();data.subPlans.template.duties=rows.map((el,i)=>({id:el.dataset.id||`duty_${i+1}`,name:el.querySelector('.subPlanDutyName').value.trim()||'Duty',periodLabel:el.querySelector('.subPlanDutyPeriod').value,days:[...el.querySelectorAll('[data-duty-day]:checked')].map(x=>Number(x.value)),note:el.querySelector('.subPlanDutyNote').value.trim()})).filter(d=>d.name&&d.periodLabel&&d.days.length);save();document.querySelector('#subPlanTemplateModal')?.remove();toast='Sub plan defaults saved.';render();};
 
 function ensureClassFields(){
   if(!Array.isArray(data.classes))data.classes=[];
@@ -4344,6 +4388,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
   #content .lessonStatusShort{display:inline!important;}
   #content .lessonStatusAll .lessonStatusShort{font-weight:700!important;}
 }
+.subPlanSignatureEditor{margin-top:12px;padding-top:10px;border-top:1px dashed #d0d5dd}.subPlanSignatureEditor h4{margin:0 0 6px}.subPlanSignaturePreview{margin-top:8px}
 </style>
 
 </body></html>`);w.document.close();
