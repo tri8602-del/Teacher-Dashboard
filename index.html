@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V3.1.21</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.0.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -702,7 +702,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="3.1.31";
+const APP_VERSION="4.0.0";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -904,59 +904,106 @@ function subPlanDaily(date){
   return data.subPlans.daily[d];
 }
 
+function subPlanDutyWeekday(date){
+  return (new Date(String(date)+'T12:00:00').getDay()||7);
+}
+function subPlanPeriodToken(label){
+  const s=String(label||'').trim().toLowerCase().replace(/\s+/g,' ');
+  if(!s)return '';
+  const m=s.match(/^(\d+)(?:st|nd|rd|th)?(?:\s*period)?$/)||s.match(/^period\s*(\d+)(?:st|nd|rd|th)?$/);
+  return m?('num:'+m[1]):('txt:'+s);
+}
+function subPlanDutiesFor(date,periodLabel){
+  ensureSubPlans();
+  const weekday=subPlanDutyWeekday(date),token=subPlanPeriodToken(periodLabel);
+  if(!token)return [];
+  return (data.subPlans.template.duties||[]).filter(d=>(d.days||[]).includes(weekday)&&subPlanPeriodToken(d.periodLabel)===token);
+}
 function subPlanDutyFor(date,periodLabel){
-  ensureSubPlans();const weekday=(new Date(date+'T12:00:00').getDay()||7);
-  return (data.subPlans.template.duties||[]).find(d=>d.periodLabel===String(periodLabel||'')&&(d.days||[]).includes(weekday))||null;
+  return subPlanDutiesFor(date,periodLabel)[0]||null;
+}
+function subPlanPeriodPlans(date,weekday,period){
+  if(!period)return [];
+  const matching=lessonPlanRows().filter(r=>{
+    if(!lessonRowAvailableOnDate(r,date,weekday))return false;
+    const rp=Number(r.period)||0;
+    if(rp===period)return true;
+    if(r.type!=='custom')return (r.classIds||[]).some(id=>{
+      const c=data.classes.find(x=>x.id===id);if(!c)return false;
+      return (classPeriodLabel(c,weekday).match(/\d+/g)||[]).map(Number).includes(period);
+    });
+    return false;
+  });
+  const unique=[],seen=new Set();
+  matching.forEach(r=>{if(!seen.has(r.id)){seen.add(r.id);unique.push(r);}});
+  return unique.map(r=>({rowId:r.id,name:r.name,text:(lessonPlanEntry(r.id,date).text||'').trim()}));
 }
 function subPlanPeriodRows(date){
-  ensureLessonPlans();ensureClassFields();ensureBellSchedules();
-  const info=getDateInfo(date),schedule=bellScheduleById(info.schedule||'regular'),weekday=(new Date(date+'T12:00:00').getDay()||7),rows=lessonPlanRows(),out=[];
+  ensureLessonPlans();ensureClassFields();ensureBellSchedules();ensureSubPlans();
+  const schedule=bellScheduleById(getDateInfo(date).schedule||'regular');
+  const weekday=subPlanDutyWeekday(date),out=[],used=new Set();
   (schedule?.periods||[]).forEach((p,i)=>{
-    const period=classPeriodNumber(p[0]);const duty=subPlanDutyFor(date,p[0]);
-    if(duty){out.push({key:`period_${i}_${p[0]}`,period,label:p[0],start:p[1],end:p[2],duty,plans:[]});return;}
-    if(!period){out.push({key:`period_${i}_${p[0]}`,period:0,label:p[0],start:p[1],end:p[2],duty:null,plans:[]});return;}
-    const matching=rows.filter(r=>{
-      if(!lessonRowAvailableOnDate(r,date,weekday))return false;const rp=Number(r.period)||0;
-      if(rp===period)return true;
-      if(r.type!=='custom')return (r.classIds||[]).some(id=>{const c=data.classes.find(x=>x.id===id);if(!c)return false;return (classPeriodLabel(c,weekday).match(/\d+/g)||[]).map(Number).includes(period);});
-      return false;
-    });
-    const unique=[],seen=new Set();matching.forEach(r=>{if(!seen.has(r.id)){seen.add(r.id);unique.push(r);}});
-    const plans=unique.map(r=>({rowId:r.id,name:r.name,text:(lessonPlanEntry(r.id,date).text||'').trim()}));
-    out.push({key:`period_${period}_${i}`,period,label:p[0],start:p[1],end:p[2],duty:null,plans});
-  });return out;
+    const period=classPeriodNumber(p[0]);
+    const duties=subPlanDutiesFor(date,p[0]);
+    duties.forEach(d=>used.add(d.id));
+    const plans=subPlanPeriodPlans(date,weekday,period);
+    out.push({key:period?`period_${period}_${i}`:`period_${i}_${p[0]}`,period:period||0,label:p[0],start:p[1],end:p[2],duty:duties[0]||null,duties,plans});
+  });
+  (data.subPlans.template.duties||[]).forEach(d=>{
+    if(used.has(d.id)||!(d.days||[]).includes(weekday))return;
+    const token=subPlanPeriodToken(d.periodLabel);
+    const match=(schedule?.periods||[]).find(p=>token&&subPlanPeriodToken(p[0])===token);
+    out.push({key:'duty_'+d.id,period:classPeriodNumber(d.periodLabel)||0,label:d.periodLabel||d.name||'Duty',start:match?match[1]:'',end:match?match[2]:'',duty:d,duties:[d],plans:[]});
+  });
+  return out;
 }
+
 
 window.openDailySubPlanModal=(date)=>{
   ensureSubPlans();ensureLessonPlans();ensureBellSchedules();
   const d=String(date||isoDate(lessonWeekDates()[0])),daily=subPlanDaily(d),info=getDateInfo(d),schedule=bellScheduleById(info.schedule||'regular'),periods=subPlanPeriodRows(d);
   document.querySelector('#dailySubPlanModal')?.remove();
   const dateLabel=new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  const periodHTML=periods.map(p=>`<section class="subPlanPeriodEdit"><div class="subPlanPeriodEditHead"><div><b>${esc(p.label)}</b><span>${esc(p.start)}–${esc(p.end)}</span></div>${p.duty?`<strong>📌 ${esc(p.duty.name)}</strong>`:''}</div>${p.duty?(p.duty.note?`<div class="subPlanDutyPreview">${esc(p.duty.note)}</div>`:''):(p.plans.length?p.plans.map(pl=>`<div class="subPlanLessonPreview"><b>${esc(pl.name)}</b><div>${pl.text?esc(pl.text).replace(/\n/g,'<br>'):'<span class="small">No lesson plan entered.</span>'}</div></div>`).join(''):'<div class="small">No Dashboard lesson plan for this period.</div>')}<label>Additional notes<textarea data-period-note="${esc(p.key)}" placeholder="Optional note for the substitute...">${esc(daily.periodNotes?.[p.key]||'')}</textarea></label></section>`).join('');
+  const periodHTML=periods.map(p=>`<section class="subPlanPeriodEdit"><div class="subPlanPeriodEditHead"><div><b>${esc(p.label)}</b><span>${esc(p.start)}–${esc(p.end)}</span></div>${p.duty?`<strong>📌 ${esc(p.duty.name)}</strong>`:''}</div>${((p.duties&&p.duties.length)?p.duties.map(du=>`<div class="subPlanLessonPreview"><b>📌 ${esc(du.name)}</b><div>${du.note?esc(du.note).replace(/\n/g,'<br>'):'<span class="small">Duty assigned this period.</span>'}</div></div>`).join(''):'')}${(p.plans.length?p.plans.map(pl=>`<div class="subPlanLessonPreview"><b>${esc(pl.name)}</b><div>${pl.text?esc(pl.text).replace(/\n/g,'<br>'):'<span class="small">No lesson plan entered.</span>'}</div></div>`).join(''):((p.duties&&p.duties.length)?'':'<div class="small">No Dashboard lesson plan for this period.</div>'))}<label>Additional notes<textarea data-period-note="${esc(p.key)}" placeholder="Optional note for the substitute...">${esc(daily.periodNotes?.[p.key]||'')}</textarea></label></section>`).join('');
   document.body.insertAdjacentHTML('beforeend',`<div id="dailySubPlanModal" class="modalbg"><div class="modal dailySubPlanModal"><h3>🖨 Generate Daily Plan</h3><div class="subPlanDateRow"><label>Date<input id="subPlanDate" type="date" value="${esc(d)}"></label><span class="small">${esc(dateLabel)} · ${esc(info.type==='instructional'?'Instructional day':info.type==='earlydismissal'?'Early dismissal':info.type==='inservice'?'In-service':'No school')} · ${esc(schedule?.name||'No bell schedule')}</span></div><label>Notes for today<textarea id="subPlanDayNotes" placeholder="Optional notes that apply only to this day...">${esc(daily.dayNotes||'')}</textarea></label><section class="subPlanStaticSection"><h4>Schedule & Plans</h4>${periodHTML||'<p class="small">No scheduled items found for this date.</p>'}</section><div class="subPlanModalActions"><button class="primary" onclick="window.saveDailySubPlanAndPrint()">🖨 Save & Print Daily Plan</button><button onclick="document.querySelector('#dailySubPlanModal')?.remove()">Cancel</button></div></div></div>`);
   document.querySelector('#subPlanDate').addEventListener('change',()=>{const nd=document.querySelector('#subPlanDate').value;if(nd){document.querySelector('#dailySubPlanModal')?.remove();window.openDailySubPlanModal(nd);}});window._activeSubPlanDate=d;
 };
 window.saveDailySubPlanAndPrint=()=>{const modal=document.querySelector('#dailySubPlanModal');if(!modal)return;const date=document.querySelector('#subPlanDate').value;if(!date)return;const d=subPlanDaily(date);d.dayNotes=document.querySelector('#subPlanDayNotes').value.trim();d.periodNotes={};modal.querySelectorAll('[data-period-note]').forEach(el=>d.periodNotes[el.dataset.periodNote]=el.value);save();window.closeDailySubPlanAndPrint(date);};
 window.closeDailySubPlanAndPrint=(date)=>{
-  ensureSubPlans();ensureLessonPlans();ensureBellSchedules();const d=subPlanDaily(date),info=getDateInfo(date),schedule=bellScheduleById(info.schedule||'regular'),periods=subPlanPeriodRows(date),title=data.subPlans.template.title||'Sub Plans',dateLabel=new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  ensureSubPlans();ensureLessonPlans();ensureBellSchedules();
+  const d=subPlanDaily(date),info=getDateInfo(date),schedule=bellScheduleById(info.schedule||'regular'),periods=subPlanPeriodRows(date),title=data.subPlans.template.title||'Sub Plans',dateLabel=new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const status=info.type==='instructional'?'':` · ${info.type==='earlydismissal'?'Early Dismissal':info.type==='inservice'?'In-Service':'No School'}`;
-  let body=`<div class="subPrintHeader"><div class="subPrintTitleLine"><strong>${esc(title)}</strong><span>${esc(dateLabel)}</span><span>${esc(schedule?.name||'No Bell Schedule')}${esc(status)}</span></div>`;
-  if(data.subPlans.template.defaultGeneralNotes||d.dayNotes)body+=`<div class="subPrintGeneralNotes">${[data.subPlans.template.defaultGeneralNotes,d.dayNotes].filter(Boolean).map(esc).join('<br>')}</div>`;
-  body+=`</div><div class="subPrintScheduleRows">`;
+  const timeLabel=(p)=>p.start&&p.end?`${esc(p.start)}–${esc(p.end)}`:'';
+  const blockHTML=(kind,heading,text)=>{
+    const body=text?`<div class="subPrintBlockText">${esc(text).replace(/\n/g,'<br>')}</div>`:(kind==='empty'?`<div class="subPrintBlockText"><span class="subPrintEmpty">No lesson plan entered.</span></div>`:'');
+    return `<div class="subPrintBlock">${kind==='duty'?`<div class="subPrintBlockKind">Duty</div>`:''}${heading?`<div class="subPrintBlockTitle">${esc(heading)}</div>`:''}${body}</div>`;
+  };
+  let body=`<div class="sheet"><header class="subPrintHeader"><div class="subPrintTitleLine"><strong>${esc(title)}</strong><span>${esc(dateLabel)}</span><span>${esc(schedule?.name||'No Bell Schedule')}${esc(status)}</span></div>`;
+  if(data.subPlans.template.defaultGeneralNotes||d.dayNotes)body+=`<div class="subPrintGeneralNotes">${[data.subPlans.template.defaultGeneralNotes,d.dayNotes].filter(Boolean).map(t=>esc(t).replace(/\n/g,'<br>')).join('<br>')}</div>`;
+  body+=`</header><div class="subPrintScheduleRows">`;
   periods.forEach(p=>{
-    let course='',plan='';
-    if(p.duty){course=`<strong>${esc(p.duty.name)}</strong>`;plan=p.duty.note?esc(p.duty.note).replace(/\n/g,'<br>'):'';}
-    else if(p.plans.length){course=p.plans.map(pl=>`<strong>${esc(pl.name)}</strong>`).join('<br>');plan=p.plans.map(pl=>pl.text?esc(pl.text).replace(/\n/g,'<br>'):'<span class="subPrintEmpty">No lesson plan entered.</span>').join('<br>');}
-    else {plan='<span class="subPrintEmpty">No lesson plan entered.</span>';}
+    const duties=p.duties&&p.duties.length?p.duties:(p.duty?[p.duty]:[]);
+    let inner='';
+    duties.forEach(du=>{inner+=blockHTML('duty',du.name,du.note||'');});
+    if(p.plans.length){p.plans.forEach(pl=>{inner+=blockHTML('lesson',pl.name,pl.text||'');});}
+    else if(!duties.length){inner+=blockHTML('empty','','');}
     const note=d.periodNotes?.[p.key]||'';
-    body+=`<div class="subPrintRow"><div class="subPrintRowMain"><span class="subPrintPeriodName">${esc(p.label)}</span><span class="subPrintTime">${esc(p.start)}–${esc(p.end)}</span><span class="subPrintCourse">${course}</span><span class="subPrintPlan">${plan}</span></div>${note?`<div class="subPrintRowNote">${esc(note).replace(/\n/g,'<br>')}</div>`:''}</div>`;
+    if(note)inner+=`<div class="subPrintRowNote">${esc(note).replace(/\n/g,'<br>')}</div>`;
+    body+=`<section class="subPrintRow"><div class="subPrintRowHead"><span class="subPrintPeriodName">${esc(p.label)}</span><span class="subPrintTime">${timeLabel(p)}</span></div>${inner}</section>`;
   });
   body+=`</div>`;
   if(data.subPlans.template.closingText)body+=`<div class="subPrintClosing">${esc(data.subPlans.template.closingText).replace(/\n/g,'<br>')}</div>`;
-  document.querySelector('#dailySubPlanModal')?.remove();const w=window.open('','_blank','width=1000,height=900');if(!w){alert('Please allow pop-ups for Teacher Dashboard so the daily plan can open for printing.');return;}
-  const css=`@page{size:letter portrait;margin:.42in}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,sans-serif;font-size:9.5pt;line-height:1.22}.subPrintHeader{border-bottom:2px solid #222;padding-bottom:8px;margin-bottom:8px}.subPrintTitleLine{display:grid;grid-template-columns:auto 1fr 1fr;align-items:baseline;gap:12px;font-size:10pt}.subPrintTitleLine strong{font-size:18pt;white-space:nowrap}.subPrintTitleLine span{font-weight:700}.subPrintTitleLine span:last-child{text-align:right}.subPrintGeneralNotes{margin-top:7px;padding-top:5px;border-top:1px solid #bbb}.subPrintScheduleRows{width:100%}.subPrintRow{border-bottom:1px solid #bbb;padding:4px 0;break-inside:avoid}.subPrintRowMain{display:grid;grid-template-columns:92px 78px 155px 1fr;gap:7px;align-items:baseline}.subPrintPeriodName{font-weight:700}.subPrintTime{white-space:nowrap}.subPrintCourse,.subPrintPlan{min-width:0}.subPrintEmpty{font-style:italic}.subPrintRowNote{margin:3px 0 0 332px;padding-left:7px;border-left:2px solid #bbb}.subPrintClosing{margin-top:9px;padding-top:7px;border-top:2px solid #222}@media print{.subPrintRow{break-inside:avoid}}`;
-  w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)} - ${esc(dateLabel)}</title><style>${css}</style></head><body>${body}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));<\\/script></body></html>`);w.document.close();
+  body+=`</div>`;
+  document.querySelector('#dailySubPlanModal')?.remove();
+  const w=window.open('','_blank','width=820,height=1060');
+  if(!w){alert('Please allow pop-ups for Teacher Dashboard so the daily plan can open for printing.');return;}
+  const css="@page{size:letter portrait;margin:0.45in}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Georgia,'Times New Roman',serif}body{width:7.6in}.sheet{width:7.6in;display:flex;flex-direction:column}.subPrintHeader{flex:0 0 auto;border-bottom:2px solid #222;padding:0 0 8px;margin:0 0 10px}.subPrintTitleLine{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:baseline;font-family:Arial,sans-serif}.subPrintTitleLine strong{font-size:20pt;line-height:1.1;white-space:nowrap}.subPrintTitleLine span{font-size:10pt;font-weight:700}.subPrintGeneralNotes{margin-top:8px;padding-top:6px;border-top:1px solid #c5c5c5;font-size:10pt;line-height:1.35}.subPrintScheduleRows{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}.subPrintRow{flex:0 0 auto;border:1px solid #bfc3ca;border-radius:6px;padding:8px 10px;background:#fff;break-inside:avoid;page-break-inside:avoid}.subPrintRowHead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-family:Arial,sans-serif;margin-bottom:6px}.subPrintPeriodName{font-weight:800;font-size:11pt}.subPrintTime{font-size:10pt;white-space:nowrap;color:#333}.subPrintBlock+.subPrintBlock{margin-top:6px}.subPrintBlockKind{font-family:Arial,sans-serif;font-size:8pt;letter-spacing:.08em;text-transform:uppercase;color:#444;font-weight:700}.subPrintBlockTitle{font-family:Arial,sans-serif;font-weight:700;font-size:11pt;line-height:1.25}.subPrintBlockText{margin-top:3px;font-size:10.5pt;line-height:1.35}.subPrintEmpty{font-style:italic;color:#555}.subPrintRowNote{margin-top:8px;padding-top:6px;border-top:1px dashed #bbb;font-size:10pt;line-height:1.35}.subPrintClosing{flex:0 0 auto;margin-top:12px;padding-top:8px;border-top:2px solid #222;font-size:10.5pt;line-height:1.35}@media print{body,.sheet{width:auto}.subPrintRow{break-inside:avoid;page-break-inside:avoid}}";
+  const fit="window.addEventListener('load',function(){setTimeout(function(){var rows=document.querySelector('.subPrintScheduleRows');var gap=12;var minGap=4;var limit=(11-0.90)*96;function tooTall(){return document.documentElement.scrollHeight>limit+1;}if(rows){rows.style.gap=gap+'px';while(gap>minGap&&tooTall()){gap-=1;rows.style.gap=gap+'px';}}window.print();},80);});";
+  w.document.open();
+  w.document.write("<!doctype html><html><head><meta charset=\"utf-8\"><title>"+esc(title)+" - "+esc(dateLabel)+"</title><style>"+css+"</style></head><body>"+body+"<script>"+fit+"<\/script></body></html>");
+  w.document.close();
 };
+
 
 function subPlanTemplateSection(id){ensureSubPlans();return data.subPlans.template.sections.find(s=>s.id===id)||null;}
 function subPlanTextForSection(date,section){
@@ -976,7 +1023,7 @@ window.openSubPlanTemplateModal=()=>{
   const dayChecks=(days,id)=>dayNames.map(([n,label])=>`<label class="subPlanDayCheck"><input type="checkbox" data-duty-day="${id}" value="${n}" ${(days||[]).includes(n)?'checked':''}>${label}</label>`).join('');
   const scheduleLabels=[...new Set(data.bellSchedules.flatMap(s=>(s.periods||[]).map(p=>String(p[0]))))];
   const dutyRows=(t.duties||[]).map((d,i)=>`<div class="subPlanDutyRow" data-id="${esc(d.id)}"><div class="subPlanDutyGrid"><label>Assignment<input class="subPlanDutyName" value="${esc(d.name)}" placeholder="Cafeteria Duty"></label><label>Schedule period<select class="subPlanDutyPeriod"><option value="">Select schedule period…</option>${scheduleLabels.map(x=>`<option value="${esc(x)}" ${x===d.periodLabel?'selected':''}>${esc(x)}</option>`).join('')}</select></label></div><div class="subPlanDutyDays">${dayChecks(d.days,d.id)}</div><div class="subPlanDutyActions"><input class="subPlanDutyNote" value="${esc(d.note||'')}" placeholder="Optional default note"><button type="button" class="danger" onclick="this.closest('.subPlanDutyRow').remove()">Remove</button></div></div>`).join('');
-  document.body.insertAdjacentHTML('beforeend',`<div id="subPlanTemplateModal" class="modalbg"><div class="modal subPlanTemplateModal"><h3>📝 Sub Plan Defaults</h3><p class="small">Set the pieces that should be reused on every daily sub plan. The daily generator will add the date, bell schedule, classes, and lesson plans automatically.</p><label>Heading<input id="subPlanTemplateTitle" value="${esc(t.title||'Sub Plans')}" placeholder="Sub Plans"></label><label>General notes — appear on every plan<textarea id="subPlanDefaultNotes" placeholder="Cell phones and backpacks are not permitted.&#10;Students should remain in assigned seats.">${esc(t.defaultGeneralNotes||'')}</textarea></label><label>Closing — appear on every plan<textarea id="subPlanClosing" placeholder="Thanks and have a great day! If you need anything, please call or text me at...">${esc(t.closingText||'')}</textarea></label><hr class="subPlanPlanDivider"><h4>Default Duties</h4><p class="small">Assign a recurring duty to a schedule period and choose the days it applies. It will appear on those days instead of the course name.</p><div id="subPlanDutyList">${dutyRows||'<p class="small emptyDutyRows">No recurring duties yet.</p>'}</div><button type="button" onclick="window.addSubPlanDuty()">＋ Add Default Duty</button><div class="subPlanModalActions"><button class="primary" onclick="window.saveSubPlanTemplate()">Save Defaults</button><button onclick="document.querySelector('#subPlanTemplateModal')?.remove()">Cancel</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div id="subPlanTemplateModal" class="modalbg"><div class="modal subPlanTemplateModal"><h3>📝 Sub Plan Defaults</h3><p class="small">Set the pieces that should be reused on every daily sub plan. The daily generator will add the date, bell schedule, classes, and lesson plans automatically.</p><label>Heading<input id="subPlanTemplateTitle" value="${esc(t.title||'Sub Plans')}" placeholder="Sub Plans"></label><label>General notes — appear on every plan<textarea id="subPlanDefaultNotes" placeholder="Cell phones and backpacks are not permitted.&#10;Students should remain in assigned seats.">${esc(t.defaultGeneralNotes||'')}</textarea></label><label>Closing — appear on every plan<textarea id="subPlanClosing" placeholder="Thanks and have a great day! If you need anything, please call or text me at...">${esc(t.closingText||'')}</textarea></label><hr class="subPlanPlanDivider"><h4>Default Duties</h4><p class="small">Assign a recurring duty to a schedule period and choose the days it applies. On those days it prints in that period’s lesson-plan slot, with the duty name and notes where the class plan would go.</p><div id="subPlanDutyList">${dutyRows||'<p class="small emptyDutyRows">No recurring duties yet.</p>'}</div><button type="button" onclick="window.addSubPlanDuty()">＋ Add Default Duty</button><div class="subPlanModalActions"><button class="primary" onclick="window.saveSubPlanTemplate()">Save Defaults</button><button onclick="document.querySelector('#subPlanTemplateModal')?.remove()">Cancel</button></div></div></div>`);
 };
 window.addSubPlanDuty=()=>{const host=document.querySelector('#subPlanDutyList');if(!host)return;host.querySelector('.emptyDutyRows')?.remove();const id='duty_'+uid();const labels=[...new Set(data.bellSchedules.flatMap(s=>(s.periods||[]).map(p=>String(p[0]))))];host.insertAdjacentHTML('beforeend',`<div class="subPlanDutyRow" data-id="${id}"><div class="subPlanDutyGrid"><label>Assignment<input class="subPlanDutyName" placeholder="Cafeteria Duty"></label><label>Schedule period<select class="subPlanDutyPeriod"><option value="">Select schedule period…</option>${labels.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></label></div><div class="subPlanDutyDays">${[[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri']].map(([n,l])=>`<label class="subPlanDayCheck"><input type="checkbox" data-duty-day="${id}" value="${n}" checked>${l}</label>`).join('')}</div><div class="subPlanDutyActions"><input class="subPlanDutyNote" placeholder="Optional default note"><button type="button" class="danger" onclick="this.closest('.subPlanDutyRow').remove()">Remove</button></div></div>`);};
 window.saveSubPlanTemplate=()=>{ensureSubPlans();const rows=[...document.querySelectorAll('#subPlanDutyList .subPlanDutyRow')];data.subPlans.template.title=document.querySelector('#subPlanTemplateTitle').value.trim()||'Sub Plans';data.subPlans.template.defaultGeneralNotes=document.querySelector('#subPlanDefaultNotes').value.trim();data.subPlans.template.closingText=document.querySelector('#subPlanClosing').value.trim();data.subPlans.template.duties=rows.map((el,i)=>({id:el.dataset.id||`duty_${i+1}`,name:el.querySelector('.subPlanDutyName').value.trim()||'Duty',periodLabel:el.querySelector('.subPlanDutyPeriod').value,days:[...el.querySelectorAll('[data-duty-day]:checked')].map(x=>Number(x.value)),note:el.querySelector('.subPlanDutyNote').value.trim()})).filter(d=>d.name&&d.periodLabel&&d.days.length);save();document.querySelector('#subPlanTemplateModal')?.remove();toast='Sub plan defaults saved.';render();};
