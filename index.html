@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.0.1</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.0.2</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -702,7 +702,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.0.1";
+const APP_VERSION="4.0.2";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -969,6 +969,22 @@ window.openDailySubPlanModal=(date)=>{
   document.querySelector('#subPlanDate').addEventListener('change',()=>{const nd=document.querySelector('#subPlanDate').value;if(nd){document.querySelector('#dailySubPlanModal')?.remove();window.openDailySubPlanModal(nd);}});window._activeSubPlanDate=d;
 };
 window.saveDailySubPlanAndPrint=()=>{const modal=document.querySelector('#dailySubPlanModal');if(!modal)return;const date=document.querySelector('#subPlanDate').value;if(!date)return;const d=subPlanDaily(date);d.dayNotes=document.querySelector('#subPlanDayNotes').value.trim();d.periodNotes={};modal.querySelectorAll('[data-period-note]').forEach(el=>d.periodNotes[el.dataset.periodNote]=el.value);save();window.closeDailySubPlanAndPrint(date);};
+function subPlanDisplayPeriodLabel(label){
+  return String(label||'').replace(/\s*\(([^)]*lunch[^)]*)\)/ig,'').trim()||String(label||'');
+}
+function subPlanImpliedCourse(p){
+  const label=String(p.label||'');
+  const duties=p.duties&&p.duties.length?p.duties:(p.duty?[p.duty]:[]);
+  if((p.plans||[]).length||duties.length)return '';
+  if(/\bflex\b/i.test(label))return 'Flex Period';
+  if(/\blunch\b/i.test(label))return 'Lunch';
+  if(/\bprep\b/i.test(label))return 'Prep';
+  if(/\bbreakfast\b/i.test(label))return 'Breakfast';
+  if(/\bhomeroom\b/i.test(label))return 'Homeroom';
+  if(/\badvisory\b/i.test(label))return 'Advisory';
+  if(p.period)return 'Prep';
+  return '';
+}
 window.closeDailySubPlanAndPrint=(date)=>{
   ensureSubPlans();ensureLessonPlans();ensureBellSchedules();
   const d=subPlanDaily(date),info=getDateInfo(date),schedule=bellScheduleById(info.schedule||'regular'),periods=subPlanPeriodRows(date),title=data.subPlans.template.title||'Sub Plans',dateLabel=new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
@@ -980,11 +996,12 @@ window.closeDailySubPlanAndPrint=(date)=>{
   body+=`</header><div class="subPrintScheduleRows">`;
   periods.forEach(p=>{
     const duties=p.duties&&p.duties.length?p.duties:(p.duty?[p.duty]:[]);
-    const courseParts=duties.map(du=>`<strong>${esc(du.name)}</strong>`).concat(p.plans.map(pl=>`<strong>${esc(pl.name)}</strong>`));
-    const planParts=duties.map(du=>du.note?esc(du.note).replace(/\n/g,'<br>'):'').concat(p.plans.map(pl=>pl.text?esc(pl.text).replace(/\n/g,'<br>'):'<span class="subPrintEmpty">No lesson plan entered.</span>'));
-    if(!duties.length&&!p.plans.length)planParts.push('<span class="subPrintEmpty">No lesson plan entered.</span>');
+    const courseParts=duties.map(du=>`<strong>${esc(du.name)}</strong>`).concat((p.plans||[]).map(pl=>`<strong>${esc(pl.name)}</strong>`));
+    if(!courseParts.length){const implied=subPlanImpliedCourse(p);if(implied)courseParts.push(`<strong>${esc(implied)}</strong>`);}
+    const planParts=duties.map(du=>du.note?esc(du.note).replace(/\n/g,'<br>'):'').concat((p.plans||[]).map(pl=>pl.text?esc(pl.text).replace(/\n/g,'<br>'):'')).filter(Boolean);
+    if(!planParts.length)planParts.push('<span class="subPrintEmpty">—</span>');
     const note=d.periodNotes?.[p.key]||'';
-    body+=`<section class="subPrintRow"><div class="subPrintPeriodName">${esc(p.label)}</div><div class="subPrintTime">${timeLabel(p)}</div><div class="subPrintCourse">${lines(courseParts)}</div><div class="subPrintPlan">${lines(planParts)}${note?`<div class="subPrintRowNote">${esc(note).replace(/\n/g,'<br>')}</div>`:''}</div></section>`;
+    body+=`<section class="subPrintRow"><div class="subPrintRowMain"><div class="subPrintPeriodName">${esc(subPlanDisplayPeriodLabel(p.label))}</div><div class="subPrintTime">${timeLabel(p)}</div><div class="subPrintCourse">${lines(courseParts)}</div><div class="subPrintPlan">${lines(planParts)}</div></div>${note?`<div class="subPrintRowNote">${esc(note).replace(/\n/g,'<br>')}</div>`:''}</section>`;
   });
   body+=`</div>`;
   if(data.subPlans.template.closingText)body+=`<div class="subPrintClosing">${esc(data.subPlans.template.closingText).replace(/\n/g,'<br>')}</div>`;
@@ -992,8 +1009,8 @@ window.closeDailySubPlanAndPrint=(date)=>{
   document.querySelector('#dailySubPlanModal')?.remove();
   const w=window.open('','_blank','width=820,height=1060');
   if(!w){alert('Please allow pop-ups for Teacher Dashboard so the daily plan can open for printing.');return;}
-  const css="@page{size:letter portrait;margin:0.42in}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111}body,body *{font-family:'Segoe UI',Calibri,Arial,Helvetica,sans-serif;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:'lnum' 1,'tnum' 1}body{width:7.66in;font-size:10.5pt;line-height:1.28}.sheet{width:7.66in;display:flex;flex-direction:column}.subPrintHeader{flex:0 0 auto;border-bottom:2px solid #111;padding:0 0 7px;margin:0 0 2px}.subPrintTitleLine{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:baseline}.subPrintTitleLine strong{font-size:18pt;line-height:1.1;font-weight:800}.subPrintTitleLine span{font-size:10.5pt;font-weight:700}.subPrintGeneralNotes{margin-top:7px;font-size:10pt;line-height:1.32}.subPrintScheduleRows{display:flex;flex-direction:column;flex:0 0 auto}.subPrintRow{display:grid;grid-template-columns:1.35fr 0.9fr 1.45fr 2.35fr;column-gap:12px;align-items:start;padding:7px 2px;border-bottom:1px solid #c8c8c8;flex:0 0 auto;break-inside:avoid;page-break-inside:avoid}.subPrintPeriodName{font-weight:800}.subPrintTime{white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}.subPrintCourse strong,.subPrintPlan{overflow-wrap:anywhere}.subPrintEmpty{font-style:italic;color:#555}.subPrintRowNote{margin-top:3px;padding-left:8px;border-left:2px solid #bbb}.subPrintClosing{flex:0 0 auto;margin-top:8px;padding-top:7px;border-top:2px solid #111;font-size:10.5pt;line-height:1.32}@media print{body,.sheet{width:auto}.subPrintRow{break-inside:avoid;page-break-inside:avoid}}";
-  const fit="window.addEventListener('load',function(){setTimeout(function(){var rows=[].slice.call(document.querySelectorAll('.subPrintRow'));var pad=7;var minPad=4;var limit=(11-0.84)*96;function tooTall(){return document.documentElement.scrollHeight>limit+1;}while(pad>minPad&&tooTall()){pad-=1;rows.forEach(function(el){el.style.paddingTop=pad+'px';el.style.paddingBottom=pad+'px';});}window.print();},80);});";
+  const css="@page{size:letter portrait;margin:0.42in}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111}body,body *{font-family:'Segoe UI',Calibri,Arial,Helvetica,sans-serif;font-variant-numeric:lining-nums tabular-nums;font-feature-settings:'lnum' 1,'tnum' 1}body{width:7.66in;font-size:10.5pt;line-height:1.28}.sheet{width:7.66in;display:flex;flex-direction:column}.subPrintHeader{flex:0 0 auto;border-bottom:2px solid #111;padding:0 0 7px;margin:0 0 2px}.subPrintTitleLine{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:baseline}.subPrintTitleLine strong{font-size:18pt;line-height:1.1;font-weight:800}.subPrintTitleLine span{font-size:10.5pt;font-weight:700}.subPrintGeneralNotes{margin-top:7px;font-size:10pt;line-height:1.32}.subPrintScheduleRows{display:flex;flex-direction:column;flex:0 0 auto}.subPrintRow{display:flex;flex-direction:column;gap:5px;padding:6px 2px 12px;border-bottom:1px solid #c8c8c8;flex:0 0 auto;break-inside:avoid;page-break-inside:avoid}.subPrintRowMain{display:grid;grid-template-columns:1.25fr 0.85fr 1.45fr 2.45fr;column-gap:12px;align-items:start}.subPrintPeriodName{font-weight:800}.subPrintTime{white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}.subPrintCourse strong,.subPrintPlan{overflow-wrap:anywhere}.subPrintEmpty{color:#666}.subPrintRowNote{width:100%;font-size:10.5pt;line-height:1.35}.subPrintClosing{flex:0 0 auto;margin-top:8px;padding-top:7px;border-top:2px solid #111;font-size:10.5pt;line-height:1.32}@media print{body,.sheet{width:auto}.subPrintRow{break-inside:avoid;page-break-inside:avoid}}";
+  const fit="window.addEventListener('load',function(){setTimeout(function(){var rows=[].slice.call(document.querySelectorAll('.subPrintRow'));var after=12;var minAfter=6;var limit=(11-0.84)*96;function tooTall(){return document.documentElement.scrollHeight>limit+1;}while(after>minAfter&&tooTall()){after-=1;rows.forEach(function(el){el.style.paddingBottom=after+'px';});}window.print();},80);});";
   w.document.open();
   w.document.write("<!doctype html><html><head><meta charset=\"utf-8\"><title>"+esc(title)+" - "+esc(dateLabel)+"</title><style>"+css+"</style></head><body>"+body+"<script>"+fit+"<\/script></body></html>");
   w.document.close();
