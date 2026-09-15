@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.0.9</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.1.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -412,20 +412,41 @@ aside{
 @media(max-width:650px){.sidebarEditorRow{grid-template-columns:28px 1fr auto}.sidebarEditorActions button{padding:4px 6px}}
 
 /* ===== Live Class dashboard cards ===== */
+.liveApp{height:100vh;overflow:hidden}
+.liveApp main{padding:12px 16px 8px;max-width:none;height:100vh;display:flex;flex-direction:column;min-height:0;align-self:stretch}
+.liveApp .appFooter{display:none}
+.liveShell{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
+.liveHeader{margin-bottom:0;align-items:flex-start}
+.liveHeader h2{font-size:22px;margin:0;line-height:1.15}
+.liveHeader p{margin:3px 0 0;font-size:13px}
+.liveOutChip{padding:7px 10px;border-radius:10px;background:#fff;border:1px solid #d8dee8;font-weight:700;white-space:nowrap}
+.liveOutChip.hasOut{background:#fff6e5;border-color:#e8c36a}
+.viewToggle{margin-bottom:0}
 .dashboardTopCards{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:14px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
   align-items:stretch;
-  margin-bottom:14px;
+  margin-bottom:0;
+  flex:0 0 auto;
 }
 .dashboardTopCards .card{
   margin-bottom:0!important;
   min-width:0;
+  padding:8px 12px;
 }
-.dashboardTopCards h3{
-  margin:0 0 8px!important;
-  font-size:16px;
+.liveInfoLabel{
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#64748b;
+  margin:0 0 3px;
+}
+.liveInfoBody,.currentLessonText{
+  margin:0;
+  font-size:14px;
+  line-height:1.35;
 }
 .todayNotes ul{
   margin:6px 0 0!important;
@@ -442,9 +463,30 @@ aside{
 }
 .currentLessonText{
   margin-top:0!important;
-  font-size:16px!important;
-  line-height:1.4!important;
+  font-size:14px!important;
+  line-height:1.35!important;
 }
+.liveOutStrip{
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:#fff6e5;
+  border:1px solid #e8c36a;
+  border-radius:10px;
+  padding:7px 10px;
+}
+.liveOutItem{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  font-size:13px;
+}
+.liveOutWho{font-weight:800}
+.liveOutMeta{color:#5b6573}
+.liveOutActions{display:flex;gap:4px;margin-left:auto}
+.liveOutActions button{padding:4px 7px;font-size:11px}
 .studentsOutCard{
   border-left:4px solid #dba83d!important;
 }
@@ -462,11 +504,27 @@ aside{
   padding:5px 7px;
   font-size:11px;
 }
+.liveApp .matrixWrap{flex:1;min-height:0;max-height:none;margin:0}
+.liveApp .matrix th{font-size:10px;padding:6px 2px;line-height:1.1}
+.liveApp .matrix td{padding:3px 2px}
+.liveApp .matrixBtn{width:30px;height:28px;padding:2px;font-size:15px}
+.liveApp .matrixNoteBtn{width:30px;height:28px;padding:2px}
+.liveApp .stickyName{width:148px;min-width:148px;padding-left:8px}
+.liveApp .stickyName b{font-size:13px}
+.liveApp .stickyName small{display:block;font-weight:600;color:#b45309;font-size:10px}
+.liveApp .roster{flex:1;min-height:0;overflow:auto;gap:8px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.liveApp .student{padding:10px 10px 8px;margin:0}
+.liveApp .student h3{margin:0 0 6px;font-size:15px}
+.liveApp .quick{gap:5px}
+.liveApp .quick button{padding:5px 7px;font-size:12px}
+.liveApp .noteBtn{margin-top:6px;padding:5px 8px;font-size:12px}
+.liveApp .headerUtilities .card{padding:7px 10px}
 @media(max-width:1050px){
-  .dashboardTopCards{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .dashboardTopCards{grid-template-columns:1fr;}
 }
 @media(max-width:700px){
   .dashboardTopCards{grid-template-columns:1fr;}
+  .liveApp main{padding:10px}
 }
 
 
@@ -702,7 +760,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.0.9";
+const APP_VERSION="4.1.0";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1500,7 +1558,7 @@ function render(){
   ensureSidebarSettings(); ensureClassroomTools(); ensureGroups(); ensureForms(); ensureAccommodations(); ensureLessonPlans(); ensureSubPlans();
   if(!currentUser){$("#root").innerHTML=loginHTML();return}
   const userLabel=currentUser.displayName||currentUser.email||"Google user";
-  $("#root").innerHTML=`<div class="app"><aside>
+  $("#root").innerHTML=`<div class="app${page==="live"?" liveApp":""}"><aside>
     <h1 class="brand"><span class="brandEmoji">${appLogoHTML()}</span><span>Teacher<br>Dashboard</span></h1>
     ${sidebarTimeRemainingHTML()}
     <nav class="sidebarNav">${nav()}</nav>
@@ -1980,25 +2038,27 @@ function currentLessonPlanHTML(cls){
     if(!row)return '';
     const entry=lessonPlanEntry(row.id,today);
     const planText=(entry.text||'').trim();
-    return `<section class="card currentLessonCard"><h3>📚 Current Lesson Plan</h3><div class="currentLessonText">${planText?esc(planText).replace(/\n/g,'<br>'):'<span class="small">No lesson plan entered for today yet.</span>'}</div></section>`;
+    return `<section class="card currentLessonCard liveInfoCard"><div class="liveInfoLabel">Lesson</div><div class="currentLessonText">${planText?esc(planText).replace(/\n/g,'<br>'):'<span class="small">No plan entered yet.</span>'}</div></section>`;
   }catch(e){console.error('Current lesson card error:',e);return '';}
 }
 function live(){
   const cls=currentClass(),active=activeEvents(),block=currentScheduleBlock();
   const toggle=`<div class="viewToggle"><button class="${liveView==="cards"?"activeView":""}" onclick="window.setLiveView('cards')">▦ Cards</button><button class="${liveView==="matrix"?"activeView":""}" onclick="window.setLiveView('matrix')">▤ Matrix</button></div>`;
-  const alert=active.length?`<section class="card studentsOutCard"><h3>🚪 Students currently out</h3>${active.map(e=>{const st=data.students.find(x=>x.id===e.studentId);return `<div class="studentOutItem">${esc(studentDisplayName(st||{}))} — ${e.icon} ${esc(e.label)} <span data-timer="${e.start}"></span><div class="studentOutActions"><button onclick="window.returnEvent('${e.id}','returned')">↩ Return</button> <button onclick="window.returnEvent('${e.id}','did-not-return')">⚠ Did Not Return</button> <button onclick="window.openEventModal('${e.id}')">Edit</button> <button onclick="window.note('${e.studentId}','${e.id}')">Comment</button></div></div>`}).join("")}</section>`:"";
+  const outChip=`<button type="button" class="liveOutChip${active.length?" hasOut":""}" onclick="window.focusStudentsOut()">${active.length?`🚪 ${active.length} out`:"🚪 0 out"}</button>`;
   const todaysNotes=calendarNotesFor(todayISO());
-  const dailyNotes=todaysNotes.length?`<section class="card todayNotes"><h3>📌 Today's Notes</h3><ul>${todaysNotes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></section>`:"";
+  const dailyNotes=todaysNotes.length?`<section class="card todayNotes liveInfoCard"><div class="liveInfoLabel">Notes</div><div class="liveInfoBody">${todaysNotes.map(n=>esc(n)).join(" · ")}</div></section>`:"";
   const dateLine=new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
   const tools=classroomToolsHTML(cls,block);
   const reminders=reminderHTML(cls,block);
-  const topDashboardCards=(dailyNotes||alert||currentLessonPlanHTML(cls))
-    ? `<div class="dashboardTopCards">${dailyNotes}${currentLessonPlanHTML(cls)}${alert}</div>`
-    : "";
-  if(!cls)return `<header><div><h2>No class right now</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}<section class="card noActiveClass"><b>${block?`No class is assigned to ${esc(block.label)}.`:"There is no active class during this time."}</b><p class="small">Add a class and choose its period(s), meeting days, and term in Students & Classes.</p></section>`;
+  const outStrip=active.length?`<section class="liveOutStrip" id="liveOutStrip">${active.map(e=>{const st=data.students.find(x=>x.id===e.studentId);return `<div class="liveOutItem"><span class="liveOutWho">${esc(studentDisplayName(st||{}))}</span><span class="liveOutMeta">${e.icon} ${esc(e.label)} <span data-timer="${e.start}"></span></span><span class="liveOutActions"><button onclick="window.returnEvent('${e.id}','returned')">Return</button><button onclick="window.returnEvent('${e.id}','did-not-return')">DNR</button><button onclick="window.openEventModal('${e.id}')">Edit</button><button onclick="window.note('${e.studentId}','${e.id}')">Note</button></span></div>`}).join("")}</section>`:"";
+  const topDashboardCards=(dailyNotes||currentLessonPlanHTML(cls))?`<div class="dashboardTopCards">${dailyNotes}${currentLessonPlanHTML(cls)}</div>`:"";
+  const headerRight=`<div class="headerRight">${toggle}<div class="headerUtilities">${outChip}${tools}</div></div>`;
+  const head=(title,sub)=>`<header class="liveHeader"><div><h2>${title}</h2><p>${sub}</p></div>${headerRight}</header>`;
+  window.focusStudentsOut=()=>{const el=document.querySelector('#liveOutStrip');if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});};
+  if(!cls)return `<div class="liveShell">${head("No class right now",`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}<section class="card noActiveClass"><b>${block?`No class is assigned to ${esc(block.label)}.`:"There is no active class during this time."}</b><p class="small">Add a class and choose its period(s), meeting days, and term in Students & Classes.</p></section></div>`;
   const roster=sortedStudents(data.students.filter(st=>cls.studentIds.includes(st.id)));
-  if(liveView==="matrix")return `<header><div><h2>${esc(cls.name)}</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Excessive<br>Talking":esc(b.label)}</span></th>`).join("")}<th>📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${out?"<br><small>Currently out</small>":""}</td>${data.buttons.map(b=>`<td><button type="button" class="matrixBtn quickButton" title="${esc(b.label)}" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}</button></td>`).join("")}<td><button onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div>`;
-  return `<header><div><h2>${esc(cls.name)}</h2><p>${dateLine}${block?` · ${esc(block.label)}`:""}</p></div><div class="headerRight">${toggle}<div class="headerUtilities"><div class="card">🚪 ${active.length} currently out</div>${tools}</div></div></header>${topDashboardCards}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}</h3><div class="quick">${(data.buttons||[]).map(b=>`<button type="button" class="quickButton" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div><button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Add Note</button></article>`).join("")}</div>`;
+  if(liveView==="matrix")return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Talking":b.label==="Out of Class (Other)"?"Out":b.label==="Disruptive Behavior"?"Disrupt":esc(b.label)}</span></th>`).join("")}<th title="Note">📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${out?'<small>Out</small>':""}</td>${data.buttons.map(b=>`<td><button type="button" class="matrixBtn quickButton" title="${esc(b.label)}" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}</button></td>`).join("")}<td><button class="matrixNoteBtn" onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div></div>`;
+  return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}</h3><div class="quick">${(data.buttons||[]).map(b=>`<button type="button" class="quickButton" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div><button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Note</button></article>`).join("")}</div></div>`;
 }
 const DAY_NAMES=[[1,"Mon"],[2,"Tue"],[3,"Wed"],[4,"Thu"],[5,"Fri"]];
 const TERM_OPTIONS=[["fullYear","Full Year"],["q1","Quarter 1"],["q2","Quarter 2"],["q3","Quarter 3"],["q4","Quarter 4"],["t1","Trimester 1"],["t2","Trimester 2"],["t3","Trimester 3"],["s1","Semester 1"],["s2","Semester 2"]];
