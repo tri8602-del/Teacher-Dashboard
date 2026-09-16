@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.1.5</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.1.6</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -45,7 +45,7 @@ h2,h3,h4{margin-top:0} header p{margin:4px 0;color:var(--muted)}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:18px}.add{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
 table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #e7eaf0;text-align:left}
 .grade{width:70px}.small{font-size:12px;color:var(--muted)}
-.toast{position:fixed;right:20px;top:18px;background:var(--nav);color:#fff;padding:12px;border-radius:8px;z-index:40}.toast button{margin-left:8px;padding:1px 6px}
+.toast{position:fixed;right:20px;top:18px;background:var(--nav);color:#fff;padding:12px;border-radius:8px;z-index:40;transition:opacity .2s}.toast.toastOut{opacity:0}.toast button{margin-left:8px;padding:1px 6px}
 .modalbg{position:fixed;inset:0;background:#0008;display:grid;place-items:center;padding:20px;z-index:30}.modal{background:#fff;width:min(560px,100%);max-height:90vh;overflow:auto;border-radius:12px;padding:18px}
 .reportgrid{display:flex;gap:10px;flex-wrap:wrap}.stat{background:#f1f4fa;border-radius:9px;padding:12px;min-width:100px;display:flex;flex-direction:column}.reportControls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.reportControls label{min-width:180px;flex:1}.reportControls input,.reportControls select{width:100%;box-sizing:border-box}.tableWrap{overflow-x:auto}.reportMatrix{min-width:760px}.reportMatrix th,.reportMatrix td{text-align:center;white-space:nowrap}.reportMatrix th:first-child,.reportMatrix td:first-child{text-align:left;position:sticky;left:0;background:#fff}.reportMatrix th span{font-size:11px;font-weight:500;white-space:normal;display:inline-block;max-width:72px;line-height:1.1}.stat b{font-size:24px}
 .calendarSettings{display:flex;gap:18px;align-items:end;flex-wrap:wrap}.calendarSettings label{font-weight:600}
@@ -726,6 +726,20 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .lessonDayHead{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
 .lessonPushDay{padding:1px 6px;font-size:10px;line-height:1.2;border-radius:6px;color:#4b5563}
 .lessonPushDay:hover{background:#eef3fb}
+.lessonStatusLong{display:none!important}
+.lessonStatusShort{display:inline!important;font-size:9px;font-weight:700;letter-spacing:.02em}
+.lessonStatusBar{
+  position:absolute!important;left:4px!important;right:4px!important;bottom:3px!important;top:auto!important;
+  display:flex!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-start!important;
+  gap:2px!important;overflow:hidden;
+}
+.lessonStatus{display:inline-flex!important;align-items:center!important;gap:1px!important;padding:0 2px!important;font-size:9px!important;min-width:0!important;flex:0 0 auto}
+.lessonStatus input{width:12px!important;height:12px!important;margin:0!important}
+.lessonPushBtn{
+  position:static!important;right:auto!important;bottom:auto!important;
+  margin-left:auto;opacity:1;height:18px;min-width:20px;padding:0 4px;flex:0 0 auto;
+}
+.lessonCell textarea{padding-bottom:22px!important}
 .lessonCell.lessonMultiDay{box-shadow:inset 0 0 0 1px rgba(95,159,183,.22)}.multiDayLessonModal{max-height:88vh;overflow:auto}.multiDayDates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.multiDayDates label{display:flex;flex-direction:column;gap:5px;font-size:13px}.multiDayDates input{width:100%;box-sizing:border-box}.multiDayExisting{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line,#d8dee8)}.multiDayExisting:last-child{border-bottom:0}@media(max-width:700px){.lessonHeaderActions{width:100%;justify-content:center}.lessonHeaderActions button{font-size:12px;padding:5px 8px}.multiDayDates{grid-template-columns:1fr}.multiDayExisting{align-items:flex-start}}</style>
 <style id="v2321-between-period-countdown">.sidebarTimeCard.isWaiting .sidebarTimeLabel{font-size:11px}.sidebarCountdown{font-variant-numeric:tabular-nums;letter-spacing:.02em}.sidebarTimeCard.isWaiting .sidebarTimeBlock{font-weight:600}</style>
 
@@ -780,7 +794,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.1.5";
+const APP_VERSION="4.1.6";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1588,6 +1602,7 @@ function render(){
   </aside><main>${toastHTML()}${pageHTML()}<footer class="appFooter">© 2026 Lindsay Shay &nbsp;•&nbsp; Version ${APP_VERSION}</footer></main></div>${selected?modalHTML():""}`;
   document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;render()});
   bind();
+  if(toast)window.armToastDismiss();
   if(page==="lessonplans")requestAnimationFrame(()=>document.querySelectorAll('.lessonCell textarea').forEach(ta=>window.autoResizeLessonTextarea?.(ta)));
 }
 function loginHTML(){return `<div class="loginScreen"><section class="loginCard"><div class="loginLogo">${appLogoHTML()}</div><h1>Teacher Dashboard</h1><p>Sign in with Google to securely access your own Teacher Dashboard.</p><button class="googleBtn primary" onclick="window.signIn()" ${authBusy?"disabled":""}>${authBusy?"Signing in...":"G  Sign in with Google"}</button>${loginError?`<div class="loginError">${esc(loginError)}</div>`:""}<p class="small" style="margin-top:20px">Each Google account has its own private dashboard and browser backup.</p></section></div>`}
@@ -1707,8 +1722,19 @@ function recentEventsHTML(){
   return `<section class="card" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">Recent Events</h3><p class="small" style="margin:4px 0 0">${all.length} event${all.length===1?"":"s"} recorded</p></div><button onclick="window.toggleRecentEvents()">${expanded?"▼ Collapse":"▶ Expand"}</button></div>${expanded?`<div style="margin-top:10px">${ev.map(e=>{const st=data.students.find(x=>x.id===e.studentId),cls=data.classes.find(x=>x.id===e.classId),comments=eventComments(e.id);return `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><b>${esc(st?.name||"Unknown student")}</b> — ${e.icon} ${esc(e.label)} <span class="small">${esc(cls?.name||"")} · ${new Date(e.start).toLocaleString()}</span>${comments.length?`<div class="small">${esc(comments.map(n=>n.text).filter(Boolean).join(" · "))}</div>`:""}<div style="margin-top:6px"><button onclick="window.openEventModal('${e.id}')">Edit</button> <button onclick="window.note('${e.studentId}','${e.id}')">Add Comment</button> <button onclick="window.deleteEvent('${e.id}')">Delete</button></div></div>`}).join("")}</div>`:""}</section>`
 }
 window.toggleRecentEvents=()=>{window.recentEventsExpanded=!(window.recentEventsExpanded===true);render();}
-function toastHTML(){return toast?`<div class="toast">${esc(toast)} <button onclick="window.clearToast()">×</button></div>`:""}
-window.clearToast=()=>{toast="";render()}
+function toastHTML(){return toast?`<div class="toast" id="appToast">${esc(toast)} <button type="button" onclick="window.clearToast()">×</button></div>`:""}
+window.clearToast=()=>{
+  toast="";
+  clearTimeout(window._toastTimer);
+  const el=document.querySelector('#appToast');
+  if(!el)return;
+  el.classList.add('toastOut');
+  setTimeout(()=>el.remove(),220);
+};
+window.armToastDismiss=()=>{
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>window.clearToast(),3500);
+};
 function showToast(message){toast=String(message||"");render();}
 function openModal(title,body,footer=""){
   document.querySelector("#genericModal")?.remove();
@@ -1900,7 +1926,7 @@ function lessonplans(){
         const completionClass=hasText?(all?' lessonComplete':' lessonIncomplete'):'';
         const multiClass=multi?' lessonMultiDay':'';
         const multiTitle=multi?` title="Linked multi-day lesson: ${esc(lessonDateRangeLabel(multi.startDate,multi.endDate))}"`:'';
-        return `<td class="lessonCell${cls}${completionClass}${multiClass}"${multiTitle}><textarea placeholder="Type lesson plan..." onfocus="window.lessonPlanTextareaFocus(this)" oninput="window.lessonPlanTextareaInput(this,'${row.id}','${date}')" onblur="window.lessonPlanTextareaBlur(this)">${esc(entry.text)}</textarea>${multi?`<span class="lessonMultiBadge">🔗</span>`:''}<div class="lessonStatusBar"><label class="lessonStatus lessonStatusAll"><input type="checkbox" ${all?'checked':''} onchange="window.updateLessonStatusAll('${row.id}','${date}',this.checked)"><span class="lessonStatusLong">All</span><span class="lessonStatusShort">A</span></label><label class="lessonStatus"><input type="checkbox" ${entry.planned?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','planned',this.checked)"><span class="lessonStatusLong">Planned</span><span class="lessonStatusShort">P</span></label><label class="lessonStatus"><input type="checkbox" ${entry.created?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','created',this.checked)"><span class="lessonStatusLong">Created</span><span class="lessonStatusShort">C</span></label><label class="lessonStatus"><input type="checkbox" ${entry.posted?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','posted',this.checked)"><span class="lessonStatusLong">Posted</span><span class="lessonStatusShort">P</span></label></div><button type="button" class="lessonPushBtn" title="Skip this day for ${esc(row.name)}: move this plan and later plans to the next meeting day" onclick="window.pushLessonPlansForward('${row.id}','${date}')">→</button></td>`;
+        return `<td class="lessonCell${cls}${completionClass}${multiClass}"${multiTitle}><textarea placeholder="Type lesson plan..." onfocus="window.lessonPlanTextareaFocus(this)" oninput="window.lessonPlanTextareaInput(this,'${row.id}','${date}')" onblur="window.lessonPlanTextareaBlur(this)">${esc(entry.text)}</textarea>${multi?`<span class="lessonMultiBadge">🔗</span>`:''}<div class="lessonStatusBar"><label class="lessonStatus lessonStatusAll"><input type="checkbox" ${all?'checked':''} onchange="window.updateLessonStatusAll('${row.id}','${date}',this.checked)"><span class="lessonStatusLong">All</span><span class="lessonStatusShort">A</span></label><label class="lessonStatus"><input type="checkbox" ${entry.planned?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','planned',this.checked)"><span class="lessonStatusLong">Planned</span><span class="lessonStatusShort">P</span></label><label class="lessonStatus"><input type="checkbox" ${entry.created?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','created',this.checked)"><span class="lessonStatusLong">Created</span><span class="lessonStatusShort">C</span></label><label class="lessonStatus"><input type="checkbox" ${entry.posted?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','posted',this.checked)"><span class="lessonStatusLong">Posted</span><span class="lessonStatusShort">P</span></label><button type="button" class="lessonPushBtn" title="Skip this day for ${esc(row.name)}: move this plan and later plans to the next meeting day" onclick="window.pushLessonPlansForward('${row.id}','${date}')">→</button></div></td>`;
       }).join('');
       return `<tr>${title}${cells}</tr>`;
     }).join('');
