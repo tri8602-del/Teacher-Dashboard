@@ -1489,22 +1489,19 @@ function maybeAutoAdvanceLessonWeek(){
   if(info.type!=='instructional')return;
 
   const schedule=bellScheduleById(info.schedule||'regular');
-  // Interpret bell-schedule times sequentially so unqualified times such as 2:47
-  // remain in the afternoon rather than being interpreted as 2:47 AM.
+  // Interpret the bell schedule sequentially because times without AM/PM
+  // can cross noon (for example 1:41 -> 1:44 -> 2:47).
   let previous=-1;
-  const ends=[];
-  for(const row of (schedule?.periods||[])){
+  let lastEnd=null;
+  for(const row of schedule?.periods||[]){
     const begin=timeToMinutes(row[1],previous);
     if(begin===null)continue;
-    const end=timeToMinutes(row[2],begin);
-    if(end===null)continue;
-    const normalizedEnd=end<begin?end+720:end;
-    ends.push(normalizedEnd);
-    previous=normalizedEnd;
+    let end=timeToMinutes(row[2],begin);
+    if(end!==null && end<begin)end+=720;
+    if(end!==null)lastEnd=end;
+    previous=end??begin;
   }
-  if(!ends.length)return;
-
-  const lastEnd=Math.max(...ends);
+  if(lastEnd===null)return;
   const day=now.getDay();
   const todayMinutes=now.getHours()*60+now.getMinutes();
   const shouldAdvance=day===6 || day===0 || (day===5 && todayMinutes>=lastEnd);
