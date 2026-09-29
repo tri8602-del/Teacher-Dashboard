@@ -3469,7 +3469,7 @@ window.copyForm=(id)=>{
 window.openFormTracker=(id)=>{
   const f=data.forms.find(x=>x.id===id);if(!f)return;const students=sortedStudents(data.students.filter(s=>formStudentIds(f).includes(s.id)));
   const cols=f.fields.map(x=>`<th>${esc(x.label)}</th>`).join("");
-  const rows=students.map(s=>{const r=f.records[s.id]||{};return `<tr><td><b>${esc(studentDisplayName(s))}</b></td><td><input type="checkbox" ${r.received?"checked":""} onchange="window.updateFormRecord('${id}','${s.id}','received',this.checked)"></td><td><select onchange="window.updateFormRecord('${id}','${s.id}','method',this.value)">${["","ParentSquare","Google Classroom","Physical Copy","Email","Other"].map(v=>`<option ${r.method===v?"selected":""}>${v||"—"}</option>`).join("")}</select></td><td><input type="date" value="${r.receivedDate||""}" onchange="window.updateFormRecord('${id}','${s.id}','receivedDate',this.value)"></td>${f.fields.map(x=>`<td>${window.formFieldInput?window.formFieldInput(id,s.id,x,r[x.id]):""}</td>`).join("")}</tr>`;}).join("");
+  const rows=students.map(s=>{const r=f.records[s.id]||{};return `<tr><td><b>${esc(studentDisplayName(s))}</b></td><td><input type="checkbox" ${r.received?"checked":""} onchange="window.updateFormRecord('${id}','${s.id}','received',this.checked)"></td><td><select onchange="window.updateFormRecord('${id}','${s.id}','method',this.value)">${["","ParentSquare","Google Classroom","Physical Copy","Email","Other"].map(v=>`<option ${r.method===v?"selected":""}>${v||"—"}</option>`).join("")}</select></td><td><input type="date" title="Edit date received" value="${r.receivedDate||""}" onchange="window.updateFormRecord('${id}','${s.id}','receivedDate',this.value)"></td>${f.fields.map(x=>`<td>${window.formFieldInput?window.formFieldInput(id,s.id,x,r[x.id]):""}</td>`).join("")}</tr>`;}).join("");
   const body=`<div class="trackerHeader"><button onclick="window.closeFormDialog()">← Back</button><div><h2>${esc(f.name)}</h2><p class="small">${students.filter(s=>f.records[s.id]?.received).length} / ${students.length} received</p></div></div><div class="tableWrap"><table class="formMatrix"><thead><tr><th>Student</th><th>Received</th><th>Method</th><th>Date Received</th>${cols}</tr></thead><tbody>${rows||'<tr><td colspan="20">No students selected for this form.</td></tr>'}</tbody></table></div>`;
   openModal(f.name,body,`<button onclick="window.closeFormDialog()">Close</button>`);
 };
@@ -3578,12 +3578,12 @@ window.openFormTracker=(id)=>{
   const rows=students.map(s=>{
     const r=f.records[s.id]||{};
     return `<tr><td><b>${esc(studentDisplayName(s))}</b></td>
-      <td><input type="checkbox" ${r.received?"checked":""} onchange="window.updateFormRecord('${id}','${s.id}','received',this.checked);window.refreshFormTrackerHeader('${id}')"></td>
-      <td><select onchange="window.updateFormRecord('${id}','${s.id}','method',this.value)">${["","ParentSquare","Google Classroom","Physical Copy","Email","Other"].map(v=>`<option value="${esc(v)}" ${r.method===v?"selected":""}>${v||"—"}</option>`).join("")}</select></td>
+      <td><input type="checkbox" title="Mark this form received" ${r.received?"checked":""} onchange="window.updateFormRecord('${id}','${s.id}','received',this.checked);window.refreshFormTrackerHeader('${id}')"></td>
+      <td><select title="Edit submission method" onchange="window.updateFormRecord('${id}','${s.id}','method',this.value)">${["","ParentSquare","Google Classroom","Physical Copy","Email","Other"].map(v=>`<option value="${esc(v)}" ${r.method===v?"selected":""}>${v||"—"}</option>`).join("")}</select></td>
       <td><input type="date" value="${r.receivedDate||""}" onchange="window.updateFormRecord('${id}','${s.id}','receivedDate',this.value)"></td>
       ${f.fields.map(x=>`<td>${window.formFieldInput(id,s.id,x,r[x.id])}</td>`).join("")}</tr>`;
   }).join("");
-  const body=`<div class="trackerHeader"><div><h2>${esc(f.name)}</h2><p class="small" id="formTrackerCount">${students.filter(s=>f.records[s.id]?.received).length} / ${students.length} received</p></div></div>
+  const body=`<div class="trackerHeader"><div><h2>${esc(f.name)}</h2><p class="small" id="formTrackerCount">${students.filter(s=>f.records[s.id]?.received).length} / ${students.length} received</p><p class="small formTrackerHint">Received, method, and date are editable. Checking Received auto-fills today's date only when the date is blank.</p></div></div>
     <div class="tableWrap"><table class="formMatrix"><thead><tr><th>Student</th><th>Received</th><th>Method</th><th>Date Received</th>${cols}</tr></thead><tbody>${rows||'<tr><td colspan="20">No students selected for this form.</td></tr>'}</tbody></table></div>`;
   let host=document.getElementById("formModalFallback");
   if(!host){host=document.createElement("div");host.id="formModalFallback";document.body.appendChild(host);}
@@ -5124,9 +5124,39 @@ window.saveLessonPlanManager=()=>{ensureLessonPlans();const visible=new Set([...
 function printDocument(title, body, landscape=false){
   const w=window.open("","_blank","width=1000,height=800");
   if(!w){alert("Please allow pop-ups for Teacher Dashboard so the printable document can open.");return;}
-  const pageCSS=`@page{size:${landscape?"landscape":"portrait"};margin:${landscape?"0.28in":"0.4in"}}html,body{margin:0;padding:0;background:#fff}.printOnlyDoc{box-sizing:border-box;width:100%}@media print{.noPrint{display:none!important}}`;
+  const pageCSS=`
+    @page{size:${landscape?"landscape":"portrait"};margin:${landscape?"0.3in":"0.45in"}}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#fff;color:#172033}
+    body{font-family:Arial,'Segoe UI',Calibri,sans-serif;font-size:10pt;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .printOnlyDoc{width:100%;max-width:100%;margin:0 auto}
+    .printOnlyDoc h1{font-size:19pt;line-height:1.15;margin:0 0 5px;font-weight:800;color:#172033}
+    .printOnlyDoc h2{font-size:12pt;line-height:1.2;margin:15px 0 6px;padding:0 0 4px;border-bottom:2px solid #c9d1dc;color:#26364d}
+    .printOnlyDoc p{margin:4px 0}
+    .printOnlyDoc .printMeta{font-size:9.5pt;color:#596579}
+    .printOnlyDoc table{width:100%;border-collapse:collapse;font-size:9pt;line-height:1.25}
+    .printOnlyDoc th,.printOnlyDoc td{border:1px solid #cbd3de;padding:5px 6px;vertical-align:top;overflow-wrap:break-word}
+    .printOnlyDoc th{background:#eef2f6;text-align:left;font-weight:700;color:#26364d}
+    .printOnlyDoc tbody tr:nth-child(even) td{background:#f8fafc}
+    .printOnlyDoc thead{display:table-header-group}
+    .printOnlyDoc tr{break-inside:avoid;page-break-inside:avoid}
+    .printOnlyDoc .blankLine{display:inline-block;border-bottom:1px solid #667085;min-width:190px;height:13px}
+    .printOnlyDoc .small{font-size:8pt;color:#667085}
+    .printOnlyDoc .formTrackerTitle{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;border-bottom:2px solid #1f3a5f;padding-bottom:8px;margin-bottom:8px}
+    .printOnlyDoc .formTrackerTitle h1{margin:0}
+    .printOnlyDoc .trackerBadge{font-size:9pt;font-weight:700;color:#1f3a5f;white-space:nowrap}
+    .printOnlyDoc .trackerTable{table-layout:auto}
+    .printOnlyDoc .trackerTable th:first-child,.printOnlyDoc .trackerTable td:first-child{min-width:145px}
+    .printOnlyDoc .trackerTable th:nth-child(2),.printOnlyDoc .trackerTable td:nth-child(2){width:62px;text-align:center}
+    .printOnlyDoc .trackerTable th:nth-child(3),.printOnlyDoc .trackerTable td:nth-child(3){width:105px}
+    .printOnlyDoc .trackerTable th:nth-child(4),.printOnlyDoc .trackerTable td:nth-child(4){width:92px;white-space:nowrap}
+    .printOnlyDoc .checkMark{font-size:12pt;font-weight:700}
+    .printOnlyDoc .formSheet{max-width:7.1in;margin:0 auto}
+    @media screen{body{background:#f5f7fa}.printOnlyDoc{background:#fff;padding:18px;min-height:100vh;box-shadow:0 2px 14px rgba(0,0,0,.08)}}
+    @media print{.noPrint{display:none!important}.printOnlyDoc{box-shadow:none!important;padding:0!important}.formTrackerTitle{break-after:avoid;page-break-after:avoid}}
+  `;
   w.document.open();
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${pageCSS}</style></head><body><div class="printOnlyDoc">${body}</div><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));<\/script></body></html>`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${pageCSS}</style></head><body><div class="printOnlyDoc">${body}</div><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));<\/script></body></html>`);
   w.document.close();
 }
 function printableFieldValue(value,field){
@@ -5148,9 +5178,10 @@ window.printFormTracker=(id)=>{
   ensureForms();normalizeStudents();const f=data.forms.find(x=>x.id===id);if(!f)return;
   const students=sortedStudents(data.students.filter(s=>formStudentIds(f).includes(s.id)));
   const cols=f.fields||[];
-  const head=`<tr><th>Student</th><th>Received</th><th>Method</th><th>Date</th>${cols.map(x=>`<th>${esc(x.label)}</th>`).join("")}</tr>`;
-  const rows=students.map(s=>{const r=f.records[s.id]||{};return `<tr><td><b>${esc(studentDisplayName(s))}</b></td><td>${r.received?"✓":""}</td><td>${esc(r.method||"")}</td><td>${esc(r.receivedDate||"")}</td>${cols.map(x=>`<td>${esc(printableFieldValue(r[x.id],x))}</td>`).join("")}</tr>`;}).join("");
-  const body=`<h1>${esc(f.name)} — Tracker</h1>${f.description?`<p>${esc(f.description)}</p>`:""}<p class="printMeta"><b>${students.filter(s=>f.records[s.id]?.received).length} / ${students.length}</b> received${f.dueDate?` &nbsp;·&nbsp; Due ${esc(f.dueDate)}`:""}</p><table><thead>${head}</thead><tbody>${rows||`<tr><td colspan="${4+cols.length}">No students selected.</td></tr>`}</tbody></table>`;
+  const receivedCount=students.filter(s=>f.records[s.id]?.received).length;
+  const head=`<tr><th>Student</th><th>Received</th><th>Method</th><th>Date Received</th>${cols.map(x=>`<th>${esc(x.label)}</th>`).join("")}</tr>`;
+  const rows=students.map(s=>{const r=f.records[s.id]||{};return `<tr><td><b>${esc(studentDisplayName(s))}</b></td><td class="checkMark">${r.received?"✓":""}</td><td>${esc(r.method||"")}</td><td>${esc(r.receivedDate||"")}</td>${cols.map(x=>`<td>${esc(printableFieldValue(r[x.id],x))}</td>`).join("")}</tr>`;}).join("");
+  const body=`<div class="formTrackerTitle"><div><h1>${esc(f.name)} — Tracker</h1>${f.description?`<p class="printMeta">${esc(f.description)}</p>`:""}</div><div class="trackerBadge">${receivedCount} / ${students.length} received${f.dueDate?` · Due ${esc(f.dueDate)}`:""}</div></div><table class="trackerTable"><thead>${head}</thead><tbody>${rows||`<tr><td colspan="${4+cols.length}">No students selected.</td></tr>`}</tbody></table>`;
   printDocument(`${f.name} - Tracker`,body,true);
 };
 function accommodationPrintRecords(studentId){
