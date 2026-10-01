@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.2.0</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.2.1</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -794,7 +794,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.2.0";
+const APP_VERSION="4.2.1";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -851,7 +851,7 @@ const seed={
  googleClassroom:{clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:"",connectedAt:""},
  calendarOverrides:{},
  calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",earlydismissal:"#d58a2b",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
- calendarViewDate:new Date().toISOString().slice(0,7),
+ calendarViewDate:localDateKey().slice(0,7),
  bellSchedules:[
   {id:"regular",name:"Regular Bell Schedule",kind:"regular",periods:[
    ["Breakfast","7:45","8:00"],["1st Period","8:00","8:40"],["2nd Period","8:43","9:23"],["3rd Period","9:26","10:06"],["4th Period","10:09","10:49"],["5th Period (HS Lunch)","10:52","11:32"],["6th Period (MS Lunch / PLT)","11:35","12:15"],["7th Period","12:18","12:58"],["8th Period","1:01","1:41"],["9th Period","1:44","2:24"],["Flex","2:27","2:47"]]},
@@ -999,7 +999,7 @@ function subPlanDaily(date){
 }
 
 function subPlanDutyWeekday(date){
-  return (new Date(String(date)+'T12:00:00').getDay()||7);
+  return (parseLocalDate(String(date)).getDay()||7);
 }
 function subPlanPeriodToken(label){
   const s=String(label||'').trim().toLowerCase().replace(/\s+/g,' ');
@@ -1054,7 +1054,7 @@ window.openDailySubPlanModal=(date)=>{
   ensureSubPlans();ensureLessonPlans();ensureBellSchedules();
   const d=String(date||isoDate(lessonWeekDates()[0])),daily=subPlanDaily(d),info=getDateInfo(d),schedule=bellScheduleById(info.schedule||'regular'),periods=subPlanPeriodRows(d);
   document.querySelector('#dailySubPlanModal')?.remove();
-  const dateLabel=new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const dateLabel=parseLocalDate(d).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const periodHTML=periods.map(p=>`<section class="subPlanPeriodEdit"><div class="subPlanPeriodEditHead"><div><b>${esc(p.label)}</b><span>${esc(p.start)}–${esc(p.end)}</span></div>${p.duty?`<strong>📌 ${esc(p.duty.name)}</strong>`:''}</div>${((p.duties&&p.duties.length)?p.duties.map(du=>`<div class="subPlanLessonPreview"><b>📌 ${esc(du.name)}</b><div>${du.note?esc(du.note).replace(/\n/g,'<br>'):'<span class="small">Duty assigned this period.</span>'}</div></div>`).join(''):'')}${(p.plans.length?p.plans.map(pl=>`<div class="subPlanLessonPreview"><b>${esc(pl.name)}</b><div>${pl.text?esc(pl.text).replace(/\n/g,'<br>'):'<span class="small">No lesson plan entered.</span>'}</div></div>`).join(''):((p.duties&&p.duties.length)?'':'<div class="small">No Dashboard lesson plan for this period.</div>'))}<label>Additional notes<textarea data-period-note="${esc(p.key)}" placeholder="Optional note for the substitute...">${esc(daily.periodNotes?.[p.key]||'')}</textarea></label></section>`).join('');
   document.body.insertAdjacentHTML('beforeend',`<div id="dailySubPlanModal" class="modalbg"><div class="modal dailySubPlanModal"><h3>🖨 Generate Daily Plan</h3><div class="subPlanDateRow"><label>Date<input id="subPlanDate" type="date" value="${esc(d)}"></label><span class="small">${esc(dateLabel)} · ${esc(info.type==='instructional'?'Instructional day':info.type==='earlydismissal'?'Early dismissal':info.type==='inservice'?'In-service':'No school')} · ${esc(schedule?.name||'No bell schedule')}</span></div><label>Notes for today<textarea id="subPlanDayNotes" placeholder="Optional notes that apply only to this day...">${esc(daily.dayNotes||'')}</textarea></label><section class="subPlanStaticSection"><h4>Schedule & Plans</h4>${periodHTML||'<p class="small">No scheduled items found for this date.</p>'}</section><div class="subPlanModalActions"><button class="primary" onclick="window.saveDailySubPlanAndPrint()">🖨 Save & Print Daily Plan</button><button onclick="document.querySelector('#dailySubPlanModal')?.remove()">Cancel</button></div></div></div>`);
   document.querySelector('#subPlanDate').addEventListener('change',()=>{const nd=document.querySelector('#subPlanDate').value;if(nd){document.querySelector('#dailySubPlanModal')?.remove();window.openDailySubPlanModal(nd);}});window._activeSubPlanDate=d;
@@ -1078,7 +1078,7 @@ function subPlanImpliedCourse(p){
 }
 window.closeDailySubPlanAndPrint=(date)=>{
   ensureSubPlans();ensureLessonPlans();ensureBellSchedules();
-  const d=subPlanDaily(date),info=getDateInfo(date),schedule=bellScheduleById(info.schedule||'regular'),periods=subPlanPeriodRows(date),title=data.subPlans.template.title||'Sub Plans',dateLabel=new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const d=subPlanDaily(date),info=getDateInfo(date),schedule=bellScheduleById(info.schedule||'regular'),periods=subPlanPeriodRows(date),title=data.subPlans.template.title||'Sub Plans',dateLabel=parseLocalDate(date).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const status=info.type==='instructional'?'':` · ${info.type==='earlydismissal'?'Early Dismissal':info.type==='inservice'?'In-Service':'No School'}`;
   const timeLabel=(p)=>p.start&&p.end?`${esc(p.start)}–${esc(p.end)}`:'';
   const lines=(items)=>items.filter(Boolean).join('<br>');
@@ -1648,8 +1648,8 @@ function classEnrollmentPeriods(cls,studentId){
 }
 function pvaasDaysForPeriod(start,end){
   if(!start||!end)return 0; let n=0;
-  for(let d=new Date(start+"T12:00:00");d<=new Date(end+"T12:00:00");d.setDate(d.getDate()+1)){
-    const iso=d.toISOString().slice(0,10);
+  for(let d=parseLocalDate(start);d<=parseLocalDate(end);d.setDate(d.getDate()+1)){
+    const iso=localDateKey(d);
     if(isInstructionalOrInServiceDay(iso)&&!isPreStudentInService(iso))n++;
   } return n;
 }
@@ -1672,8 +1672,8 @@ function mergeEnrollmentPeriods(periods){
   for(const p of sorted){
     const last=merged[merged.length-1];
     if(!last){merged.push({...p});continue;}
-    const nextDay=new Date(last.end+"T12:00:00");nextDay.setDate(nextDay.getDate()+1);
-    const nextISO=nextDay.toISOString().slice(0,10);
+    const nextDay=parseLocalDate(last.end);nextDay.setDate(nextDay.getDate()+1);
+    const nextISO=localDateKey(nextDay);
     if(p.start<=nextISO&&p.end>last.end)last.end=p.end; else if(p.start>nextISO)merged.push({...p});
   }
   return merged;
@@ -1875,7 +1875,7 @@ window.dismissClassReminder=window.dismissAnnouncement;
 function currentClass(){
   ensureClassFields();const block=currentScheduleBlock();
   if(!block?.period)return null;
-  const weekday=new Date(todayISO()+"T12:00:00").getDay();
+  const weekday=parseLocalDate(todayISO()).getDay();
   return data.classes.find(c=>classIsActiveToday(c)&&classHasRuleNow(c,weekday,block.period))||null;
 }
 function activeEvents(){return data.events.filter(e=>e.type==="timed"&&!e.end)}
@@ -1916,12 +1916,12 @@ function openModal(title,body,footer=""){
 function closeModal(){document.querySelector("#genericModal")?.remove();}
 
 function lessonWeekStart(value){
-  const d=value?new Date(value+"T12:00:00"):new Date();
+  const d=value?parseLocalDate(value):new Date();
   const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);d.setHours(12,0,0,0);
   return d;
 }
-function isoDate(d){return new Date(d).toISOString().slice(0,10)}
-function isoAddDays(d,n){const x=new Date(String(d).slice(0,10)+"T12:00:00");x.setDate(x.getDate()+Number(n||0));return isoDate(x)}
+function isoDate(d){return localDateKey(d)}
+function isoAddDays(d,n){const x=parseLocalDate(String(d).slice(0,10));x.setDate(x.getDate()+Number(n||0));return isoDate(x)}
 function lessonWeekDates(){
   const start=lessonWeekStart(window.lessonPlanWeekStart);return [0,1,2,3,4].map(i=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
 }
@@ -1991,13 +1991,13 @@ function lessonPlanEntry(rowId,date){
   return {text:e.text||'',planned:!!e.planned,created:!!e.created,posted:!!e.posted};
 }
 function lessonDateRangeLabel(startDate,endDate){
-  const a=new Date(startDate+'T12:00:00'),b=new Date(endDate+'T12:00:00');
+  const a=parseLocalDate(startDate),b=parseLocalDate(endDate);
   const fmt=d=>d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
   return startDate===endDate?fmt(a):`${fmt(a)}–${fmt(b)}`;
 }
 function multiDayVisibleOnWeek(multi,dates){return (dates||[]).some(d=>lessonDateInRange(isoDate(d),multi.startDate,multi.endDate));}
 function multiDayDatesForRow(multi,row){
-  const out=[];let d=new Date(multi.startDate+'T12:00:00'),end=new Date(multi.endDate+'T12:00:00');
+  const out=[];let d=parseLocalDate(multi.startDate),end=parseLocalDate(multi.endDate);
   for(let guard=0;d<=end&&guard<400;guard++,d.setDate(d.getDate()+1)){
     const date=isoDate(d),weekday=d.getDay()||7;
     if(weekday<=5&&lessonRowAvailableOnDate(row,date,weekday))out.push(date);
@@ -2098,7 +2098,7 @@ function lessonplans(){
     }).join('');
 
     const todoCard=lessonPlanTodoHTML(rows,dates);
-    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions"><button onclick="window.openDailySubPlanModal(window.lessonPlanWeekStart || new Date().toISOString().slice(0,10))">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button><button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>`;
+    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions"><button onclick="window.openDailySubPlanModal(window.lessonPlanWeekStart || window.localDateKey())">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button><button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>`;
   }catch(err){
     console.error('Lesson Plans error:',err);
     return `<header><div><h2>Lesson Plans</h2><p>Something went wrong while loading this page.</p></div></header><section class="card"><p><b>The rest of your dashboard is safe.</b></p><p class="small">${esc(err?.message||String(err))}</p><button onclick="window.openLessonPlanManager()">Open Lesson Plan Customize</button></section>`;
@@ -2107,7 +2107,7 @@ function lessonplans(){
 function nextLessonMeetingDate(row,date){
   let d=isoAddDays(date,1);
   for(let i=0;i<240;i++){
-    const weekday=new Date(d+'T12:00:00').getDay();
+    const weekday=parseLocalDate(d).getDay();
     if(weekday>=1&&weekday<=5){
       try{if(lessonRowAvailableOnDate(row,d,weekday))return d;}catch(e){}
     }
@@ -2151,8 +2151,8 @@ window.pushLessonPlansForward=(rowId,fromDate)=>{
   if(!row)return;
   const next=nextLessonMeetingDate(row,fromDate);
   if(!next){alert('No later meeting day was found for this row.');return;}
-  const fromLabel=new Date(fromDate+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
-  const nextLabel=new Date(next+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+  const fromLabel=parseLocalDate(fromDate).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+  const nextLabel=parseLocalDate(next).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
   if(!confirm(`Leave ${fromLabel} empty for ${row.name} and move this plan plus every later plan to the next meeting day?\n\n${fromLabel} → ${nextLabel}, and later days shift the same way.`))return;
   const result=shiftLessonRowForward(rowId,fromDate);
   save();
@@ -2160,11 +2160,11 @@ window.pushLessonPlansForward=(rowId,fromDate)=>{
   render();
 };
 window.pushAllLessonPlansForward=(fromDate)=>{
-  const fromLabel=new Date(fromDate+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+  const fromLabel=parseLocalDate(fromDate).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
   if(!confirm(`Skip ${fromLabel} on every planning row?\n\nEach row's plan from that day forward will move to that row's next meeting day.`))return;
   let moved=0;
   (lessonPlanRows()||[]).forEach(row=>{
-    const weekday=new Date(fromDate+'T12:00:00').getDay();
+    const weekday=parseLocalDate(fromDate).getDay();
     let available=false;
     try{available=lessonRowAvailableOnDate(row,fromDate,weekday);}catch(e){}
     if(!available)return;
@@ -2227,7 +2227,7 @@ window.saveMultiDayLesson=()=>{
   if(!rowId||!start||!end||!text){if(warn)warn.textContent='Choose a row, start date, end date, and enter a lesson.';return;}
   if(end<start){if(warn)warn.textContent='The end date must be on or after the start date.';return;}
   const row=lessonPlanRows().find(r=>r.id===rowId);if(!row){if(warn)warn.textContent='That planning row no longer exists.';return;}
-  const covered=[];let d=new Date(start+'T12:00:00'),last=new Date(end+'T12:00:00');for(let guard=0;d<=last&&guard<400;guard++,d.setDate(d.getDate()+1)){const date=isoDate(d),weekday=d.getDay()||7;if(weekday<=5&&lessonRowAvailableOnDate(row,date,weekday))covered.push(date);}
+  const covered=[];let d=parseLocalDate(start),last=parseLocalDate(end);for(let guard=0;d<=last&&guard<400;guard++,d.setDate(d.getDate()+1)){const date=isoDate(d),weekday=d.getDay()||7;if(weekday<=5&&lessonRowAvailableOnDate(row,date,weekday))covered.push(date);}
   if(!covered.length){if(warn)warn.textContent='That date range does not contain any available school days for this planning row.';return;}
   const overlap=(data.lessonPlanMultiDayLessons||[]).find(m=>m.rowId===rowId&&m.startDate<=end&&m.endDate>=start);if(overlap){if(warn)warn.textContent=`That range overlaps an existing linked lesson (${lessonDateRangeLabel(overlap.startDate,overlap.endDate)}). Unlink it first or choose a different range.`;return;}
   const overwrittenEntries={};for(const date of covered){const existing=data.lessonPlans.entries?.[rowId]?.[date];if(existing&&Object.keys(existing).length)overwrittenEntries[date]=structuredClone(existing);}
@@ -2288,7 +2288,7 @@ function lessonPlanRowForClass(cls,date){
   const rows=lessonPlanRows()||[];
   const linked=rows.find(r=>(r.type==='custom'||r.type==='sync')&&Array.isArray(r.classIds)&&r.classIds.includes(cls.id));
   if(linked)return linked;
-  const weekday=new Date(date+'T12:00:00').getDay();
+  const weekday=parseLocalDate(date).getDay();
   const block=currentScheduleBlock();
   const period=Number(block?.period||classPeriodNumber(block?.label||'')||0);
   if(period){
@@ -3257,7 +3257,7 @@ window.saveAccommodation=async id=>{
 window.toggleAccommodationActive=id=>{ensureAccommodations();const a=data.accommodations.find(x=>x.id===id);if(!a)return;a.active=!a.active;saveLocal();toast=a.active?"Record restored.":"Record archived.";render();refreshAccommodationDrilldown();if(currentUser&&initializedUserData)save();};
 window.deleteAccommodation=async id=>{ensureAccommodations();const a=data.accommodations.find(x=>x.id===id);if(!a)return;const st=data.students.find(s=>s.id===a.studentId);if(!confirm(`Delete this ${a.kind==="service"?"service/placement":"accommodation"}${st?` for ${studentDisplayName(st)}`:""}? This cannot be undone.`))return;data.accommodations=data.accommodations.filter(x=>x.id!==id);try{saveLocal();}catch(err){console.error("Accommodation delete failed",err);alert("I couldn’t delete that record locally.");return;}toast="Record deleted.";render();refreshAccommodationDrilldown();if(currentUser&&initializedUserData)save();};
 
-function isWeekday(date){const d=new Date(date+"T12:00:00").getDay();return d!==0&&d!==6}
+function isWeekday(date){const d=parseLocalDate(date).getDay();return d!==0&&d!==6}
 function baseDateType(date){
   const s=data.calendarSettings||{};
   const within=!!(s.firstStudentDay&&s.lastStudentDay&&date>=s.firstStudentDay&&date<=s.lastStudentDay);
@@ -3345,11 +3345,22 @@ function calendarAppearance(date,info){
   const color=eventColor(date,key);
   return {color,background:hexToRgba(color,.11)};
 }
-function todayISO(){return new Date().toISOString().slice(0,10)}
+// Calendar dates are saved as "YYYY-MM-DD" on the teacher's own clock. These two helpers
+// are the one place the app turns a moment into a calendar date and back again.
+// (toISOString() gives the date in UTC, which is already "tomorrow" after 8 PM Eastern.)
+function localDateKey(d=new Date()){
+  if(typeof d==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(d))return d;
+  const x=d instanceof Date?d:new Date(d);if(isNaN(x))return "";
+  return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
+}
+// "YYYY-MM-DD" -> that day at local noon (noon keeps day arithmetic safe across DST changes).
+function parseLocalDate(key){const m=String(key??"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),12,0,0,0):new Date(NaN);}
+window.localDateKey=localDateKey;
+function todayISO(){return localDateKey()}
 window.openTodayNoteEditor=()=>{
   const date=todayISO();
   const notes=(calendarNotesFor(date)||[]).join('\n');
-  const label=new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  const label=parseLocalDate(date).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   document.querySelector('#todayNoteModal')?.remove();
   document.body.insertAdjacentHTML('beforeend',`<div id="todayNoteModal" class="modalbg" onclick="if(event.target.id==='todayNoteModal')window.closeTodayNoteEditor()"><div class="modal todayNoteModal"><h3>Today's Notes</h3><p class="small">${esc(label)}</p><label>One note per line<textarea id="todayNoteText" rows="6" placeholder="Maddy — Dentist">${esc(notes)}</textarea></label><p class="row-actions"><button class="primary" onclick="window.saveTodayNotes()">Save</button> <button onclick="window.closeTodayNoteEditor()">Cancel</button></p></div></div>`);
   requestAnimationFrame(()=>{const ta=document.querySelector('#todayNoteText');if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}});
@@ -3551,7 +3562,7 @@ window.copyForm=(id)=>{
   };
   window.openFormEditor(null,template);
 };
-window.updateFormRecord=(formId,studentId,key,value)=>{const f=data.forms.find(x=>x.id===formId);if(!f)return;f.records[studentId]=f.records[studentId]||{};f.records[studentId][key]=value;if(key==="received"&&value&&!f.records[studentId].receivedDate)f.records[studentId].receivedDate=new Date().toISOString().slice(0,10);save();};
+window.updateFormRecord=(formId,studentId,key,value)=>{const f=data.forms.find(x=>x.id===formId);if(!f)return;f.records[studentId]=f.records[studentId]||{};f.records[studentId][key]=value;if(key==="received"&&value&&!f.records[studentId].receivedDate)f.records[studentId].receivedDate=todayISO();save();};
 // --- Forms & Records v1.12.2 enhancements ---
 window.addFormField=()=>{
   const host=document.getElementById("customFields"); if(!host)return;
@@ -3678,7 +3689,7 @@ window.updateCheckboxList=(el,formId,studentId,fieldId)=>{
 function calendar(){
   data.calendarSettings??={firstStudentDay:"",lastStudentDay:""};
   data.calendarOverrides??={};
-  const month=data.calendarViewDate||new Date().toISOString().slice(0,7);
+  const month=data.calendarViewDate||localDateKey().slice(0,7);
   const [year,mon]=month.split("-").map(Number),first=new Date(year,mon-1,1),days=new Date(year,mon,0).getDate();
   const monthLabel=first.toLocaleDateString(undefined,{month:"long",year:"numeric"});
   const firstStudent=data.calendarSettings.firstStudentDay,lastStudent=data.calendarSettings.lastStudentDay;
@@ -3702,7 +3713,7 @@ function calendar(){
     cells+=`<button class="calDay ${info.type} ${info.schedule==="alternate"?"alternate":""} ${date===todayISO()?"today":""}" style="${dayStyle}" onclick="window.editDate('${date}')"><b>${d}</b>${progress?`<span class="dayProgress">${progress}</span>`:""}${typeTag}${altTag}<span class="calMarks">${marks.join("")}</span>${notes.length?`<span class="noteSnippet" title="${esc(notes[0])}">${esc(notes[0])}</span>`:""}</button>`;
   }
   const upcoming=upcomingCalendarEvents();
-  const upcomingHTML=upcoming.length?`<section class="upcomingDates">${upcoming.map(e=>`<div class="upcomingCard" style="--event-color:${e.color}"><b>${esc(e.label)}</b><span>${new Date(e.date+"T12:00:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})} · ${esc(e.kind)}</span></div>`).join("")}</section>`:`<section class="card small">No upcoming calendar events yet.</section>`;
+  const upcomingHTML=upcoming.length?`<section class="upcomingDates">${upcoming.map(e=>`<div class="upcomingCard" style="--event-color:${e.color}"><b>${esc(e.label)}</b><span>${parseLocalDate(e.date).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})} · ${esc(e.kind)}</span></div>`).join("")}</section>`:`<section class="card small">No upcoming calendar events yet.</section>`;
   return `<header><div><h2>School Calendar</h2><p>Set your student year, then only change the exceptions.</p></div></header>
   <section class="card calendarSettings"><div><label>🎒 First Student Day<br><input type="date" value="${esc(firstStudent)}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label></div><div><label>🏁 Last Student Day<br><input type="date" value="${esc(lastStudent)}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label></div><div class="calendarCount"><b>${countedDaysTotal()}</b><span>counted days</span></div></section>${upcomingHTML}
   <section class="card"><div class="calHead"><button onclick="window.changeMonth(-1)">◀</button><h3>${monthLabel}</h3><button onclick="window.changeMonth(1)">▶</button></div><div class="weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendarGrid">${cells}</div></section>
@@ -3753,8 +3764,8 @@ window.deleteBellSchedule=id=>{
 }
 
 window.changeMonth=n=>{
-  const [y,m]=(data.calendarViewDate||new Date().toISOString().slice(0,7)).split("-").map(Number);
-  data.calendarViewDate=new Date(y,m-1+n,1).toISOString().slice(0,7);
+  const [y,m]=(data.calendarViewDate||localDateKey().slice(0,7)).split("-").map(Number);
+  data.calendarViewDate=localDateKey(new Date(y,m-1+n,1)).slice(0,7);
   saveLocal();render();
 }
 window.setCalendarBoundary=(key,value)=>{
@@ -3767,7 +3778,7 @@ window.editDate=date=>{window.calendarEditDate=date;renderCalendarModal()}
 function renderCalendarModal(){
   document.querySelector("#calModal")?.remove();
   const date=window.calendarEditDate,info=getDateInfo(date),o=(data.calendarOverrides||{})[date]||{},colors=calendarColors(),coverage=o.subCoverage||"none";
-  const label=new Date(date+"T12:00:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  const label=parseLocalDate(date).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
   const options=`<option value="instructional" ${info.type==="instructional"?"selected":""}>Instructional Day</option><option value="inservice" ${info.type==="inservice"?"selected":""}>In-Service Day</option><option value="earlydismissal" ${info.type==="earlydismissal"?"selected":""}>Early Dismissal</option><option value="noschool" ${info.type==="noschool"?"selected":""}>No School / Vacation</option><option value="outside" ${info.type==="outside"?"selected":""}>Outside Student Year</option>`;
   const notes=(o.notes||[]).join("\n");
   const colorRow=(key,label)=>`<label>${label}<br><input id="color-${key}" type="color" value="${eventColor(date,key)}"><select id="scope-${key}"><option value="this">This event only</option><option value="all">All ${label} events</option></select></label>`;
@@ -4004,7 +4015,7 @@ function setupNextSchoolDay(date){
     ...setupCalendarList('noSchoolDates').map(x=>x.date),
     ...setupCalendarList('inserviceDates').map(x=>x.date)
   ]);
-  let d=new Date(`${date}T12:00:00`);
+  let d=parseLocalDate(date);
   for(let i=0;i<370;i++){
     d.setDate(d.getDate()+1);
     const iso=isoDate(d);
@@ -4107,13 +4118,13 @@ window.setupOpenDateEditor=(date)=>{
   document.querySelector('#setupDateEditorModal')?.remove();
   const typeOptions=`<option value="noschool" ${current.type==='noschool'?'selected':''}>No School / Vacation</option><option value="inservice" ${current.type==='inservice'?'selected':''}>In-Service / Teacher Workday</option><option value="earlydismissal" ${current.type==='earlydismissal'?'selected':''}>Early Dismissal</option>`;
   const deleteButton=existing?`<button type="button" class="setupDeleteDateButton" onclick="window.setupDeleteDateEditor('${esc(date||'')}')">Delete day</button>`:'';
-  document.body.insertAdjacentHTML('beforeend',`<div id="setupDateEditorModal" class="modalbg"><div class="modal setupDateEditorModal"><h3>🗓️ ${date?new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}):'Calendar Exception'}</h3><label>Date<br><input id="setupEditDate" type="date" value="${esc(current.date||date||'')}"></label><label style="margin-top:10px">Type<br><select id="setupEditType">${typeOptions}</select></label><label style="margin-top:10px">Label<br><input id="setupEditLabel" type="text" value="${esc(current.label||'')}" placeholder="e.g. Professional Development Day"></label><p class="small" style="margin-top:10px">Early-dismissal bell schedules are assigned in Step 2 after your schedules are set up.</p><div class="setupDateEditorActions"><button class="primary" type="button" onclick="window.setupSaveDateEditor('${esc(date||'')}')">Save</button><button type="button" onclick="document.querySelector('#setupDateEditorModal')?.remove()">Cancel</button>${deleteButton}</div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div id="setupDateEditorModal" class="modalbg"><div class="modal setupDateEditorModal"><h3>🗓️ ${date?parseLocalDate(date).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}):'Calendar Exception'}</h3><label>Date<br><input id="setupEditDate" type="date" value="${esc(current.date||date||'')}"></label><label style="margin-top:10px">Type<br><select id="setupEditType">${typeOptions}</select></label><label style="margin-top:10px">Label<br><input id="setupEditLabel" type="text" value="${esc(current.label||'')}" placeholder="e.g. Professional Development Day"></label><p class="small" style="margin-top:10px">Early-dismissal bell schedules are assigned in Step 2 after your schedules are set up.</p><div class="setupDateEditorActions"><button class="primary" type="button" onclick="window.setupSaveDateEditor('${esc(date||'')}')">Save</button><button type="button" onclick="document.querySelector('#setupDateEditorModal')?.remove()">Cancel</button>${deleteButton}</div></div></div>`);
 };
 window.setupDeleteDateEditor=(originalDate)=>{
   if(!originalDate)return;
   const existing=setupFindException(originalDate);
   if(!existing)return;
-  if(!confirm(`Remove ${new Date(originalDate+'T12:00:00').toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})} from the calendar exceptions?`))return;
+  if(!confirm(`Remove ${parseLocalDate(originalDate).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})} from the calendar exceptions?`))return;
   const d=window.setupDraft?.calendar;if(!d)return;
   ['noSchoolDates','inserviceDates','earlyDismissalDates'].forEach(k=>{setupCalendarList(k);d[k]=d[k].filter(x=>String(x.date||'')!==String(originalDate||''));});
   setupDeriveMarkingPeriods();
@@ -4184,7 +4195,7 @@ function setupEarlyDismissalAssignments(){
     if(schedules.length===1)return schedules[0].id;
     return x.schedule||'';
   };
-  return `<div class="setupEarlyAssignment"><div class="setupReviewSubhead"><div><b>Early Dismissal Days Found</b><span class="small">${dates.length} date${dates.length===1?'':'s'} from Step 1</span></div></div><p class="small">Assign an alternate bell schedule to each early-dismissal day. I’ll suggest a likely match when the schedule name makes it obvious, but you confirm every assignment.</p><div class="setupAssignmentList">${dates.map((x,i)=>{const current=x.schedule||suggestionFor(x);return `<div class="setupAssignmentRow"><div><b>${new Date(x.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</b><span class="small">${esc(x.label||'Early Dismissal')}</span></div><select onchange="window.setupEarlyScheduleChanged(${i},this.value)"><option value="">— Choose a bell schedule —</option>${schedules.map(s=>`<option value="${esc(s.id)}" ${current===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>`}).join('')}</div>${schedules.length?`<p class="small setupAssignmentHint">Need another schedule? Add it above, then return here and assign it.</p>`:`<div class="setupWarning">No alternate bell schedules are available yet. Add one above before assigning early-dismissal days.</div>`}</div>`;
+  return `<div class="setupEarlyAssignment"><div class="setupReviewSubhead"><div><b>Early Dismissal Days Found</b><span class="small">${dates.length} date${dates.length===1?'':'s'} from Step 1</span></div></div><p class="small">Assign an alternate bell schedule to each early-dismissal day. I’ll suggest a likely match when the schedule name makes it obvious, but you confirm every assignment.</p><div class="setupAssignmentList">${dates.map((x,i)=>{const current=x.schedule||suggestionFor(x);return `<div class="setupAssignmentRow"><div><b>${parseLocalDate(x.date).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</b><span class="small">${esc(x.label||'Early Dismissal')}</span></div><select onchange="window.setupEarlyScheduleChanged(${i},this.value)"><option value="">— Choose a bell schedule —</option>${schedules.map(s=>`<option value="${esc(s.id)}" ${current===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>`}).join('')}</div>${schedules.length?`<p class="small setupAssignmentHint">Need another schedule? Add it above, then return here and assign it.</p>`:`<div class="setupWarning">No alternate bell schedules are available yet. Add one above before assigning early-dismissal days.</div>`}</div>`;
 }
 window.setupEarlyScheduleChanged=(index,value)=>{const list=setupCalendarList('earlyDismissalDates');if(!list[index])return;list[index].schedule=value||'';renderSetupReview();};
 function setupBellHTML(){
@@ -4555,7 +4566,7 @@ window.openReportEventModal=sid=>{
 }
 window.toggleReportTimedFields=()=>{const b=data.buttons.find(x=>x.id===$("#reportEventButton")?.value);const box=$("#reportTimedFields");if(box)box.style.display=b?.type==="timed"?"block":"none";}
 window.closeReportEventModal=()=>document.querySelector("#reportEventModal")?.remove();
-window.classForStudentAt=(sid,date,period)=>{const weekday=new Date(date+"T12:00:00").getDay();return data.classes.find(c=>(c.studentIds||[]).includes(sid)&&classIsActiveToday(c,date)&&classHasRuleNow(c,weekday,Number(period)))||null;}
+window.classForStudentAt=(sid,date,period)=>{const weekday=parseLocalDate(date).getDay();return data.classes.find(c=>(c.studentIds||[]).includes(sid)&&classIsActiveToday(c,date)&&classHasRuleNow(c,weekday,Number(period)))||null;}
 window.saveReportEvent=sid=>{
   const date=$("#reportEventDate")?.value,period=$("#reportEventPeriod")?.value;if(!date||!period){alert("Please choose both a date and period.");return;}
   const b=data.buttons.find(x=>x.id===$("#reportEventButton")?.value);if(!b){alert("Please choose an event type.");return;}
@@ -4886,7 +4897,7 @@ window.importData=input=>{
 window.resetData=()=>openDataReplaceModal({title:"Reset to demo data",intro:"Reset this dashboard to the demo data? All of your classes, students, accommodations, lesson plans, notes and records will be removed.",incomingSummary:dashboardSummary(seed)+" (demo data)",confirmLabel:"Erase everything and reset",requireWord:"RESET",onConfirm:()=>{
   data={...structuredClone(seed),profileAvatar:data.profileAvatar||""};sync.forceReplace=true;save();toast="Dashboard reset to demo data.";render();
 }});
-window.downloadBeforeSyncCopy=()=>{try{const x=localStorage.getItem("teacherDashboardV1:beforeSync:"+currentUser.uid);if(!x){alert("There is no earlier copy on this device.");return;}const saved=JSON.parse(x);const blob=new Blob([JSON.stringify(saved.data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`teacher-dashboard-device-copy-before-sync-${String(saved.savedAt||"").slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){alert("That earlier copy could not be read.");}};
+window.downloadBeforeSyncCopy=()=>{try{const x=localStorage.getItem("teacherDashboardV1:beforeSync:"+currentUser.uid);if(!x){alert("There is no earlier copy on this device.");return;}const saved=JSON.parse(x);const blob=new Blob([JSON.stringify(saved.data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`teacher-dashboard-device-copy-before-sync-${localDateKey(saved.savedAt?new Date(saved.savedAt):new Date())}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){alert("That earlier copy could not be read.");}};
 
 
 $("#root").innerHTML=`<div class="loadingScreen">Loading Teacher Dashboard...</div>`;
