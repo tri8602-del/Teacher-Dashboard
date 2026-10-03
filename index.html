@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.2.1</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.3.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -772,6 +772,42 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 <body>
 <div id="root"></div>
 
+<style>
+/* Master Schedule (V4.3.0) */
+.msHeadActions{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}.msHeadActions label{font-size:12px;color:var(--muted);font-weight:600}.msHeadActions select{display:block;min-width:120px;margin-top:3px;padding:7px}
+.msCourseTabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}.msCourseTabs button{font-size:13px}.msCourseTabs button.active{background:var(--nav);color:#fff;border-color:var(--nav)}.msCourseTabs .msAddCourse{border-style:dashed;color:var(--muted)}
+.msSheetHead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+.msTitle{font-size:24px;letter-spacing:.14em;font-weight:300;color:#202532}.msTitle b{font-weight:400;letter-spacing:.02em;margin-left:10px;font-size:21px}
+.msCourseBox{border:1.5px dotted #697386;border-radius:6px;padding:4px 12px;text-align:center;line-height:1.2;min-width:96px}.msCourseBox small{display:block;font-size:10px;color:var(--muted);letter-spacing:.08em}.msCourseBox b{font-weight:600}
+.msCourseEdit{margin-left:auto;font-size:12px;padding:6px 10px}
+.msSegLine{margin:-4px 0 10px}
+.msGridWrap{overflow-x:auto;padding-bottom:2px;--ms-min:56px}
+.msGrid{display:grid;grid-template-columns:var(--ms-tpl,repeat(var(--ms-cols),minmax(var(--ms-min),1fr)));border:2px solid #202532;border-radius:4px;background:#fbfaf6;min-width:min-content}
+.msCol{display:flex;flex-direction:column;border-left:1px solid #202532;min-width:0}.msCol:first-child{border-left:0}
+.msMonth{background:#e8e1d6;text-align:center;font-weight:600;letter-spacing:.06em;padding:7px 2px;border-bottom:2px solid #202532;font-size:13px}.msMonthSeg{display:none}
+.msCell{display:flex;align-items:center;gap:5px;height:28px;padding:0 6px;margin:0;border:0;border-top:1px dotted #9aa0aa;border-radius:0;background:var(--ms-bg,transparent);color:#202532;text-align:left;font-size:12px;line-height:1.1;position:relative;min-width:0;width:100%;overflow:hidden}
+.msCell:hover{background:var(--ms-bg,#eef2fa);box-shadow:inset 0 0 0 2px var(--nav2)}.msCell:focus-visible{outline:2px solid var(--nav);outline-offset:-2px}
+.msMonth+.msCell{border-top:0}.msCell.msWeek{border-top:2px solid #202532}
+.msCell b{font-weight:800;min-width:16px;flex:0 0 auto}
+.msText{overflow:hidden;min-width:0;line-height:1.05;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.msOff{color:#a7adb8;background:repeating-linear-gradient(135deg,transparent 0 6px,#00000008 6px 8px)}
+.msBreak{justify-content:flex-start;font-style:italic}
+.msEmptyMonth{font-size:11px;color:var(--muted);padding:8px}
+.msUnsureMark{position:absolute;top:0;right:0;width:0;height:0;border-top:8px solid #e08a1e;border-left:8px solid transparent;opacity:.85}
+.msUnsureNote{position:relative;padding-left:16px}.msUnsureNote .msUnsureMark{left:0;right:auto;top:2px}
+.msUnsureBox{background:#fff7e6;border:1px solid #f0c27a;border-radius:8px;padding:8px 10px;margin:10px 0}
+.msSegBand{display:grid;grid-template-columns:var(--ms-tpl,repeat(var(--ms-cols),minmax(var(--ms-min),1fr)));text-align:center;letter-spacing:.14em;font-size:14px;margin-top:8px;color:#202532;min-width:min-content}.msSegBand span{border-top:1px solid #c9ced8;padding-top:4px;margin:0 6px}
+.msLegend{display:flex;flex-wrap:wrap;gap:6px}.msChip{background:var(--ms-bg);padding:3px 9px;border-radius:4px;font-size:12px;color:#202532}
+.msPhoneNav{display:none}
+.msCell.msToday{box-shadow:inset 0 0 0 2px var(--nav);z-index:1}.msCell.msToday b{color:#fff;background:var(--nav);border-radius:999px;padding:1px 4px;min-width:0;margin-left:-3px}
+.msCell.msPast .msText{color:#59606d}.msCell.msPast b{color:#59606d;font-weight:700}
+.msAutoNote{position:relative;background:#f3f6fc;border:1px solid #d8e0ef;font-size:13px;line-height:1.45;padding-right:40px}.msNoteClose{position:absolute;top:8px;right:8px;padding:2px 8px;font-size:14px}
+.msCellModal label{display:block;margin-top:10px;font-weight:600;font-size:13px}.msCellModal input:not([type=checkbox]),.msCellModal select{display:block;width:100%;margin-top:4px;font-weight:400}.msCellModal .inlineCheck{font-weight:400}
+.msRollModal{width:min(980px,100%)!important}.msRollModal .modalHead{display:flex;justify-content:space-between;align-items:center;gap:10px}.msRollModal .modalHead h3{margin:0}.msRollTableWrap{overflow-x:auto}.msRollTable td,.msRollTable th{vertical-align:top;padding:8px}.msRollTable select{min-width:190px;max-width:260px}.msRollSample{margin-top:3px;color:#556070}.msWarn{color:#a35a00}
+.msRollDays{max-height:220px;overflow:auto;margin-top:4px;border:1px solid #e7eaf0;border-radius:6px}.msRollDays div{display:grid;grid-template-columns:62px 1fr auto;gap:8px;padding:3px 8px;font-size:12px;border-bottom:1px solid #f0f2f6}
+@media(max-width:1100px){header:has(.msHeadActions){flex-wrap:wrap}.msGridWrap{--ms-min:48px}.msCell{font-size:10px;padding:0 2px;gap:2px;height:30px;align-items:center}.msCell b{font-size:9.5px;min-width:11px}.msText{white-space:normal;line-height:1.05;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.msMonth{font-size:11px;letter-spacing:.02em;padding:6px 1px}.msTitle{font-size:19px}.msTitle b{font-size:17px}.msSegBand{font-size:11px;letter-spacing:.06em}.msUnsureMark{border-top-width:6px;border-left-width:6px}}
+@media(max-width:750px){.msHeadActions{justify-content:flex-start}header:has(.msHeadActions){flex-direction:column;align-items:stretch}.msPhoneNav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}.msPhoneNav b{font-size:15px}.msGrid{grid-template-columns:1fr;min-width:0}.msCol{display:none;border-left:0}.msCol.msActive{display:flex}.msSegBand{display:none}.msMonthSeg{display:block;font-size:11px;font-weight:500;color:#556070;letter-spacing:.04em;margin-top:2px}.msCell{height:38px;font-size:14px;padding:0 10px;gap:10px}.msCell b{font-size:14px;min-width:22px}.msText{white-space:normal;-webkit-line-clamp:2}.msTitle{font-size:16px;letter-spacing:.08em}.msTitle b{font-size:15px}.msCourseEdit{margin-left:0}.msRollTable thead{display:none}.msRollTable tr{display:block;border-bottom:1px solid #e7eaf0;padding:8px 0}.msRollTable td{display:block;padding:3px 0;border:0}.msRollTable select{width:100%;max-width:100%;min-width:0}.msCourseTabs button{font-size:12px;padding:6px 9px}}
+</style>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getFirestore,doc,getDoc,onSnapshot,runTransaction} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -794,7 +830,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.2.1";
+const APP_VERSION="4.3.0";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -850,6 +886,7 @@ const seed={
  pvaasSettings:{customEndDate:""},
  googleClassroom:{clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:"",connectedAt:""},
  calendarOverrides:{},
+ masterSchedules:{years:{},seeded:{}},
  calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",earlydismissal:"#d58a2b",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
  calendarViewDate:localDateKey().slice(0,7),
  bellSchedules:[
@@ -1237,6 +1274,7 @@ const SIDEBAR_ITEMS=[
   ["reminders","📣","Reminders & Announcements"],
   ["students","👥","Students & Classes"],
   ["lessonplans","🗓️","Lesson Plans"],
+  ["masterschedule","📆","Master Schedule"],
   ["forms","📋","Forms & Records"],
   ["accommodations","🧩","Accommodations"],
   ["calendar","🗓️","Calendar"],
@@ -1250,7 +1288,9 @@ function ensureSidebarSettings(){
   const valid=SIDEBAR_ITEMS.map(x=>x[0]);
   const saved=Array.isArray(data.sidebarOrder)?data.sidebarOrder:[];
   const order=[...saved.filter(id=>valid.includes(id))];
-  valid.forEach(id=>{if(!order.includes(id))order.push(id);});
+  // A page added in an update goes next to its neighbor in the default order
+  // (Master Schedule right after Lesson Plans), not at the very bottom.
+  valid.forEach((id,i)=>{if(order.includes(id))return;const prev=valid.slice(0,i).reverse().find(p=>order.includes(p));order.splice(prev?order.indexOf(prev)+1:order.length,0,id);});
   data.sidebarOrder=order;
   const hidden=Array.isArray(data.sidebarHidden)?data.sidebarHidden:[];
   data.sidebarHidden=[...new Set(hidden.filter(id=>valid.includes(id)&&id!=="live"&&id!=="settings"))];
@@ -1342,6 +1382,8 @@ function normalizeLoadedDashboard(raw){
   if(!Array.isArray(out.bellSchedules)||!out.bellSchedules.length)out.bellSchedules=defaultBellSchedules();
   ["calendarSettings","pvaasSettings","googleClassroom","calendarColors"].forEach(k=>{const v=x[k];out[k]={...structuredClone(seed[k]),...((v&&typeof v==="object"&&!Array.isArray(v))?v:{})};});
   ["calendarOverrides","accommodationAI"].forEach(k=>{if(!out[k]||typeof out[k]!=="object"||Array.isArray(out[k]))out[k]=structuredClone(seed[k]);});
+  // Master Schedule (V4.3.0). Older backups and devices don't have it yet.
+  {const ms=out.masterSchedules,ok=v=>v&&typeof v==="object"&&!Array.isArray(v);out.masterSchedules=ok(ms)?{...ms,years:ok(ms.years)?ms.years:{},seeded:ok(ms.seeded)?ms.seeded:{}}:{years:{},seeded:{}};}
   if(!out.lessonPlans||typeof out.lessonPlans!=="object"||Array.isArray(out.lessonPlans))out.lessonPlans={entries:{}};
   if(!out.lessonPlans.entries||typeof out.lessonPlans.entries!=="object")out.lessonPlans.entries={};
   if(!out.subPlans||typeof out.subPlans!=="object"||Array.isArray(out.subPlans))out.subPlans=structuredClone(seed.subPlans);
@@ -2244,7 +2286,454 @@ window.addLessonSyncGroup=()=>{
   const id='sync_'+uid();host.insertAdjacentHTML('beforeend',`<div class="lessonSyncEditor" data-sync-id="${id}"><div class="lessonSyncHead"><input class="lessonSyncName" value="" placeholder="e.g., Algebra I"><button type="button" onclick="this.closest('.lessonSyncEditor').remove()">Remove</button></div><div class="lessonClassChecks">${data.classes.map(c=>`<label><input type="checkbox" value="${c.id}"> ${esc(c.name)}</label>`).join("")||'<span class="small">Add classes first.</span>'}</div></div>`);
 };
 
-function pageHTML(){return ({live,reminders:remindersPage,students,lessonplans,groups,forms,accommodations,calendar,buttons:quickButtons,grades,reports,pvaas,settings})[page]()}
+// ---------------------------------------------------------------------------
+// Master Schedule (V4.3.0)
+// A year-at-a-glance lesson map per course, like the teacher's hand-lettered
+// Notability sheets: one column per month, one row per school weekday, colored by
+// day type. Saved in data.masterSchedules, so it backs up, imports and syncs with
+// everything else:
+//   masterSchedules.years["2025-26"] = {start,end,dayTypes:{date:type},dayLabels:{date:text},
+//     courses:[{id,name,segments:[{name,start,end}|{name,code:"t1"}],cells:{date:{text,type,unsure}}}]}
+// Day types are layered: a course's own type for that date, then the school-wide
+// type saved for that date, then the dashboard Calendar (No School, In-Service and
+// Early Dismissal are read live from the Calendar page, never copied).
+// ---------------------------------------------------------------------------
+const MS_TYPES=[["debate","Debate","#cc92da"],["acad","Acad. League","#f4d495"],["coaches","Coaches' Mtg","#c0dcae"],["personal","Personal Day","#daf4f2"],["early","Early Dismiss","#e4e0dc"],["noschool","No School","#b4b4b0"],["inservice","In Service","#d9d2ef"],["endq","End Q-In Serv","#ed99c4"],["conf","Conferences","#faf89a"],["testing","Testing","#b0cfe5"],["fieldtrip","Field Trip","#e8f1a9"]];
+const MS_TYPE=Object.fromEntries(MS_TYPES.map(([k,label,color])=>[k,{label,color}]));
+const MS_FROM_CALENDAR={noschool:"noschool",inservice:"inservice",earlydismissal:"early"};
+const MS_CALENDAR_LABEL={noschool:"No School",inservice:"In-Service",earlydismissal:"Early Dismissal"};
+const MS_NO_CLASS=/^(~+|[—–-]+|[x×✕]+)$/i;
+const MS_MONTHS=["JAN","FEB","MAR","APR","MAY","JUNE","JULY","AUG","SEPT","OCT","NOV","DEC"];
+const MS_SEED_YEAR="2025-26";
+// Transcribed from the 2025-26 Notability sheets (Algebra, AP Calc, Precalc, MS Electives).
+const MS_SEED_2025_26={"start":"2025-09-01","end":"2026-05-29","dayTypes":{"2025-09-01":"noschool","2025-09-12":"coaches","2025-09-15":"personal","2025-09-23":"debate","2025-10-08":"acad","2025-10-14":"debate","2025-10-22":"acad","2025-11-03":"conf","2025-11-05":"acad","2025-11-10":"early","2025-11-11":"noschool","2025-11-19":"acad","2025-11-25":"early","2025-11-26":"noschool","2025-11-27":"noschool","2025-11-28":"noschool","2025-12-01":"noschool","2025-12-02":"inservice","2025-12-04":"debate","2025-12-19":"early","2026-01-14":"acad","2026-01-16":"inservice","2026-01-19":"noschool","2026-01-23":"coaches","2026-01-29":"debate","2026-01-30":"personal","2026-02-16":"noschool","2026-02-19":"debate","2026-03-20":"inservice","2026-04-02":"noschool","2026-04-03":"noschool","2026-04-06":"noschool","2026-04-07":"noschool","2026-05-15":"coaches","2026-05-22":"early","2026-05-25":"noschool","2026-05-28":"early","2026-05-29":"noschool","2025-12-22":"noschool","2025-12-23":"noschool","2025-12-24":"noschool","2025-12-25":"noschool","2025-12-26":"noschool","2025-12-29":"noschool","2025-12-30":"noschool","2025-12-31":"noschool","2026-01-01":"noschool","2026-01-02":"noschool"},"dayLabels":{"2025-12-22":"Winter Break","2025-12-23":"Winter Break","2025-12-24":"Winter Break","2025-12-25":"Winter Break","2025-12-26":"Winter Break","2025-12-29":"Winter Break","2025-12-30":"Winter Break","2025-12-31":"Winter Break","2026-01-01":"Winter Break","2026-01-02":"Winter Break"},"courses":[{"id":"algebra","name":"Algebra","cells":{"2025-09-02":{"text":"Review"},"2025-09-03":{"text":"Review"},"2025-09-04":{"text":"Quiz"},"2025-09-05":{"text":"Corrections"},"2025-09-08":{"text":"1.4"},"2025-09-09":{"text":"1.5"},"2025-09-10":{"text":"1.6"},"2025-09-11":{"text":"1.7"},"2025-09-12":{"text":"Delta"},"2025-09-23":{"text":"Quiz"},"2025-10-02":{"text":"Quiz"},"2025-10-14":{"text":"Test-2"},"2025-10-27":{"text":"Quiz"},"2025-11-07":{"text":"Test-3"},"2025-11-21":{"text":"Quiz"},"2025-11-24":{"text":"MT Review"},"2025-12-03":{"text":"MT Review"},"2025-12-04":{"text":"MIDTERM"},"2025-12-15":{"text":"Test-4"},"2025-12-16":{"text":"Extra"},"2025-12-17":{"text":"Extra"},"2025-12-18":{"text":"Extra"},"2025-12-19":{"text":"Extra"},"2026-01-14":{"text":"Quiz"},"2026-01-29":{"text":"Test-5"},"2026-02-09":{"text":"Quiz"},"2026-02-27":{"text":"Test-6"},"2026-03-11":{"text":"Quiz"},"2026-03-27":{"text":"Test-7"},"2026-04-13":{"text":"Quiz"},"2026-04-24":{"text":"Test-8"},"2026-04-27":{"text":"Keys Review"},"2026-04-28":{"text":"Keys Review"},"2026-04-29":{"text":"Keys Review"},"2026-04-30":{"text":"Keys Review"},"2026-05-01":{"text":"Keys Review"},"2026-05-04":{"text":"Keys Review"},"2026-05-05":{"text":"Keys Review"},"2026-05-06":{"text":"Keys Review"},"2026-05-07":{"text":"Keys Review"},"2026-05-08":{"text":"Keys Review"},"2026-05-11":{"text":"Keystone","type":"testing"},"2026-05-12":{"text":"Keystone","type":"testing"},"2026-05-13":{"text":"Final Review"},"2026-05-14":{"text":"Final Review"},"2026-05-15":{"text":"Final Review"},"2026-05-18":{"text":"Final Review"},"2026-05-19":{"text":"Final Review"},"2026-05-20":{"text":"Final Review"},"2026-05-21":{"text":"FINAL","type":"testing"}}},{"id":"apcalc","name":"AP Calc","cells":{"2025-09-02":{"text":"1.6"},"2025-09-03":{"text":"1.7"},"2025-09-04":{"text":"1.8"},"2025-09-05":{"text":"1.9"},"2025-09-08":{"text":"Mid-Unit 1 Review"},"2025-09-09":{"text":"Delta"},"2025-09-10":{"text":"1.10"},"2025-09-11":{"text":"1.11"},"2025-09-12":{"text":"1.12"},"2025-09-15":{"text":"1.13"},"2025-09-16":{"text":"1.12-13"},"2025-09-17":{"text":"1.14"},"2025-09-18":{"text":"U1 PPC'S"},"2025-09-19":{"text":"1.15"},"2025-09-22":{"text":"1.16"},"2025-09-23":{"text":"U1 Review"},"2025-09-24":{"text":"Unit 1 Test"},"2025-09-25":{"text":"2.1"},"2025-09-26":{"text":"2.2"},"2025-09-29":{"text":"2.3"},"2025-09-30":{"text":"2.4"},"2025-10-01":{"text":"2.5"},"2025-10-02":{"text":"2.6"},"2025-10-03":{"text":"2.7"},"2025-10-06":{"text":"2.8"},"2025-10-07":{"text":"2.9"},"2025-10-08":{"text":"Delta"},"2025-10-09":{"text":"U2 PPC'S"},"2025-10-10":{"text":"2.10"},"2025-10-13":{"text":"Review"},"2025-10-14":{"text":"Unit 2 Test"},"2025-10-15":{"text":"3.1"},"2025-10-16":{"text":"3.1"},"2025-10-17":{"text":"3.2"},"2025-10-20":{"text":"3.3"},"2025-10-21":{"text":"3.4"},"2025-10-22":{"text":"Delta"},"2025-10-23":{"text":"U3 PPCS"},"2025-10-24":{"text":"3.5"},"2025-10-27":{"text":"3.6"},"2025-10-28":{"text":"U3 Review"},"2025-10-29":{"text":"Unit 3 Test"},"2025-10-30":{"text":"4.1"},"2025-10-31":{"text":"4.2"},"2025-11-04":{"text":"4.3"},"2025-11-05":{"text":"Delta"},"2025-11-06":{"text":"4.4"},"2025-11-07":{"text":"4.5"},"2025-11-12":{"text":"4.6"},"2025-11-13":{"text":"U4 PPC'S"},"2025-11-14":{"text":"4.7","type":"fieldtrip"},"2025-11-17":{"text":"Delta"},"2025-11-18":{"text":"Review"},"2025-11-19":{"text":"Unit 4 Test"},"2025-11-20":{"text":"5.1"},"2025-11-21":{"text":"5.2"},"2025-11-24":{"text":"5.3"},"2025-12-03":{"text":"5.4"},"2025-12-04":{"text":"Delta"},"2025-12-05":{"text":"5.5"},"2025-12-08":{"text":"5.6"},"2025-12-09":{"text":"5.7"},"2025-12-10":{"text":"5.8"},"2025-12-11":{"text":"5.9 ☺"},"2025-12-12":{"text":"5.10"},"2025-12-15":{"text":"5.11"},"2025-12-16":{"text":"5.12"},"2025-12-17":{"text":"Unit 5 Review"},"2025-12-18":{"text":"Unit 5 Test"},"2026-01-05":{"text":"6.1"},"2026-01-06":{"text":"6.2"},"2026-01-07":{"text":"6.3"},"2026-01-08":{"text":"6.3"},"2026-01-09":{"text":"6.4"},"2026-01-12":{"text":"6.5"},"2026-01-13":{"text":"6.6"},"2026-01-14":{"text":"Delta"},"2026-01-15":{"text":"6.7"},"2026-01-20":{"text":"6.8"},"2026-01-21":{"text":"6.9"},"2026-01-22":{"text":"6.9"},"2026-01-23":{"text":"Long Div / CTS DeltaMath"},"2026-01-26":{"text":"6.10"},"2026-01-27":{"text":"6.10"},"2026-01-28":{"text":"6.14"},"2026-01-29":{"text":"Delta"},"2026-01-30":{"text":"Review"},"2026-02-02":{"text":"Unit 6 PPCs"},"2026-02-03":{"text":"Unit 6 Test"},"2026-02-04":{"text":"7.1"},"2026-02-05":{"text":"7.2"},"2026-02-06":{"text":"7.3"},"2026-02-09":{"text":"7.4"},"2026-02-10":{"text":"7.6"},"2026-02-11":{"text":"7.7"},"2026-02-12":{"text":"U7 PPC'S"},"2026-02-13":{"text":"Delta"},"2026-02-17":{"text":"7.8"},"2026-02-18":{"text":"Review"},"2026-02-19":{"text":"Unit 7 Test"},"2026-02-20":{"text":"8.1"},"2026-02-23":{"text":"8.2"},"2026-02-24":{"text":"8.3"},"2026-02-25":{"text":"Delta"},"2026-02-26":{"text":"8.1-8.3"},"2026-02-27":{"text":"8.4"},"2026-03-02":{"text":"8.5"},"2026-03-03":{"text":"8.6"},"2026-03-04":{"text":"Play Doh"},"2026-03-05":{"text":"8.7"},"2026-03-06":{"text":"8.8"},"2026-03-09":{"text":"8.9"},"2026-03-10":{"text":"Delta"},"2026-03-11":{"text":"3D Demo?"},"2026-03-12":{"text":"8.10"},"2026-03-13":{"text":"8.11"},"2026-03-16":{"text":"8.12"},"2026-03-17":{"text":"8.10-12"},"2026-03-18":{"text":"Delta"},"2026-03-19":{"text":"U8 PPC'S"},"2026-03-26":{"text":"Unit 8 Test"},"2026-04-08":{"text":"Mock Exam"},"2026-04-09":{"text":"Go Over Exam"},"2026-04-10":{"text":"Go Over Exam"},"2026-04-13":{"text":"Go Over Exam"},"2026-04-14":{"text":"Go Over Exam"},"2026-04-15":{"text":"Go Over Exam"},"2026-04-16":{"text":"Go Over Exam"},"2026-04-17":{"text":"Go Over Exam"},"2026-04-20":{"text":"Go Over Exam"},"2026-04-21":{"text":"Go Over Exam"},"2026-04-22":{"text":"Go Over Exam"},"2026-04-23":{"text":"Go Over Exam"},"2026-04-24":{"text":"Go Over Exam"},"2026-04-27":{"text":"Go Over Exam"},"2026-04-28":{"text":"Go Over Exam"},"2026-04-29":{"text":"Go Over Exam"},"2026-04-30":{"text":"Go Over Exam"},"2026-05-01":{"text":"Go Over Exam","type":"fieldtrip"},"2026-05-04":{"text":"Go Over Exam"},"2026-05-05":{"text":"Go Over Exam"},"2026-05-06":{"text":"Go Over Exam"},"2026-05-07":{"text":"Go Over Exam"},"2026-05-08":{"text":"Go Over Exam"},"2026-05-11":{"text":"AP Test","type":"testing"},"2026-05-12":{"text":"Apollo 13"},"2026-05-13":{"text":"Apollo 13"},"2026-05-14":{"text":"Apollo 13"},"2026-05-15":{"text":"Apollo 13"},"2026-05-18":{"text":"Chill ☺"},"2026-05-19":{"text":"Chill ☺"},"2026-05-20":{"text":"Chill ☺"},"2026-05-21":{"text":"Chill ☺"},"2026-05-26":{"text":"Chill ☺"},"2026-05-27":{"text":"Chill ☺"}}},{"id":"precalc","name":"Precalc","cells":{"2025-09-02":{"text":"Review"},"2025-09-03":{"text":"Quiz"},"2025-09-04":{"text":"1.4"},"2025-09-05":{"text":"Go Over Quiz"},"2025-09-08":{"text":"1.5"},"2025-09-09":{"text":"1.6"},"2025-09-10":{"text":"Review"},"2025-09-11":{"text":"Review"},"2025-09-12":{"text":"Delta"},"2025-09-15":{"text":"Unit 1 Test"},"2025-09-25":{"text":"Quiz 2.1-2.4"},"2025-10-08":{"text":"Unit 2 Test"},"2025-10-15":{"text":"PSAT","type":"testing"},"2025-10-17":{"text":"Quiz"},"2025-10-20":{"text":"2.9"},"2025-10-21":{"text":"Review"},"2025-10-22":{"text":"2.9"},"2025-10-23":{"text":"Review"},"2025-10-24":{"text":"Unit 2 Test"},"2025-10-27":{"text":"—","type":"inservice"},"2025-10-28":{"text":"Go Over"},"2025-10-29":{"text":"3.1"},"2025-10-30":{"text":"3.2"},"2025-10-31":{"text":"3.2"},"2025-11-03":{"text":"—"},"2025-11-04":{"text":"3.3"},"2025-11-05":{"text":"Delta"},"2025-11-06":{"text":"Review"},"2025-11-07":{"text":"Delta"},"2025-11-10":{"text":"—"},"2025-11-11":{"text":"—"},"2025-11-12":{"text":"Review"},"2025-11-13":{"text":"Quiz 3.1-3"},"2025-11-14":{"text":"3.4","type":"fieldtrip"},"2025-11-17":{"text":"3.5"},"2025-11-18":{"text":"3.5"},"2025-11-19":{"text":"DM"},"2025-11-20":{"text":"U3 Review"},"2025-11-21":{"text":"U3 Review"},"2025-11-24":{"text":"U3 Review"},"2025-11-25":{"text":"U3 Test"},"2025-12-02":{"text":"—"},"2025-12-03":{"text":"4.1"},"2025-12-04":{"text":"4.2"},"2025-12-05":{"text":"4.3"},"2025-12-08":{"text":"4.4"},"2025-12-09":{"text":"4.5"},"2025-12-10":{"text":"4.6"},"2025-12-11":{"text":"4.7"},"2025-12-12":{"text":"Review"},"2025-12-15":{"text":"Review"},"2025-12-16":{"text":"U4 Test"},"2025-12-17":{"text":"FID- OPEN Midterm"},"2025-12-18":{"text":"✕"},"2025-12-19":{"text":"✕"},"2026-01-27":{"type":"personal"},"2026-05-01":{"type":"fieldtrip"},"2026-05-12":{"text":"AP Test"}}},{"id":"mselect","name":"Middle School Electives","cells":{"2025-09-01":{"text":"~~~"},"2025-09-02":{"text":"Crochet"},"2025-09-03":{"text":"Crochet"},"2025-09-04":{"text":"Crochet"},"2025-09-05":{"text":"Crochet"},"2025-09-08":{"text":"Crochet"},"2025-09-09":{"text":"Crochet"},"2025-09-10":{"text":"Crochet"},"2025-09-11":{"text":"Crochet"},"2025-09-12":{"text":"Crochet"},"2025-09-15":{"text":"Crochet"},"2025-09-16":{"text":"Crochet"},"2025-09-17":{"text":"Crochet"},"2025-09-18":{"text":"Crochet"},"2025-09-19":{"text":"Crochet"},"2025-09-22":{"text":"Crochet"},"2025-09-23":{"text":"Crochet"},"2025-09-24":{"text":"Crochet"},"2025-09-25":{"text":"Crochet"},"2025-09-26":{"text":"Crochet"},"2025-09-29":{"text":"Crochet"},"2025-09-30":{"text":"Crochet"},"2025-10-01":{"text":"Crochet"},"2025-10-02":{"text":"Crochet"},"2025-10-03":{"text":"Crochet"},"2025-10-06":{"text":"Crochet"},"2025-10-07":{"text":"Crochet"},"2025-10-08":{"text":"Crochet"},"2025-10-09":{"text":"Crochet"},"2025-10-10":{"text":"Crochet"},"2025-10-13":{"text":"Crochet"},"2025-10-14":{"text":"Crochet"},"2025-10-15":{"text":"Crochet"},"2025-10-16":{"text":"Crochet"},"2025-10-17":{"text":"Crochet"},"2025-10-20":{"text":"Crochet"},"2025-10-21":{"text":"Crochet"},"2025-10-22":{"text":"Crochet"},"2025-10-23":{"text":"Crochet"},"2025-10-24":{"text":"Crochet"},"2025-10-27":{"text":"Crochet"},"2025-10-28":{"text":"Crochet"},"2025-10-29":{"text":"Crochet"},"2025-10-30":{"text":"Crochet"},"2025-10-31":{"text":"Crochet"},"2025-11-03":{"text":"~~~"},"2025-11-04":{"text":"Crochet"},"2025-11-05":{"text":"Crochet"},"2025-11-06":{"text":"Crochet"},"2025-11-07":{"text":"Crochet"},"2025-11-10":{"text":"~~~"},"2025-11-11":{"text":"~~~"},"2025-11-12":{"text":"Crochet"},"2025-11-13":{"text":"Crochet"},"2025-11-14":{"text":"Crochet"},"2025-11-17":{"text":"Crochet"},"2025-11-18":{"text":"Crochet"},"2025-11-19":{"text":"Crochet"},"2025-11-20":{"text":"Crochet"},"2025-11-21":{"text":"Crochet"},"2025-11-24":{"text":"Crochet"},"2025-11-25":{"text":"~~~"},"2025-11-26":{"text":"~~~"},"2025-11-27":{"text":"~~~"},"2025-11-28":{"text":"~~~"},"2026-04-20":{"type":"testing"},"2026-04-21":{"type":"testing"},"2026-04-22":{"type":"testing"},"2026-04-23":{"type":"testing"},"2026-04-24":{"type":"testing"},"2026-04-27":{"type":"testing"},"2026-04-28":{"type":"testing"},"2026-04-29":{"type":"testing"},"2026-04-30":{"type":"testing"},"2026-05-01":{"type":"testing"},"2026-05-11":{"type":"testing"},"2026-05-12":{"type":"testing"}},"segments":[{"name":"Crochet","start":"2025-09-01","end":"2025-11-28"},{"name":"Engineering","start":"2025-12-01","end":"2026-02-27"},{"name":"Math Puzzles","start":"2026-03-02","end":"2026-05-29"}]}]};
+// Seed revisions. Revision 2 (Oct 2, 2026) applies the teacher's corrections to the
+// first V4.3.0 seed. Each entry is [course, date, cell as first seeded, corrected cell].
+// A cell is only updated if it still exactly matches what was first seeded, so
+// anything the teacher has edited is left alone.
+const MS_SEED_REV=2;
+const MS_SEED_UPGRADES={2:[["algebra","2025-12-16",{"text":"Extra","unsure":"\"extra\" (with a squiggle) is written once, diagonally across Dec 16–19; I put \"Extra\" on each of those days. It may mean extra practice/review."},{"text":"Extra"}],["algebra","2025-12-17",{"text":"Extra","unsure":"\"extra\" (with a squiggle) is written once, diagonally across Dec 16–19; I put \"Extra\" on each of those days. It may mean extra practice/review."},{"text":"Extra"}],["algebra","2025-12-18",{"text":"Extra","unsure":"\"extra\" (with a squiggle) is written once, diagonally across Dec 16–19; I put \"Extra\" on each of those days. It may mean extra practice/review."},{"text":"Extra"}],["algebra","2025-12-19",{"text":"Extra","unsure":"\"extra\" (with a squiggle) is written once, diagonally across Dec 16–19; I put \"Extra\" on each of those days. It may mean extra practice/review."},{"text":"Extra"}],["algebra","2026-05-13",{"text":"Final Review","unsure":"\"final review\" is written once, diagonally across May 13–15; I put it on each of those days."},{"text":"Final Review"}],["algebra","2026-05-14",{"text":"Final Review","unsure":"\"final review\" is written once, diagonally across May 13–15; I put it on each of those days."},{"text":"Final Review"}],["algebra","2026-05-15",{"text":"Final Review","unsure":"\"final review\" is written once, diagonally across May 13–15; I put it on each of those days."},{"text":"Final Review"}],["algebra","2026-05-18",{"text":"Final Review","unsure":"\"final review\" is written once, diagonally across May 18–20; I put it on each of those days."},{"text":"Final Review"}],["algebra","2026-05-19",{"text":"Final Review","unsure":"\"final review\" is written once, diagonally across May 18–20; I put it on each of those days."},{"text":"Final Review"}],["algebra","2026-05-20",{"text":"Final Review","unsure":"\"final review\" is written once, diagonally across May 18–20; I put it on each of those days."},{"text":"Final Review"}],["apcalc","2025-09-08",{"text":"MU1R","unsure":"Reads \"MU1R\" — I could not tell what the abbreviation stands for."},{"text":"Mid-Unit 1 Review"}],["apcalc","2025-11-13",{"text":"U3 PPC'S","unsure":"Reads \"U3 PPC'S\", but Unit 3 was already tested on Oct 29 and Unit 4 is being taught, so it may mean U4."},{"text":"U4 PPC'S"}],["apcalc","2025-12-17",{"text":"Review","unsure":"\"Review\" has a purple curved arrow pointing up from it toward Dec 16 — the arrow's meaning isn't clear (moved day?)."},{"text":"Unit 5 Review"}],["apcalc","2026-01-23",{"text":"LD/CTS Delta","unsure":"Reads like \"LD/CTS Delta\" — the first part is hard to read."},{"text":"Long Div / CTS DeltaMath"}],["precalc","2025-10-08",{"text":"Unit 2 Test","unsure":"Faint gray \"Unit 2 Test\" (could be \"Unit 1 Test\"); the dark-ink Unit 2 Test is on Oct 24, so this may be an older plan."},{"text":"Unit 2 Test"}],["precalc","2025-10-27",{"text":"—","type":"inservice","unsure":"Shaded In Service on the Precalc sheet only (the other sheets leave Oct 27 unshaded). Saved as Precalc-only."},{"text":"—","type":"inservice"}],["precalc","2025-12-17",{"text":"FID- OPEN Midterm","unsure":"Reads \"FID- OPEN Midterm\" — the \"FID\" part is unclear."},{"text":"FID- OPEN Midterm"}],["precalc","2025-12-18",{"text":"✕","unsure":"A large ✕ is drawn across Dec 18–19 (probably no class / cancelled)."},{"text":"✕"}],["precalc","2025-12-19",{"text":"✕","unsure":"A large ✕ is drawn across Dec 18–19 (probably no class / cancelled)."},{"text":"✕"}],["precalc","2026-01-27",{"type":"personal","unsure":"Shaded Personal Day on the Precalc sheet only (the other sheets leave Jan 27 unshaded). Saved as Precalc-only."},{"type":"personal"}]]};
+// The 2026-27 course list. "from" is the 2025-26 course (or course:term) whose lesson
+// order is carried forward; courses without one start blank.
+const MS_PLAN_2026_27=[
+  {id:"apcalc",name:"AP Calc AB",from:"apcalc"},
+  {id:"precalc",name:"AP Precalc",from:"precalc"},
+  {id:"algebra",name:"Algebra 1",from:"algebra"},
+  {id:"gate9",name:"GATE 9",from:""},
+  {id:"gate1012",name:"GATE 10-12",from:""},
+  {id:"stock",name:"Intro to the Stock Market",from:"",segments:[{name:"Semester 2",code:"s2",from:""}]},
+  {id:"mselect",name:"Middle School Electives",segments:[{name:"Engineering",code:"t1",from:"mselect:Engineering"},{name:"Crochet",code:"t2",from:"mselect:Crochet"},{name:"Math Puzzles",code:"t3",from:"mselect:Math Puzzles"}]}
+];
+let msView={year:"",course:localStorage.teacherDashboardMsCourse||"",month:""};
+let msRollChoices=null;
+
+function msObj(v){return v&&typeof v==="object"&&!Array.isArray(v)}
+function msStore(){
+  if(!msObj(data.masterSchedules))data.masterSchedules={years:{},seeded:{}};
+  const m=data.masterSchedules;
+  if(!msObj(m.years))m.years={};
+  if(!msObj(m.seeded))m.seeded={};
+  if(!msObj(m.seedRev))m.seedRev={};
+  if(!msObj(m.autoBuilt))m.autoBuilt={};
+  Object.keys(m.years).forEach(k=>{
+    const y=m.years[k];if(!msObj(y)){delete m.years[k];return;}
+    if(!msObj(y.dayTypes))y.dayTypes={};
+    if(!msObj(y.dayLabels))y.dayLabels={};
+    if(!Array.isArray(y.courses))y.courses=[];
+    y.courses=y.courses.filter(c=>msObj(c)&&c.id);
+    y.courses.forEach(c=>{if(!msObj(c.cells))c.cells={};if(!Array.isArray(c.segments))delete c.segments;});
+  });
+  return m;
+}
+// First visit: add the 2025-26 sheets once. Dates the dashboard Calendar already marks
+// with the same day type are linked to the Calendar instead of being stored twice.
+function ensureMasterSchedules(){
+  const m=msStore();
+  if(!msObj(m.seedRev))m.seedRev={};
+  if(m.seeded[MS_SEED_YEAR]){
+    const rev=Number(m.seedRev[MS_SEED_YEAR])||1;
+    if(rev>=MS_SEED_REV)return false;
+    for(let r=rev+1;r<=MS_SEED_REV;r++)msApplySeedUpgrade(m,MS_SEED_UPGRADES[r]||[]);
+    m.seedRev[MS_SEED_YEAR]=MS_SEED_REV;msStore();
+    return true;
+  }
+  if(!m.years[MS_SEED_YEAR]){
+    const y=structuredClone(MS_SEED_2025_26);
+    Object.keys(y.dayTypes).forEach(d=>{if(msCalendarType(d)===y.dayTypes[d])delete y.dayTypes[d];});
+    m.years[MS_SEED_YEAR]=y;
+  }
+  m.seeded[MS_SEED_YEAR]=true;m.seedRev[MS_SEED_YEAR]=MS_SEED_REV;
+  msStore();
+  return true;
+}
+function msApplySeedUpgrade(m,list){
+  const y=m.years[MS_SEED_YEAR];
+  list.forEach(([cid,date,was,now])=>{
+    const c=(y?.courses||[]).find(x=>x.id===cid);
+    if(c&&sameData(c.cells[date],was)){if(now)c.cells[date]=structuredClone(now);else delete c.cells[date];}
+    // Lessons already rolled forward from that cell carry its old note: update them too,
+    // but only if their text is still exactly what was copied.
+    if(!was||!was.unsure)return;
+    Object.keys(m.years).filter(k=>k!==MS_SEED_YEAR).forEach(k=>(m.years[k].courses||[]).forEach(co=>Object.entries(co.cells||{}).forEach(([d,cell])=>{
+      if(!cell||typeof cell.unsure!=="string"||!cell.unsure.startsWith(`Carried over from ${MS_SEED_YEAR} (`)||!cell.unsure.endsWith(`): ${was.unsure}`))return;
+      if((cell.text||"")!==(was.text||""))return;
+      if(now&&now.text)cell.text=now.text;
+      delete cell.unsure;
+      if(!Object.keys(cell).length)delete co.cells[d];
+    })));
+  });
+}
+function msYearKeyFor(date){const [y,m]=String(date).split("-").map(Number);const s=m>=7?y:y-1;return `${s}-${String((s+1)%100).padStart(2,"0")}`}
+function msNextYearKey(yk){const s=Number(String(yk).slice(0,4))+1;return `${s}-${String((s+1)%100).padStart(2,"0")}`}
+function msYearLabel(yk){const s=Number(String(yk).slice(0,4));return `${s} – ${s+1}`}
+function msYearWindow(yk){const s=Number(String(yk).slice(0,4));return {from:`${s}-07-01`,to:`${s+1}-06-30`,s}}
+function msYearKeys(){return Object.keys(msStore().years).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort()}
+function msYear(yk){return msStore().years[yk]||null}
+// The year runs from the Calendar's first to last student day when the Calendar is set
+// up for that year; otherwise from the dates saved with the sheet (or Sept–May).
+function msBounds(yk){
+  const w=msYearWindow(yk),s=data.calendarSettings||{},y=msYear(yk)||{};
+  if(s.firstStudentDay&&s.lastStudentDay&&s.firstStudentDay>=w.from&&s.lastStudentDay<=w.to&&s.firstStudentDay<=s.lastStudentDay)return {start:s.firstStudentDay,end:s.lastStudentDay,source:"calendar"};
+  if(y.start&&y.end)return {start:y.start,end:y.end,source:"saved"};
+  return {start:`${w.s}-09-01`,end:`${w.s+1}-05-31`,source:"default"};
+}
+function msWeekdays(start,end){const out=[];if(!start||!end)return out;let d=start,guard=0;while(d<=end&&guard++<800){if(isWeekday(d))out.push(d);d=isoAddDays(d,1);}return out}
+function msMonths(yk){
+  const b=msBounds(yk),out=[];let [y,m]=b.start.split("-").map(Number);const [ey,em]=b.end.split("-").map(Number);
+  while((y<ey||(y===ey&&m<=em))&&out.length<14){out.push(`${y}-${String(m).padStart(2,"0")}`);m++;if(m>12){m=1;y++;}}
+  return out;
+}
+function msCalendarType(date){return MS_FROM_CALENDAR[((data.calendarOverrides||{})[date]||{}).type]||""}
+function msDayType(yk,course,date){
+  const y=msYear(yk)||{},c=((course&&course.cells)||{})[date];
+  if(c&&c.type)return c.type==="none"?{type:"",source:"course"}:{type:c.type,source:"course"};
+  const s=(y.dayTypes||{})[date];
+  if(s)return s==="none"?{type:"",source:"school"}:{type:s,source:"school"};
+  const k=msCalendarType(date);if(k)return {type:k,source:"calendar"};
+  return {type:"",source:""};
+}
+// Trimester / semester dates for a year: the Calendar's marking periods, else its
+// Beginning-of-Trimester / Semester markers, else an even split of the school days.
+function msTermRange(yk,code){
+  const m=String(code||"").match(/^([ts])(\d)$/);if(!m)return null;
+  const n=Number(m[2]),tri=m[1]==="t",count=tri?3:2,b=msBounds(yk),w=msYearWindow(yk);
+  const p=(((data.calendarSettings||{}).markingPeriods||{})[tri?"trimesters":"semesters"]||[])[n-1];
+  if(p&&p.start&&p.end&&p.start>=w.from&&p.end<=w.to)return {start:p.start,end:p.end,source:"calendar"};
+  const key=tri?"trimester":"semester";
+  let starts=Object.keys(data.calendarOverrides||{}).filter(d=>d>=w.from&&d<=w.to&&(data.calendarOverrides[d]||{})[key]).sort();
+  if(starts.length===count-1&&starts[0]>b.start)starts=[b.start,...starts];
+  if(starts.length>=count){const start=starts[n-1],end=n<count?isoAddDays(starts[n],-1):b.end;return {start,end,source:"calendar"};}
+  const days=msWeekdays(b.start,b.end),size=Math.ceil(days.length/count),part=days.slice((n-1)*size,n*size);
+  return part.length?{start:part[0],end:part[part.length-1],source:"estimate"}:null;
+}
+function msSegments(yk,course){
+  return ((course&&course.segments)||[]).map(s=>{const r=(s.start&&s.end)?{start:s.start,end:s.end,source:"saved"}:msTermRange(yk,s.code);return r?{...s,...r}:null}).filter(Boolean);
+}
+function msShortDate(d){return parseLocalDate(d).toLocaleDateString(undefined,{month:"short",day:"numeric"})}
+function msLongDate(d){return parseLocalDate(d).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})}
+function msWeekOf(d){const x=parseLocalDate(d);x.setDate(x.getDate()-((x.getDay()+6)%7));return localDateKey(x)}
+// The school year today belongs to: the Calendar's year when today falls between the
+// summer before its first student day and its last student day, else by date (July 1).
+function msTodayYear(){
+  const t=todayISO(),s=data.calendarSettings||{};
+  if(s.firstStudentDay&&s.lastStudentDay&&s.firstStudentDay<=s.lastStudentDay){const k=msYearKeyFor(s.firstStudentDay);if(t>=msYearWindow(k).from&&t<=s.lastStudentDay)return k;}
+  return msYearKeyFor(t);
+}
+function msPrevYearKey(yk){const s=Number(String(yk).slice(0,4))-1;return `${s}-${String((s+1)%100).padStart(2,"0")}`}
+// The page opens on the current school year each time; the picker choice lasts for this visit only.
+function msCurrentYear(){
+  const keys=msYearKeys();
+  if(!keys.includes(msView.year)){const t=msTodayYear();msView.year=keys.includes(t)?t:keys.includes(MS_SEED_YEAR)?MS_SEED_YEAR:(keys[keys.length-1]||"");}
+  return msView.year;
+}
+// First visit in a school year with no Master Schedule yet: build it from last year with
+// the usual roll-forward defaults. Runs once (remembered in the synced data), never
+// touches an existing year, and waits for the Calendar: the dashboard must have finished
+// loading from the cloud and the Calendar must have this year's first and last student days.
+function msAutoBuildCurrentYear(){
+  if(!initializedUserData)return false;
+  const m=msStore(),yk=msTodayYear(),from=msPrevYearKey(yk);
+  if(m.autoBuilt[yk]||m.years[yk]||!m.years[from])return false;
+  if(msBounds(yk).source!=="calendar")return false;
+  msRollChoices=null;
+  msDoRoll(from,yk,false);
+  m.years[yk].rolledFrom={year:from,auto:true};
+  m.autoBuilt[yk]=true;msView.year=yk;msView.month="";
+  return true;
+}
+function msWaitingForCalendar(){
+  const m=msStore(),yk=msTodayYear();
+  return !m.years[yk]&&!(m.autoBuilt||{})[yk]&&!!m.years[msPrevYearKey(yk)]&&msBounds(yk).source!=="calendar";
+}
+function msCurrentCourse(yk){
+  const y=msYear(yk);if(!y||!y.courses.length)return null;
+  let c=y.courses.find(x=>x.id===msView.course);if(!c){c=y.courses[0];msView.course=c.id;}
+  return c;
+}
+function msUnsureCount(course){return Object.values(course?.cells||{}).filter(c=>c&&c.unsure).length}
+function msLegendHTML(){return MS_TYPES.map(([k,l,c])=>`<span class="msChip" style="--ms-bg:${c}">${esc(l)}</span>`).join("")}
+
+// The grid. print=true gives plain boxes for the print window.
+function msGridHTML(yk,course,print=false){
+  const y=msYear(yk)||{},months=msMonths(yk),b=msBounds(yk),all=msWeekdays(b.start,b.end),segs=msSegments(yk,course);
+  // A week or more of No School with nothing written in it is drawn as one block
+  // (like the "Winter break" box on the paper sheets).
+  const breakRun={};let run=[];
+  const flush=()=>{if(run.length>=5)run.forEach(d=>breakRun[d]=run[0]);run=[];};
+  all.forEach(d=>{const c=(course?.cells||{})[d]||{};if(msDayType(yk,course,d).type==="noschool"&&!c.text&&!c.unsure)run.push(d);else flush();});flush();
+  if(!msView.month||!months.includes(msView.month)){const t=todayISO().slice(0,7);msView.month=months.includes(t)?t:months[0];}
+  const tag=print?"div":"button",today=todayISO(),markPast=yk===msTodayYear();
+  const cols=months.map(mk=>{
+    const dates=all.filter(d=>d.startsWith(mk)),[yy,mm]=mk.split("-").map(Number);
+    const monthSegs=segs.filter(s=>s.start.slice(0,7)<=mk&&s.end.slice(0,7)>=mk).map(s=>s.name);
+    let rows="",prev="";
+    for(let i=0;i<dates.length;i++){
+      const d=dates[i],week=prev&&msWeekOf(prev)!==msWeekOf(d)?" msWeek":"";
+      if(breakRun[d]){
+        let j=i;while(j+1<dates.length&&breakRun[dates[j+1]]===breakRun[d])j++;
+        const first=dates[i],last=dates[j],label=y.dayLabels?.[breakRun[d]]||y.dayLabels?.[first]||(calendarNotesFor(first)[0])||"No School";
+        const span=first===last?`${parseLocalDate(first).getDate()}`:`${parseLocalDate(first).getDate()}–${parseLocalDate(last).getDate()}`;
+        rows+=`<${tag} ${print?"":`type="button" onclick="window.msEditCell('${first}')"`} class="msCell msBreak${week}" style="--ms-bg:${MS_TYPE.noschool.color}" title="${esc(label)} (${esc(msShortDate(first))} – ${esc(msShortDate(last))})"><b>${span}</b><span class="msText">${esc(label)}</span></${tag}>`;
+        prev=last;i=j;continue;
+      }
+      const c=(course?.cells||{})[d]||{},t=msDayType(yk,course,d),off=segs.length&&!segs.some(s=>d>=s.start&&d<=s.end);
+      const when=print?"":d===today?" msToday":(markPast&&d<today?" msPast":"");
+      const tip=[msLongDate(d)+(d===today?" (today)":""),c.text||"",t.type?MS_TYPE[t.type]?.label+(t.source==="calendar"?" (from your Calendar)":t.source==="course"?" (this course only)":""):"",c.unsure?"Unsure: "+c.unsure:"",off?"Not in session for this course":""].filter(Boolean).join(" · ");
+      rows+=`<${tag} ${print?"":`type="button" onclick="window.msEditCell('${d}')"`} data-ms-date="${d}" class="msCell${week}${when}${t.type?" msT-"+t.type:""}${off?" msOff":""}${c.unsure?" msUnsure":""}" style="${t.type&&MS_TYPE[t.type]?`--ms-bg:${MS_TYPE[t.type].color}`:""}" title="${esc(tip)}"><b>${parseLocalDate(d).getDate()}</b><span class="msText">${esc(c.text||"")}</span>${c.unsure&&!print?`<i class="msUnsureMark"></i>`:""}</${tag}>`;
+      prev=d;
+    }
+    return `<div class="msCol${mk===msView.month?" msActive":""}" data-ms-month="${mk}"><div class="msMonth">${MS_MONTHS[mm-1]}${monthSegs.length?`<span class="msMonthSeg">${esc(monthSegs.join(" / "))}</span>`:""}</div>${rows||`<div class="msEmptyMonth">No school days</div>`}</div>`;
+  }).join("");
+  // Term names under the months (like CROCHET / ENGINEERING / MATH PUZZLES on the sheet).
+  // A month shared by two terms goes to the term with more of its days.
+  const owner=months.map(mk=>{let best=-1,n=0;segs.forEach((s,i)=>{const c=all.filter(d=>d.startsWith(mk)&&d>=s.start&&d<=s.end).length;if(c>n){n=c;best=i;}});return best;});
+  const band=segs.length?`<div class="msSegBand" style="--ms-cols:${months.length}">${segs.map((s,i)=>{let a=owner.indexOf(i),z=owner.lastIndexOf(i);if(a<0){a=Math.max(0,months.indexOf(s.start.slice(0,7)));z=a;}return `<span style="grid-column:${a+1}/${z+2};grid-row:1">${esc(s.name)}</span>`}).join("")}</div>`:"";
+  // Months with only a few school days (the late-August start, early June) get a narrower column.
+  const tpl=print?"":`--ms-tpl:${months.map(mk=>all.filter(d=>d.startsWith(mk)).length<=6?"minmax(calc(var(--ms-min) * .62),.6fr)":"minmax(var(--ms-min),1fr)").join(" ")};`;
+  return `<div class="msGridWrap" style="${tpl}"><div class="msGrid" style="--ms-cols:${months.length}">${cols}</div>${band}</div>`;
+}
+
+function masterSchedule(){
+  // Until the dashboard has loaded from the cloud, this device may be showing an older
+  // copy (for example one without this year's Calendar). Don't seed or build from it.
+  if(!initializedUserData)return `<header><div><h2>Master Schedule</h2><p>Loading your dashboard…</p></div></header>`;
+  let changed=ensureMasterSchedules();
+  if(msAutoBuildCurrentYear())changed=true;
+  if(changed)save();
+  const keys=msYearKeys(),yk=msCurrentYear(),course=msCurrentCourse(yk),y=msYear(yk),today=todayISO(),cur=msTodayYear();
+  // Roll-forward button: redo this year from last year, or (from spring on, or when
+  // viewing an older year) build the next year.
+  const prev=msPrevYearKey(yk),nextYk=msNextYearKey(yk),hasPrev=keys.includes(prev);
+  const showNext=keys.includes(nextYk)?!hasPrev:(!hasPrev||today>=`${msYearWindow(yk).s+1}-03-01`);
+  const rollBtns=[hasPrev?`<button type="button" onclick="window.msOpenRollForward('${esc(prev)}')" title="Copy ${esc(prev)} lessons onto ${esc(yk)} again (preview first)">⏩ Roll forward ${esc(prev)} → ${esc(yk)}</button>`:"",
+    showNext?`<button type="button" onclick="window.msOpenRollForward('${esc(yk)}')">⏩ Roll forward to ${esc(nextYk)}</button>`:""].join("");
+  const autoInfo=yk===cur&&y?.rolledFrom?.auto&&localStorage.teacherDashboardMsAutoNote!==yk?`<section class="card msAutoNote"><button type="button" class="msNoteClose" title="Hide" onclick="localStorage.teacherDashboardMsAutoNote='${esc(yk)}';render()">×</button><b>${esc(yk)} was set up for you</b> from your ${esc(y.rolledFrom.year)} sheets, in the same order, on this year's school days from your Calendar. Days before today show that copied pacing, not what you actually taught — tap any day to fix it. To redo it, use “Roll forward ${esc(y.rolledFrom.year)} → ${esc(yk)}”; it shows a preview and keeps what you've written unless you choose to replace it.</section>`:"";
+  const waitInfo=msWaitingForCalendar()?`<section class="card msAutoNote"><b>${esc(cur)} isn't set up yet.</b> Add your first and last student day for ${esc(cur)} on the Calendar page, then come back — this year's master schedule will be built from ${esc(msPrevYearKey(cur))} automatically. Or use Roll forward to do it now.</section>`:"";
+  const yearOpts=keys.map(k=>`<option value="${k}" ${k===yk?"selected":""}>${esc(k)}</option>`).join("");
+  const tabs=(y?.courses||[]).map(c=>`<button type="button" class="${c.id===course?.id?"active":""}" onclick="window.msSetCourse('${esc(c.id)}')">${esc(c.name)}</button>`).join("");
+  const months=msMonths(yk),mi=Math.max(0,months.indexOf(msView.month)),unsure=msUnsureCount(course);
+  const segs=course?msSegments(yk,course):[];
+  const segNote=segs.length?`<span class="msSegNames">${segs.map(s=>`${esc(s.name)} ${esc(msShortDate(s.start))}–${esc(msShortDate(s.end))}${s.source==="estimate"?" (estimated)":""}`).join(" · ")}</span>`:"";
+  const b=msBounds(yk);
+  return `<header><div><h2>Master Schedule</h2><p>Your year at a glance — one column per month, one row per school day. Tap a day to edit it.</p></div>
+  <div class="msHeadActions"><label>School year<select id="msYearSelect" onchange="window.msSetYear(this.value)">${yearOpts}</select></label>${rollBtns}<button type="button" onclick="window.msPrint()" ${course?"":"disabled"}>🖨 Print</button></div></header>
+  ${autoInfo}${waitInfo}<div class="msCourseTabs">${tabs}<button type="button" class="msAddCourse" onclick="window.msOpenCourseEditor('')">＋ Course</button></div>
+  ${course?`<section class="card msSheet">
+    <div class="msSheetHead"><div class="msCourseBox"><small>– COURSE –</small><b>${esc(course.name)}</b></div><div class="msTitle">MASTER SCHEDULE <b>${esc(msYearLabel(yk))}</b></div><button type="button" class="msCourseEdit" onclick="window.msOpenCourseEditor('${esc(course.id)}')">✏️ Course</button></div>
+    ${segNote?`<p class="small msSegLine">${segNote}</p>`:""}
+    <div class="msPhoneNav"><button type="button" onclick="window.msShiftMonth(-1)" ${mi<=0?"disabled":""} aria-label="Previous month">◀</button><b>${esc(parseLocalDate(months[mi]+"-01").toLocaleDateString(undefined,{month:"long",year:"numeric"}))}</b><button type="button" onclick="window.msShiftMonth(1)" ${mi>=months.length-1?"disabled":""} aria-label="Next month">▶</button></div>
+    ${msGridHTML(yk,course)}
+  </section>`:`<section class="card"><p>No courses in ${esc(yk)} yet.</p><button type="button" class="primary" onclick="window.msOpenCourseEditor('')">＋ Add a course</button></section>`}
+  <section class="card msLegendCard"><div class="msLegend">${msLegendHTML()}</div>
+  <p class="small">No School, In Service and Early Dismiss days also come straight from your Calendar page — change those there and this page follows. Debate, Acad. League and the other colors are saved here once per date for the whole school, and a course can use its own color on a day when it differs.${b.source==="calendar"?` This year runs ${esc(msShortDate(b.start))} – ${esc(msShortDate(b.end))}, from your Calendar's first and last student days.`:""}</p>
+  ${unsure?`<p class="small msUnsureNote"><i class="msUnsureMark"></i> ${unsure} ${unsure===1?"day is":"days are"} marked with a small orange corner to double-check (mostly handwriting on your sheets that was hard to read). Tap one to see why; saving it with “Flag as unsure” unticked clears the mark.</p>`:""}</section>`;
+}
+window.msSetYear=v=>{msView.year=v;msView.month="";render();};
+window.msSetCourse=id=>{msView.course=id;localStorage.teacherDashboardMsCourse=id;render();};
+window.msShiftMonth=n=>{const months=msMonths(msCurrentYear()),i=Math.max(0,months.indexOf(msView.month));msView.month=months[Math.min(months.length-1,Math.max(0,i+n))];render();};
+
+// --- Edit one day -----------------------------------------------------------
+function msTypeOptions(selected,first){return first+MS_TYPES.map(([k,l])=>`<option value="${k}" ${selected===k?"selected":""}>${esc(l)}</option>`).join("")}
+window.msEditCell=date=>{
+  const yk=msCurrentYear(),y=msYear(yk),course=msCurrentCourse(yk);if(!y||!course)return;
+  document.querySelector("#msCellModal")?.remove();
+  const c=course.cells[date]||{},school=(y.dayTypes||{})[date]||"",cal=msCalendarType(date),calRaw=((data.calendarOverrides||{})[date]||{}).type;
+  const eff=msDayType(yk,{cells:{}},date);
+  const courseFirst=`<option value="" ${!c.type?"selected":""}>Same as school-wide${eff.type?` (${esc(MS_TYPE[eff.type]?.label||eff.type)})`:" (none)"}</option><option value="none" ${c.type==="none"?"selected":""}>No color for this course</option>`;
+  const schoolFirst=`<option value="" ${!school?"selected":""}>${cal?`From your Calendar: ${esc(MS_TYPE[cal].label)}`:"None"}</option>${cal?`<option value="none" ${school==="none"?"selected":""}>None (ignore the Calendar here)</option>`:""}`;
+  document.body.insertAdjacentHTML("beforeend",`<div id="msCellModal" class="modalbg" onclick="if(event.target.id==='msCellModal')window.msCloseCell()"><div class="modal msCellModal"><h3>${esc(msLongDate(date))}</h3><p class="small" style="margin-top:-6px">${esc(course.name)} · ${esc(yk)}</p>
+  <label>Lesson or event<input id="msCellText" value="${esc(c.text||"")}" placeholder="e.g., 1.4, Quiz, Unit 2 Test" onkeydown="if(event.key==='Enter')window.msSaveCell('${date}')"></label>
+  <label>Day type for ${esc(course.name)}<select id="msCellType">${msTypeOptions(c.type&&c.type!=="none"?c.type:"",courseFirst)}</select></label>
+  <label>School-wide day type (every course)<select id="msDayType">${msTypeOptions(school&&school!=="none"?school:"",schoolFirst)}</select></label>
+  ${cal?`<p class="small">📅 Your Calendar marks this date as <b>${esc(MS_CALENDAR_LABEL[calRaw])}</b>. Change it on the Calendar page and every course here follows.</p>`:""}
+  ${c.unsure?`<div class="msUnsureBox"><b>Unsure reading</b><div class="small">${esc(c.unsure)}</div></div>`:""}
+  <label class="inlineCheck"><input id="msCellUnsure" type="checkbox" ${c.unsure?"checked":""}> Flag as unsure (to double-check later)</label>
+  <div class="modalActions" style="margin-top:14px"><button type="button" onclick="window.msCloseCell()">Cancel</button><button type="button" class="primary" onclick="window.msSaveCell('${date}')">Save</button></div></div></div>`);
+  setTimeout(()=>document.getElementById("msCellText")?.focus(),30);
+};
+window.msCloseCell=()=>document.querySelector("#msCellModal")?.remove();
+window.msSaveCell=date=>{
+  const yk=msCurrentYear(),y=msYear(yk),course=msCurrentCourse(yk);if(!y||!course)return;
+  const text=(document.getElementById("msCellText")?.value||"").trim(),ct=document.getElementById("msCellType")?.value||"",st=document.getElementById("msDayType")?.value||"",unsure=!!document.getElementById("msCellUnsure")?.checked;
+  const old=course.cells[date]||{},cell={};
+  if(text)cell.text=text;if(ct)cell.type=ct;if(unsure)cell.unsure=old.unsure||"Flagged to double-check.";
+  if(Object.keys(cell).length)course.cells[date]=cell;else delete course.cells[date];
+  if(st)y.dayTypes[date]=st;else delete y.dayTypes[date];
+  window.msCloseCell();save();render();
+};
+
+// --- Courses ------------------------------------------------------------------
+window.msOpenCourseEditor=id=>{
+  const yk=msCurrentYear()||msYearKeyFor(todayISO());
+  const course=id?(msYear(yk)?.courses||[]).find(c=>c.id===id):null;
+  document.querySelector("#msCourseModal")?.remove();
+  document.body.insertAdjacentHTML("beforeend",`<div id="msCourseModal" class="modalbg"><div class="modal"><h3>${course?"Edit course":"Add a course"} · ${esc(yk)}</h3><label>Course name<input id="msCourseName" value="${esc(course?.name||"")}" placeholder="e.g., Geometry"></label>${course?.segments?.length?`<p class="small">Terms: ${esc(course.segments.map(s=>s.name).join(", "))}</p>`:""}<div class="modalActions" style="margin-top:14px">${course?`<button type="button" class="danger" onclick="window.msDeleteCourse('${esc(course.id)}')">Delete course</button>`:""}<button type="button" onclick="document.querySelector('#msCourseModal')?.remove()">Cancel</button><button type="button" class="primary" onclick="window.msSaveCourse('${esc(course?.id||"")}')">Save</button></div></div></div>`);
+};
+window.msSaveCourse=id=>{
+  const name=(document.getElementById("msCourseName")?.value||"").trim();if(!name){alert("Please type a course name.");return;}
+  const m=msStore();let yk=msCurrentYear();if(!yk){yk=msYearKeyFor(todayISO());}
+  if(!m.years[yk])m.years[yk]={dayTypes:{},dayLabels:{},courses:[]};
+  const y=m.years[yk];
+  if(id){const c=y.courses.find(c=>c.id===id);if(c)c.name=name;}
+  else{const c={id:"c_"+uid(),name,cells:{}};y.courses.push(c);msView.course=c.id;}
+  msView.year=yk;document.querySelector("#msCourseModal")?.remove();save();render();
+};
+window.msDeleteCourse=id=>{
+  const yk=msCurrentYear(),y=msYear(yk),c=y?.courses.find(c=>c.id===id);if(!c)return;
+  const n=Object.keys(c.cells||{}).length;
+  if(!confirm(`Delete ${c.name} from the ${yk} master schedule${n?` (${n} filled-in day${n===1?"":"s"})`:""}? This can't be undone.`))return;
+  y.courses=y.courses.filter(x=>x.id!==id);document.querySelector("#msCourseModal")?.remove();save();render();
+};
+
+// --- Roll forward ---------------------------------------------------------------
+// Copies each course's lessons, in order, onto the next year's school days.
+// Day types are never copied: the new year gets them from its own Calendar.
+function msSourceChoices(fromYk){
+  const out=[];(msYear(fromYk)?.courses||[]).forEach(c=>{
+    if(c.segments?.length)c.segments.forEach(s=>out.push({value:`${c.id}:${s.name}`,label:`${c.name} — ${s.name}`}));
+    else out.push({value:c.id,label:c.name});
+  });return out;
+}
+function msSourceSequence(fromYk,src){
+  if(!src)return [];
+  const [cid,segName]=String(src).split(/:(.+)/);const course=(msYear(fromYk)?.courses||[]).find(c=>c.id===cid);if(!course)return [];
+  let {start,end}=msBounds(fromYk);
+  if(segName){const s=msSegments(fromYk,course).find(s=>s.name===segName);if(!s)return [];start=s.start;end=s.end;}
+  const seq=[];
+  msWeekdays(start,end).forEach(d=>{
+    const t=msDayType(fromYk,course,d).type,c=course.cells[d]||{},text=String(c.text||"").trim();
+    if(MS_NO_CLASS.test(text))return;                       // ~~~, —, ✕ = no class that day
+    if(!text&&(t==="noschool"||t==="inservice"))return;     // no students
+    seq.push({text,unsure:c.unsure||"",from:d});
+  });
+  while(seq.length&&!seq[seq.length-1].text)seq.pop();
+  return seq;
+}
+function msRollTargets(fromYk,toYk){
+  const ty=msYear(toYk);
+  if(ty&&ty.courses.length)return ty.courses.map(c=>({id:c.id,name:c.name,from:c.from||"",segments:c.segments?structuredClone(c.segments):null}));
+  if(toYk==="2026-27")return structuredClone(MS_PLAN_2026_27).map(c=>({...c,segments:c.segments||null}));
+  return (msYear(fromYk)?.courses||[]).map(c=>({id:c.id,name:c.name,from:c.segments?.length?"":c.id,segments:c.segments?.length?c.segments.map((s,i,a)=>({name:s.name,code:(a.length===2?"s":"t")+(i+1),from:`${c.id}:${s.name}`})):null}));
+}
+function msRollPlan(fromYk,toYk){
+  const targets=msRollTargets(fromYk,toYk),ty=msYear(toYk),units=[];
+  targets.forEach(t=>{
+    const existing=(ty?.courses||[]).find(c=>c.id===t.id),probe={cells:existing?.cells||{}};
+    const parts=t.segments?.length?t.segments.map(s=>({key:`${t.id}:${s.name}`,label:`${t.name} — ${s.name}`,seg:s})):[{key:t.id,label:t.name,seg:null}];
+    parts.forEach(p=>{
+      const def=p.seg?(p.seg.from||""):(t.from||"");
+      const src=msRollChoices&&p.key in msRollChoices?msRollChoices[p.key]:def;
+      let range=msBounds(toYk);
+      if(p.seg){const r=(p.seg.start&&p.seg.end)?{start:p.seg.start,end:p.seg.end,source:"saved"}:msTermRange(toYk,p.seg.code);range=r||{start:"",end:""};}
+      const days=msWeekdays(range.start,range.end).filter(d=>{const k=msDayType(toYk,probe,d).type;return k!=="noschool"&&k!=="inservice";});
+      const seq=msSourceSequence(fromYk,src),placed=seq.slice(0,days.length).map((s,i)=>({...s,date:days[i]}));
+      const conflicts=placed.filter(x=>{const c=probe.cells[x.date];return c&&c.text&&c.text!==x.text;}).length;
+      const filledAlready=placed.filter(x=>{const c=probe.cells[x.date];return c&&c.text;}).length;
+      units.push({target:t,key:p.key,label:p.label,seg:p.seg,src,range,days,seq,placed,overflow:Math.max(0,seq.length-days.length),conflicts,filledAlready});
+    });
+  });
+  return units;
+}
+function msRollModalHTML(fromYk,toYk){
+  const units=msRollPlan(fromYk,toYk),choices=msSourceChoices(fromYk),exists=!!msYear(toYk);
+  const b=msBounds(toYk),conflicts=units.reduce((t,u)=>t+u.conflicts,0),filled=units.reduce((t,u)=>t+u.filledAlready,0);
+  const calNo=msWeekdays(b.start,b.end).filter(d=>{const k=msCalendarType(d);return k==="noschool"||k==="inservice";}).length;
+  const rows=units.map(u=>{
+    const opts=`<option value="">Start blank</option>`+choices.map(c=>`<option value="${esc(c.value)}" ${u.src===c.value?"selected":""}>${esc(fromYk)} ${esc(c.label)}</option>`).join("");
+    const lessons=u.seq.filter(s=>s.text).length;
+    const sample=u.placed.filter(p=>p.text).slice(0,4).map(p=>`${esc(msShortDate(p.date))} ${esc(p.text)}`).join(" · ");
+    const summary=!u.src?`<span class="small">Starts blank.</span>`:!u.seq.length?`<span class="small">That ${esc(fromYk)} course has nothing written in it, so this starts blank.</span>`:`<span class="small">${lessons} lesson${lessons===1?"":"s"} over ${u.seq.length} class days → ${esc(msShortDate(u.placed[0]?.date||u.range.start))} – ${esc(msShortDate(u.placed[u.placed.length-1]?.date||u.range.end))}${u.overflow?` · <b class="msWarn">${u.overflow} day${u.overflow===1?"":"s"} don't fit before ${esc(msShortDate(u.range.end))}</b>`:""}${u.conflicts?` · <b class="msWarn">${u.conflicts} day${u.conflicts===1?"":"s"} you already filled in differ</b>`:""}</span>${sample?`<div class="small msRollSample">${sample} …</div>`:""}`;
+    const term=u.seg?`<div class="small">${u.range.start?`${esc(msShortDate(u.range.start))} – ${esc(msShortDate(u.range.end))}${u.range.source==="estimate"?" (estimated — no trimester/semester dates on your Calendar)":""}`:"No dates"}</div>`:"";
+    const detail=u.placed.length?`<details><summary class="small">Day by day</summary><div class="msRollDays">${u.placed.map(p=>`<div><span>${esc(msShortDate(p.date))}</span><span>${esc(p.text||"—")}</span><span class="small">from ${esc(msShortDate(p.from))}</span></div>`).join("")}</div></details>`:"";
+    return `<tr><td><b>${esc(u.label)}</b>${term}</td><td><select data-ms-roll="${esc(u.key)}" onchange="window.msRollChoice(this)">${opts}</select></td><td>${summary}${detail}</td></tr>`;
+  }).join("");
+  return `<div id="msRollModal" class="modalbg"><div class="modal msRollModal"><div class="modalHead"><h3>⏩ Roll forward ${esc(fromYk)} → ${esc(toYk)}</h3><button type="button" onclick="window.msCloseRoll()">×</button></div>
+  <p class="small" style="margin-top:0">Each course's ${esc(fromYk)} lessons are copied <b>in order</b> onto ${esc(toYk)} school days (${esc(msShortDate(b.start))} – ${esc(msShortDate(b.end))}${b.source==="calendar"?", from your Calendar":b.source==="default"?" — set your first and last student day on the Calendar page to change this":""}). Weekends${calNo?` and the ${calNo} No School / In-Service day${calNo===1?"":"s"} on your Calendar`:""} are skipped. Days marked ~~~, — or ✕ (no class) are left out. Day colors are <b>not</b> copied — ${esc(toYk)} gets them from its own Calendar.</p>
+  ${calNo?"":`<div class="aiWarning">Your Calendar has no No School days for ${esc(toYk)} yet, so only weekends will be skipped. You can add them on the Calendar page first and come back.</div>`}
+  <div class="msRollTableWrap"><table class="msRollTable"><thead><tr><th>${esc(toYk)} course</th><th>Copy lessons from</th><th>Preview</th></tr></thead><tbody>${rows}</tbody></table></div>
+  ${exists&&filled?`<div class="aiWarning">${filled} of these ${esc(toYk)} days already have something written in them. They are <b>kept</b> unless you tick the box below.${conflicts?` (${conflicts} of them would change.)`:""}<label class="inlineCheck" style="margin-top:6px"><input id="msRollReplace" type="checkbox"> Replace what I've already written on those days</label></div>`:""}
+  <div class="modalActions"><button type="button" onclick="window.msCloseRoll()">Cancel</button><button type="button" class="primary" id="msRollGo" onclick="window.msApplyRoll('${esc(fromYk)}','${esc(toYk)}')">${exists?`Update ${esc(toYk)}`:`Create ${esc(toYk)} schedules`}</button></div></div></div>`;
+}
+window.msOpenRollForward=fromYk=>{
+  if(ensureMasterSchedules())save();
+  const keys=msYearKeys();if(!keys.includes(fromYk))fromYk=keys[keys.length-1];if(!fromYk)return;
+  const toYk=msNextYearKey(fromYk);msRollChoices={};
+  document.querySelector("#msRollModal")?.remove();
+  document.body.insertAdjacentHTML("beforeend",msRollModalHTML(fromYk,toYk));
+  window.msRollYears=[fromYk,toYk];
+};
+window.msRollChoice=sel=>{
+  msRollChoices[sel.dataset.msRoll]=sel.value;
+  const [f,t]=window.msRollYears;const scroll=document.querySelector("#msRollModal .modal")?.scrollTop||0;
+  document.querySelector("#msRollModal")?.remove();document.body.insertAdjacentHTML("beforeend",msRollModalHTML(f,t));
+  const m=document.querySelector("#msRollModal .modal");if(m)m.scrollTop=scroll;
+};
+window.msCloseRoll=()=>{document.querySelector("#msRollModal")?.remove();msRollChoices=null;};
+window.msApplyRoll=(fromYk,toYk)=>{
+  const replace=!!document.getElementById("msRollReplace")?.checked;
+  const conflicts=msRollPlan(fromYk,toYk).reduce((t,u)=>t+u.conflicts,0);
+  if(replace&&conflicts&&!confirm(`Replace ${conflicts} day${conflicts===1?"":"s"} you've already written in ${toYk}? This can't be undone.`))return;
+  const {kept}=msDoRoll(fromYk,toYk,replace);
+  msStore().years[toYk].rolledFrom={year:fromYk,at:new Date().toISOString()};
+  window.msCloseRoll();msView.year=toYk;msView.month="";
+  toast=`${toYk} master schedules ${kept?`updated (${kept} day${kept===1?"":"s"} you'd already written differently ${kept===1?"was":"were"} kept)`:"updated"}.`;
+  save();render();
+};
+// Copy the plan into the target year. Existing text is only replaced when replace=true.
+function msDoRoll(fromYk,toYk,replace){
+  const units=msRollPlan(fromYk,toYk),m=msStore();
+  if(!m.years[toYk])m.years[toYk]={dayTypes:{},dayLabels:{},courses:[]};
+  const y=m.years[toYk];let placed=0,kept=0;
+  units.forEach(u=>{
+    let c=y.courses.find(x=>x.id===u.target.id);
+    if(!c){c={id:u.target.id,name:u.target.name,from:u.target.from||"",cells:{}};if(u.target.segments)c.segments=u.target.segments.map(s=>({name:s.name,...(s.code?{code:s.code}:{}),...(s.start&&s.end?{start:s.start,end:s.end}:{}),from:s.from||""}));y.courses.push(c);}
+    if(u.seg){const s=(c.segments||[]).find(s=>s.name===u.seg.name);if(s)s.from=u.src;}else c.from=u.src;
+    u.placed.forEach(p=>{
+      const old=c.cells[p.date];
+      if(old&&old.text&&!replace){if(old.text!==p.text)kept++;return;}
+      if(!p.text&&!(old&&old.text))return;
+      const cell={...(old||{})};if(p.text)cell.text=p.text;else delete cell.text;
+      if(p.unsure)cell.unsure=`Carried over from ${fromYk} (${msShortDate(p.from)}): ${p.unsure}`;else if(old&&old.unsure&&replace)delete cell.unsure;
+      if(Object.keys(cell).length)c.cells[p.date]=cell;else delete c.cells[p.date];
+      placed++;
+    });
+  });
+  msStore();
+  return {placed,kept};
+}
+
+// --- Print ----------------------------------------------------------------------
+window.msPrint=()=>{
+  const yk=msCurrentYear(),course=msCurrentCourse(yk);if(!course)return;
+  const css=`@page{size:letter landscape;margin:0.3in}.msP{font-family:Arial,'Segoe UI',sans-serif;color:#202532}.msPHead{display:flex;align-items:baseline;gap:18px;border-bottom:1.5px solid #202532;padding-bottom:4px;margin-bottom:6px}.msPTitle{font-size:22pt;letter-spacing:.14em;font-weight:300}.msPYear{font-size:15pt}.msPCourse{margin-left:auto;font-size:11pt;border:1px dotted #697386;padding:2px 10px;border-radius:4px}.msPCourse small{font-size:7pt;color:#697386;letter-spacing:.08em;display:block;text-align:center}
+  .msGrid{display:grid;grid-template-columns:repeat(var(--ms-cols),1fr);border:1.5px solid #202532;background:#fff}.msCol{border-left:1px solid #202532;min-width:0}.msCol:first-child{border-left:0}.msMonth{background:#e8e1d6!important;text-align:center;font-weight:700;font-size:8.5pt;padding:2px;border-bottom:1.5px solid #202532}.msMonthSeg{display:none}
+  .msCell{display:flex;gap:3px;align-items:center;height:0.262in;padding:0 3px;border-top:1px dotted #8a8f99;background:var(--ms-bg,#fff)!important;font-size:7pt;overflow:hidden}.msMonth+.msCell{border-top:0}.msCell.msWeek{border-top:1.2px solid #202532}.msCell b{font-size:7.5pt;min-width:11px}.msText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.msOff{color:#a1a8b5}.msEmptyMonth{font-size:7pt;color:#888;padding:4px}
+  .msSegBand{display:grid;grid-template-columns:repeat(var(--ms-cols),1fr);text-align:center;font-size:9pt;letter-spacing:.12em;margin-top:3px}.msPLegend{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.msChip{background:var(--ms-bg)!important;padding:1px 7px;border-radius:3px;font-size:7.5pt}`;
+  const body=`<style>${css}</style><div class="msP"><div class="msPHead"><div class="msPTitle">MASTER SCHEDULE</div><div class="msPYear">${esc(msYearLabel(yk))}</div><div class="msPCourse"><small>– COURSE –</small>${esc(course.name)}</div></div>${msGridHTML(yk,course,true)}<div class="msPLegend">${msLegendHTML()}</div></div>`;
+  printDocument(`Master Schedule ${yk} - ${course.name}`,body,true);
+};
+
+function pageHTML(){return ({live,reminders:remindersPage,students,lessonplans,masterschedule:masterSchedule,groups,forms,accommodations,calendar,buttons:quickButtons,grades,reports,pvaas,settings})[page]()}
 
 function classroomToolsHTML(cls,block){
   ensureClassroomTools();
@@ -4859,14 +5348,16 @@ window.exportData=()=>{
 function dashboardSummary(x){
   const n=k=>Array.isArray(x?.[k])?x[k].length:0,pl=(c,one,many)=>`${c} ${c===1?one:many}`;
   const lessons=Object.values(x?.lessonPlans?.entries||{}).reduce((t,row)=>t+Object.keys(row||{}).length,0);
-  return [pl(n("classes"),"class","classes"),pl(n("students"),"student","students"),pl(n("accommodations"),"accommodation record","accommodation records"),pl(n("events"),"behavior/out-of-room event","behavior/out-of-room events"),pl(n("notes"),"note","notes"),pl(lessons,"lesson-plan entry","lesson-plan entries"),pl(n("forms"),"form","forms")].join(" · ");
+  const msY=(x?.masterSchedules&&typeof x.masterSchedules.years==="object"&&x.masterSchedules.years)||{},msYears=Object.keys(msY).length,msCourses=Object.values(msY).reduce((t,y)=>t+(Array.isArray(y?.courses)?y.courses.length:0),0);
+  return [pl(n("classes"),"class","classes"),pl(n("students"),"student","students"),pl(n("accommodations"),"accommodation record","accommodation records"),pl(n("events"),"behavior/out-of-room event","behavior/out-of-room events"),pl(n("notes"),"note","notes"),pl(lessons,"lesson-plan entry","lesson-plan entries"),pl(n("forms"),"form","forms"),...(msYears?[pl(msCourses,"master-schedule course","master-schedule courses")+` (${msYears} school year${msYears===1?"":"s"})`]:[])].join(" · ");
 }
 // A backup must look like a Teacher Dashboard backup before it may replace anything.
 function validateDashboardBackup(x){
   if(!x||typeof x!=="object"||Array.isArray(x))return "it is not a Teacher Dashboard backup file.";
   if(!Array.isArray(x.classes)||!Array.isArray(x.students))return "it doesn't contain the classes and students that every Teacher Dashboard backup has.";
   for(const k of ["groups","forms","accommodations","accommodationSources","events","notes","announcements","bellSchedules","buttons","gradeCourses"])if(k in x&&!Array.isArray(x[k]))return `its "${k}" section is damaged.`;
-  for(const k of ["lessonPlans","calendarSettings","calendarOverrides"])if(k in x&&(!x[k]||typeof x[k]!=="object"||Array.isArray(x[k])))return `its "${k}" section is damaged.`;
+  for(const k of ["lessonPlans","calendarSettings","calendarOverrides","masterSchedules"])if(k in x&&(!x[k]||typeof x[k]!=="object"||Array.isArray(x[k])))return `its "${k}" section is damaged.`;
+  if(x.masterSchedules&&"years" in x.masterSchedules&&(!x.masterSchedules.years||typeof x.masterSchedules.years!=="object"||Array.isArray(x.masterSchedules.years)))return 'its "masterSchedules" section is damaged.';
   if(x.classes.some(c=>!c||typeof c!=="object"||!c.id))return "some of its class records are damaged.";
   if(x.students.some(s=>!s||typeof s!=="object"||!s.id))return "some of its student records are damaged.";
   const known=["bellSchedules","calendarSettings","lessonPlans","buttons","accommodations","events","notes","calendarOverrides","sidebarOrder","setupComplete","groups","forms"].filter(k=>k in x).length;
