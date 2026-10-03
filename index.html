@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.3.0</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.3.1</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -830,7 +830,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.3.0";
+const APP_VERSION="4.3.1";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1455,6 +1455,17 @@ function loadSyncState(){
 // Compare by content: Firestore and JSON do not promise to keep key order.
 function stableJSON(x){if(Array.isArray(x))return "["+x.map(stableJSON).join(",")+"]";if(x&&typeof x==="object")return "{"+Object.keys(x).sort().filter(k=>x[k]!==undefined).map(k=>JSON.stringify(k)+":"+stableJSON(x[k])).join(",")+"}";return JSON.stringify(x===undefined?null:x)}
 function sameData(a,b){try{return stableJSON(a)===stableJSON(b)}catch(e){return false}}
+// A copy of the dashboard that is OLDER than the one this device last synced (V4.3.1).
+// Live updates can be held while a window is open or a save is in flight; by the time a
+// held update is looked at, this device may already have saved a newer copy that includes
+// it. Applying it then would roll the newest change back on screen ("my edit disappears").
+// Revisions only go up, so a lower revision is stale, unless it was written later by a
+// version from before revisions existed (no revision number, newer time): that one is kept.
+function isStaleCloudRecord(record){
+  if(!record||!sync.baseData||!sync.baseRevision)return false;
+  const rev=Number(record.revision||0),upd=String(record.updatedAt||"");
+  return rev<sync.baseRevision&&!(upd&&sync.baseUpdatedAt&&upd>sync.baseUpdatedAt);
+}
 function cloneData(x){return x===undefined?undefined:JSON.parse(JSON.stringify(x))}
 function cloudComparable(x){const c=cloneData(x||{});delete c.profileAvatar;return c;}
 function mergeRecordId(x){if(x&&typeof x==="object"&&!Array.isArray(x)&&x.id!==undefined&&x.id!==null&&x.id!=="")return "id:"+String(x.id);return null;}
@@ -1522,6 +1533,7 @@ function applyCloudRecord(record){
   const rev=Number(record.revision||0),upd=String(record.updatedAt||"");
   const local=cloudComparable(data);
   if(sync.baseData&&rev===sync.baseRevision&&upd===sync.baseUpdatedAt){lastSyncAt=upd||lastSyncAt;return false;}
+  if(isStaleCloudRecord(record))return false;
   let changed=false;
   if(!sync.baseData){
     // First sync on this device since the V4.2.0 update: there is no record yet of
@@ -1544,7 +1556,8 @@ function applyCloudRecord(record){
 }
 function handleCloudSnapshot(record){
   if(!currentUser||!initializedUserData||!record)return;
-  if(sync.writing||isEditingNow()){sync.deferred=record;return;}
+  if(isStaleCloudRecord(record))return;
+  if(sync.writing||isEditingNow()){if(!sync.deferred||Number(record.revision||0)>=Number(sync.deferred.revision||0)||String(record.updatedAt||"")>String(sync.deferred.updatedAt||""))sync.deferred=record;return;}
   sync.deferred=null;
   const changed=applyCloudRecord(record);
   if(changed){cloudStatus=sync.localDirty?"Saving to Firebase...":"Firebase synced";renderUnlessTypingLesson();}
@@ -1633,6 +1646,7 @@ async function syncCloud(){
         sync.localDirty=true;sync.savePending=true;
       }
       sync.baseData=cloneData(committed);sync.baseRevision=newRev;sync.baseUpdatedAt=newUpd;sync.forceReplace=false;
+      if(sync.deferred&&isStaleCloudRecord(sync.deferred))sync.deferred=null;   // already merged into this save
       lastSyncAt=newUpd;saveLocal();saveSyncState(true);
       cloudStatus=sync.localDirty?"Saving to Firebase...":"Firebase synced";
     }
