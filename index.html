@@ -838,6 +838,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .msBarMore{display:none}
 @media(max-width:750px){.msBarMore{display:inline-block;font-weight:600}.msBulkMore:not(.msOpen){display:none}.msBulkMore.msOpen{max-height:55vh;overflow:auto}.msBulkTop{margin-bottom:0}.msBulkMore.msOpen{margin-top:8px}}
 @media(max-width:750px){.msBulkTop{gap:6px}.msBulkTop b{font-size:14px;width:100%}.msBulkTop button{padding:5px 9px;font-size:13px}}
+.msKeepChips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px;max-height:96px;overflow:auto}.msKeepChip{display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
 </style>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -2779,8 +2780,9 @@ function msDoRoll(fromYk,toYk,replace){
 // change them all at once. Each bulk change is ONE save (one sync update) and can be undone.
 const MS_TEST_RE=/\b(tests?|quiz(?:zes)?|exams?|mock|keystones?|midterms?|finals?)\b/i;
 function msLooksLikeTest(text){return MS_TEST_RE.test(String(text||""))}
+let msKeepSkip=new Set();
 let msSel=new Set(),msSelCtx="",msAnchor="",msUndo=null,msBulkOpts={keepTests:true,text:"",type:"noclass",scope:"course"};
-function msSelSync(yk,course){const k=`${yk}|${course?.id||""}`;if(k!==msSelCtx){msSel.clear();msAnchor="";msSelCtx=k;}}
+function msSelSync(yk,course){const k=`${yk}|${course?.id||""}`;if(k!==msSelCtx){msSel.clear();msKeepSkip.clear();msAnchor="";msSelCtx=k;}}
 // Days the quick picks select: school days only (not Calendar / school-wide No School or In Service).
 function msPickable(yk,d){const t=msDayType(yk,{cells:{}},d).type;return t!=="noschool"&&t!=="inservice"}
 function msYearDays(yk){const b=msBounds(yk);return msWeekdays(b.start,b.end)}
@@ -2817,7 +2819,7 @@ window.msPickRange=()=>{
   days.forEach(d=>msSel.add(d));msRefreshSel();
 };
 window.msPickAll=()=>{const yk=msCurrentYear();msYearDays(yk).filter(d=>msPickable(yk,d)).forEach(d=>msSel.add(d));msRefreshSel();};
-window.msPickNone=()=>{msSel.clear();msAnchor="";msRefreshSel();};
+window.msPickNone=()=>{msSel.clear();msKeepSkip.clear();msAnchor="";msRefreshSel();};
 
 // Drag to select: mouse drags right away; on iPad / phone, press and hold a day for a moment,
 // then slide (a quick swipe still scrolls the page).
@@ -2863,7 +2865,7 @@ function msPickToolsHTML(yk,course){
 function msSelectedCells(yk,course){return [...msSel].filter(d=>d>=msBounds(yk).start&&d<=msBounds(yk).end).sort()}
 function msTestDays(course,dates){return dates.filter(d=>msLooksLikeTest(course?.cells?.[d]?.text))}
 function msBulkBarHTML(yk,course){
-  const dates=msSelectedCells(yk,course),n=dates.length,tests=msTestDays(course,dates),keep=msBulkOpts.keepTests&&tests.length;
+  const dates=msSelectedCells(yk,course),n=dates.length,tests=msTestDays(course,dates),kept=tests.filter(d=>!msKeepSkip.has(d)),keep=msBulkOpts.keepTests&&tests.length;
   const dis=n?"":"disabled";
   const flagged=n&&dates.every(d=>course?.cells?.[d]?.unsure);
   const typeOpts=MS_TYPES.filter(([k])=>!(msBulkOpts.scope==="school"&&MS_COURSE_ONLY_TYPES.includes(k))).map(([k,l])=>`<option value="${k}" ${msBulkOpts.type===k?"selected":""}>${esc(l)}</option>`).join("");
@@ -2876,10 +2878,11 @@ function msBulkBarHTML(yk,course){
     <button type="button" id="msBulkFlag" onclick="window.msBulk('${flagged?"unflag":"flag"}')" ${dis}>${flagged?"Remove unsure flags":"⚑ Flag as unsure"}</button>
   </div>
   <label class="inlineCheck msKeepTests"><input type="checkbox" id="msKeepTests" ${msBulkOpts.keepTests?"checked":""} onchange="window.msBulkOpt('keepTests',this.checked,1)"> Leave test days alone (Test, Quiz, Exam, Mock, Keystone, Midterm, Final)</label>
-  ${tests.length?`<p class="small msKeepList" id="msKeepList">${keep?`<b>${tests.length} selected day${tests.length===1?"":"s"} will be kept:</b> `:`${tests.length} selected day${tests.length===1?" looks":"s look"} like a test and will be changed too: `}${testList}</p>`:""}
+  ${tests.length?(keep?`<div class="small msKeepList" id="msKeepList"><b>${kept.length} of ${tests.length} selected test day${tests.length===1?"":"s"} will be kept</b> — untick any you want changed too:<div class="msKeepChips">${tests.map(d=>`<label class="msKeepChip"><input type="checkbox" data-ms-bulkkeep="${d}" ${msKeepSkip.has(d)?"":"checked"} onchange="window.msBulkKeep('${d}',this.checked)"> ${esc(msShortDate(d))} ${esc(course.cells[d].text)}</label>`).join("")}</div></div>`:`<p class="small msKeepList" id="msKeepList">${tests.length} selected day${tests.length===1?" looks":"s look"} like a test and will be changed too: ${testList}</p>`):""}
   <p class="small msBulkNote">${msBulkOpts.scope==="school"?"School-wide colors change this date for every course. ":""}No School, In Service and Early Dismiss days come from your Calendar page and are never changed here.</p></div>`;
 }
 window.msRefreshBulkBar=()=>msRefreshSel();
+window.msBulkKeep=(d,on)=>{if(on)msKeepSkip.delete(d);else msKeepSkip.add(d);msRefreshSel();};
 window.msBulkOpt=(k,v,refresh)=>{msBulkOpts[k]=v;if(k==="scope"&&v==="school"&&MS_COURSE_ONLY_TYPES.includes(msBulkOpts.type))msBulkOpts.type=(MS_TYPES.find(([t])=>!MS_COURSE_ONLY_TYPES.includes(t))||[""])[0];if(refresh)msRefreshSel()};
 
 // Apply one change to many days of one course as a single save, and remember it for Undo.
@@ -2910,7 +2913,7 @@ const MS_BULK_LABEL={cleartext:"Cleared text",settext:"Set text",settype:"Set da
 window.msBulk=action=>{
   const yk=msCurrentYear(),course=msCurrentCourse(yk);if(!course)return;
   const dates=msSelectedCells(yk,course);if(!dates.length)return;
-  const keep=msBulkOpts.keepTests?msTestDays(course,dates):[];
+  const keep=msBulkOpts.keepTests?msTestDays(course,dates).filter(d=>!msKeepSkip.has(d)):[];
   let value="";
   if(action==="settext"){value=(document.getElementById("msBulkText")?.value||"").trim();if(!value){alert("Type the text to put on the selected days.");document.getElementById("msBulkText")?.focus();return;}}
   if(action==="settype")value=document.getElementById("msBulkType")?.value||msBulkOpts.type;
