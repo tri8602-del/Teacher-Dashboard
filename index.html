@@ -781,8 +781,8 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .msCourseBox{border:1.5px dotted #697386;border-radius:6px;padding:4px 12px;text-align:center;line-height:1.2;min-width:96px}.msCourseBox small{display:block;font-size:10px;color:var(--muted);letter-spacing:.08em}.msCourseBox b{font-weight:600}
 .msCourseEdit{margin-left:auto;font-size:12px;padding:6px 10px}
 .msSegLine{margin:-4px 0 10px}
-.msGridWrap{overflow-x:auto;padding-bottom:2px}
-.msGrid{display:grid;grid-template-columns:repeat(var(--ms-cols),minmax(56px,1fr));border:2px solid #202532;border-radius:4px;background:#fbfaf6;min-width:min-content}
+.msGridWrap{overflow-x:auto;padding-bottom:2px;--ms-min:56px}
+.msGrid{display:grid;grid-template-columns:var(--ms-tpl,repeat(var(--ms-cols),minmax(var(--ms-min),1fr)));border:2px solid #202532;border-radius:4px;background:#fbfaf6;min-width:min-content}
 .msCol{display:flex;flex-direction:column;border-left:1px solid #202532;min-width:0}.msCol:first-child{border-left:0}
 .msMonth{background:#e8e1d6;text-align:center;font-weight:600;letter-spacing:.06em;padding:7px 2px;border-bottom:2px solid #202532;font-size:13px}.msMonthSeg{display:none}
 .msCell{display:flex;align-items:center;gap:5px;height:28px;padding:0 6px;margin:0;border:0;border-top:1px dotted #9aa0aa;border-radius:0;background:var(--ms-bg,transparent);color:#202532;text-align:left;font-size:12px;line-height:1.1;position:relative;min-width:0;width:100%;overflow:hidden}
@@ -796,13 +796,16 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .msUnsureMark{position:absolute;top:0;right:0;width:0;height:0;border-top:8px solid #e08a1e;border-left:8px solid transparent;opacity:.85}
 .msUnsureNote{position:relative;padding-left:16px}.msUnsureNote .msUnsureMark{left:0;right:auto;top:2px}
 .msUnsureBox{background:#fff7e6;border:1px solid #f0c27a;border-radius:8px;padding:8px 10px;margin:10px 0}
-.msSegBand{display:grid;grid-template-columns:repeat(var(--ms-cols),minmax(56px,1fr));text-align:center;letter-spacing:.14em;font-size:14px;margin-top:8px;color:#202532;min-width:min-content}.msSegBand span{border-top:1px solid #c9ced8;padding-top:4px;margin:0 6px}
+.msSegBand{display:grid;grid-template-columns:var(--ms-tpl,repeat(var(--ms-cols),minmax(var(--ms-min),1fr)));text-align:center;letter-spacing:.14em;font-size:14px;margin-top:8px;color:#202532;min-width:min-content}.msSegBand span{border-top:1px solid #c9ced8;padding-top:4px;margin:0 6px}
 .msLegend{display:flex;flex-wrap:wrap;gap:6px}.msChip{background:var(--ms-bg);padding:3px 9px;border-radius:4px;font-size:12px;color:#202532}
 .msPhoneNav{display:none}
+.msCell.msToday{box-shadow:inset 0 0 0 2px var(--nav);z-index:1}.msCell.msToday b{color:#fff;background:var(--nav);border-radius:999px;padding:1px 4px;min-width:0;margin-left:-3px}
+.msCell.msPast .msText{color:#59606d}.msCell.msPast b{color:#59606d;font-weight:700}
+.msAutoNote{position:relative;background:#f3f6fc;border:1px solid #d8e0ef;font-size:13px;line-height:1.45;padding-right:40px}.msNoteClose{position:absolute;top:8px;right:8px;padding:2px 8px;font-size:14px}
 .msCellModal label{display:block;margin-top:10px;font-weight:600;font-size:13px}.msCellModal input:not([type=checkbox]),.msCellModal select{display:block;width:100%;margin-top:4px;font-weight:400}.msCellModal .inlineCheck{font-weight:400}
 .msRollModal{width:min(980px,100%)!important}.msRollModal .modalHead{display:flex;justify-content:space-between;align-items:center;gap:10px}.msRollModal .modalHead h3{margin:0}.msRollTableWrap{overflow-x:auto}.msRollTable td,.msRollTable th{vertical-align:top;padding:8px}.msRollTable select{min-width:190px;max-width:260px}.msRollSample{margin-top:3px;color:#556070}.msWarn{color:#a35a00}
 .msRollDays{max-height:220px;overflow:auto;margin-top:4px;border:1px solid #e7eaf0;border-radius:6px}.msRollDays div{display:grid;grid-template-columns:62px 1fr auto;gap:8px;padding:3px 8px;font-size:12px;border-bottom:1px solid #f0f2f6}
-@media(max-width:1100px){header:has(.msHeadActions){flex-wrap:wrap}.msGrid,.msSegBand{grid-template-columns:repeat(var(--ms-cols),minmax(48px,1fr))}.msCell{font-size:10px;padding:0 2px;gap:2px;height:30px;align-items:center}.msCell b{font-size:9.5px;min-width:11px}.msText{white-space:normal;line-height:1.05;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.msMonth{font-size:11px;letter-spacing:.02em;padding:6px 1px}.msTitle{font-size:19px}.msTitle b{font-size:17px}.msSegBand{font-size:11px;letter-spacing:.06em}.msUnsureMark{border-top-width:6px;border-left-width:6px}}
+@media(max-width:1100px){header:has(.msHeadActions){flex-wrap:wrap}.msGridWrap{--ms-min:48px}.msCell{font-size:10px;padding:0 2px;gap:2px;height:30px;align-items:center}.msCell b{font-size:9.5px;min-width:11px}.msText{white-space:normal;line-height:1.05;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.msMonth{font-size:11px;letter-spacing:.02em;padding:6px 1px}.msTitle{font-size:19px}.msTitle b{font-size:17px}.msSegBand{font-size:11px;letter-spacing:.06em}.msUnsureMark{border-top-width:6px;border-left-width:6px}}
 @media(max-width:750px){.msHeadActions{justify-content:flex-start}header:has(.msHeadActions){flex-direction:column;align-items:stretch}.msPhoneNav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}.msPhoneNav b{font-size:15px}.msGrid{grid-template-columns:1fr;min-width:0}.msCol{display:none;border-left:0}.msCol.msActive{display:flex}.msSegBand{display:none}.msMonthSeg{display:block;font-size:11px;font-weight:500;color:#556070;letter-spacing:.04em;margin-top:2px}.msCell{height:38px;font-size:14px;padding:0 10px;gap:10px}.msCell b{font-size:14px;min-width:22px}.msText{white-space:normal;-webkit-line-clamp:2}.msTitle{font-size:16px;letter-spacing:.08em}.msTitle b{font-size:15px}.msCourseEdit{margin-left:0}.msRollTable thead{display:none}.msRollTable tr{display:block;border-bottom:1px solid #e7eaf0;padding:8px 0}.msRollTable td{display:block;padding:3px 0;border:0}.msRollTable select{width:100%;max-width:100%;min-width:0}.msCourseTabs button{font-size:12px;padding:6px 9px}}
 </style>
 <script type="module">
@@ -2321,7 +2324,7 @@ const MS_PLAN_2026_27=[
   {id:"stock",name:"Intro to the Stock Market",from:"",segments:[{name:"Semester 2",code:"s2",from:""}]},
   {id:"mselect",name:"Middle School Electives",segments:[{name:"Engineering",code:"t1",from:"mselect:Engineering"},{name:"Crochet",code:"t2",from:"mselect:Crochet"},{name:"Math Puzzles",code:"t3",from:"mselect:Math Puzzles"}]}
 ];
-let msView={year:localStorage.teacherDashboardMsYear||"",course:localStorage.teacherDashboardMsCourse||"",month:""};
+let msView={year:"",course:localStorage.teacherDashboardMsCourse||"",month:""};
 let msRollChoices=null;
 
 function msObj(v){return v&&typeof v==="object"&&!Array.isArray(v)}
@@ -2331,6 +2334,7 @@ function msStore(){
   if(!msObj(m.years))m.years={};
   if(!msObj(m.seeded))m.seeded={};
   if(!msObj(m.seedRev))m.seedRev={};
+  if(!msObj(m.autoBuilt))m.autoBuilt={};
   Object.keys(m.years).forEach(k=>{
     const y=m.years[k];if(!msObj(y)){delete m.years[k];return;}
     if(!msObj(y.dayTypes))y.dayTypes={};
@@ -2428,10 +2432,38 @@ function msSegments(yk,course){
 function msShortDate(d){return parseLocalDate(d).toLocaleDateString(undefined,{month:"short",day:"numeric"})}
 function msLongDate(d){return parseLocalDate(d).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})}
 function msWeekOf(d){const x=parseLocalDate(d);x.setDate(x.getDate()-((x.getDay()+6)%7));return localDateKey(x)}
+// The school year today belongs to: the Calendar's year when today falls between the
+// summer before its first student day and its last student day, else by date (July 1).
+function msTodayYear(){
+  const t=todayISO(),s=data.calendarSettings||{};
+  if(s.firstStudentDay&&s.lastStudentDay&&s.firstStudentDay<=s.lastStudentDay){const k=msYearKeyFor(s.firstStudentDay);if(t>=msYearWindow(k).from&&t<=s.lastStudentDay)return k;}
+  return msYearKeyFor(t);
+}
+function msPrevYearKey(yk){const s=Number(String(yk).slice(0,4))-1;return `${s}-${String((s+1)%100).padStart(2,"0")}`}
+// The page opens on the current school year each time; the picker choice lasts for this visit only.
 function msCurrentYear(){
   const keys=msYearKeys();
-  if(!keys.includes(msView.year)){const t=msYearKeyFor(todayISO());msView.year=keys.includes(t)?t:keys.includes(MS_SEED_YEAR)?MS_SEED_YEAR:(keys[keys.length-1]||"");}
+  if(!keys.includes(msView.year)){const t=msTodayYear();msView.year=keys.includes(t)?t:keys.includes(MS_SEED_YEAR)?MS_SEED_YEAR:(keys[keys.length-1]||"");}
   return msView.year;
+}
+// First visit in a school year with no Master Schedule yet: build it from last year with
+// the usual roll-forward defaults. Runs once (remembered in the synced data), never
+// touches an existing year, and waits for the Calendar: the dashboard must have finished
+// loading from the cloud and the Calendar must have this year's first and last student days.
+function msAutoBuildCurrentYear(){
+  if(!initializedUserData)return false;
+  const m=msStore(),yk=msTodayYear(),from=msPrevYearKey(yk);
+  if(m.autoBuilt[yk]||m.years[yk]||!m.years[from])return false;
+  if(msBounds(yk).source!=="calendar")return false;
+  msRollChoices=null;
+  msDoRoll(from,yk,false);
+  m.years[yk].rolledFrom={year:from,auto:true};
+  m.autoBuilt[yk]=true;msView.year=yk;msView.month="";
+  return true;
+}
+function msWaitingForCalendar(){
+  const m=msStore(),yk=msTodayYear();
+  return !m.years[yk]&&!(m.autoBuilt||{})[yk]&&!!m.years[msPrevYearKey(yk)]&&msBounds(yk).source!=="calendar";
 }
 function msCurrentCourse(yk){
   const y=msYear(yk);if(!y||!y.courses.length)return null;
@@ -2450,7 +2482,7 @@ function msGridHTML(yk,course,print=false){
   const flush=()=>{if(run.length>=5)run.forEach(d=>breakRun[d]=run[0]);run=[];};
   all.forEach(d=>{const c=(course?.cells||{})[d]||{};if(msDayType(yk,course,d).type==="noschool"&&!c.text&&!c.unsure)run.push(d);else flush();});flush();
   if(!msView.month||!months.includes(msView.month)){const t=todayISO().slice(0,7);msView.month=months.includes(t)?t:months[0];}
-  const tag=print?"div":"button";
+  const tag=print?"div":"button",today=todayISO(),markPast=yk===msTodayYear();
   const cols=months.map(mk=>{
     const dates=all.filter(d=>d.startsWith(mk)),[yy,mm]=mk.split("-").map(Number);
     const monthSegs=segs.filter(s=>s.start.slice(0,7)<=mk&&s.end.slice(0,7)>=mk).map(s=>s.name);
@@ -2465,8 +2497,9 @@ function msGridHTML(yk,course,print=false){
         prev=last;i=j;continue;
       }
       const c=(course?.cells||{})[d]||{},t=msDayType(yk,course,d),off=segs.length&&!segs.some(s=>d>=s.start&&d<=s.end);
-      const tip=[msLongDate(d),c.text||"",t.type?MS_TYPE[t.type]?.label+(t.source==="calendar"?" (from your Calendar)":t.source==="course"?" (this course only)":""):"",c.unsure?"Unsure: "+c.unsure:"",off?"Not in session for this course":""].filter(Boolean).join(" · ");
-      rows+=`<${tag} ${print?"":`type="button" onclick="window.msEditCell('${d}')"`} data-ms-date="${d}" class="msCell${week}${t.type?" msT-"+t.type:""}${off?" msOff":""}${c.unsure?" msUnsure":""}" style="${t.type&&MS_TYPE[t.type]?`--ms-bg:${MS_TYPE[t.type].color}`:""}" title="${esc(tip)}"><b>${parseLocalDate(d).getDate()}</b><span class="msText">${esc(c.text||"")}</span>${c.unsure&&!print?`<i class="msUnsureMark"></i>`:""}</${tag}>`;
+      const when=print?"":d===today?" msToday":(markPast&&d<today?" msPast":"");
+      const tip=[msLongDate(d)+(d===today?" (today)":""),c.text||"",t.type?MS_TYPE[t.type]?.label+(t.source==="calendar"?" (from your Calendar)":t.source==="course"?" (this course only)":""):"",c.unsure?"Unsure: "+c.unsure:"",off?"Not in session for this course":""].filter(Boolean).join(" · ");
+      rows+=`<${tag} ${print?"":`type="button" onclick="window.msEditCell('${d}')"`} data-ms-date="${d}" class="msCell${week}${when}${t.type?" msT-"+t.type:""}${off?" msOff":""}${c.unsure?" msUnsure":""}" style="${t.type&&MS_TYPE[t.type]?`--ms-bg:${MS_TYPE[t.type].color}`:""}" title="${esc(tip)}"><b>${parseLocalDate(d).getDate()}</b><span class="msText">${esc(c.text||"")}</span>${c.unsure&&!print?`<i class="msUnsureMark"></i>`:""}</${tag}>`;
       prev=d;
     }
     return `<div class="msCol${mk===msView.month?" msActive":""}" data-ms-month="${mk}"><div class="msMonth">${MS_MONTHS[mm-1]}${monthSegs.length?`<span class="msMonthSeg">${esc(monthSegs.join(" / "))}</span>`:""}</div>${rows||`<div class="msEmptyMonth">No school days</div>`}</div>`;
@@ -2475,14 +2508,27 @@ function msGridHTML(yk,course,print=false){
   // A month shared by two terms goes to the term with more of its days.
   const owner=months.map(mk=>{let best=-1,n=0;segs.forEach((s,i)=>{const c=all.filter(d=>d.startsWith(mk)&&d>=s.start&&d<=s.end).length;if(c>n){n=c;best=i;}});return best;});
   const band=segs.length?`<div class="msSegBand" style="--ms-cols:${months.length}">${segs.map((s,i)=>{let a=owner.indexOf(i),z=owner.lastIndexOf(i);if(a<0){a=Math.max(0,months.indexOf(s.start.slice(0,7)));z=a;}return `<span style="grid-column:${a+1}/${z+2};grid-row:1">${esc(s.name)}</span>`}).join("")}</div>`:"";
-  return `<div class="msGridWrap"><div class="msGrid" style="--ms-cols:${months.length}">${cols}</div>${band}</div>`;
+  // Months with only a few school days (the late-August start, early June) get a narrower column.
+  const tpl=print?"":`--ms-tpl:${months.map(mk=>all.filter(d=>d.startsWith(mk)).length<=6?"minmax(calc(var(--ms-min) * .62),.6fr)":"minmax(var(--ms-min),1fr)").join(" ")};`;
+  return `<div class="msGridWrap" style="${tpl}"><div class="msGrid" style="--ms-cols:${months.length}">${cols}</div>${band}</div>`;
 }
 
 function masterSchedule(){
-  if(ensureMasterSchedules())save();
-  const keys=msYearKeys(),yk=msCurrentYear(),course=msCurrentCourse(yk),y=msYear(yk);
-  const next=msNextYearKey(keys[keys.length-1]||MS_SEED_YEAR),rollFrom=keys[keys.length-1]||MS_SEED_YEAR;
-  const nextExists=keys.includes(msNextYearKey(yk));
+  // Until the dashboard has loaded from the cloud, this device may be showing an older
+  // copy (for example one without this year's Calendar). Don't seed or build from it.
+  if(!initializedUserData)return `<header><div><h2>Master Schedule</h2><p>Loading your dashboard…</p></div></header>`;
+  let changed=ensureMasterSchedules();
+  if(msAutoBuildCurrentYear())changed=true;
+  if(changed)save();
+  const keys=msYearKeys(),yk=msCurrentYear(),course=msCurrentCourse(yk),y=msYear(yk),today=todayISO(),cur=msTodayYear();
+  // Roll-forward button: redo this year from last year, or (from spring on, or when
+  // viewing an older year) build the next year.
+  const prev=msPrevYearKey(yk),nextYk=msNextYearKey(yk),hasPrev=keys.includes(prev);
+  const showNext=keys.includes(nextYk)?!hasPrev:(!hasPrev||today>=`${msYearWindow(yk).s+1}-03-01`);
+  const rollBtns=[hasPrev?`<button type="button" onclick="window.msOpenRollForward('${esc(prev)}')" title="Copy ${esc(prev)} lessons onto ${esc(yk)} again (preview first)">⏩ Roll forward ${esc(prev)} → ${esc(yk)}</button>`:"",
+    showNext?`<button type="button" onclick="window.msOpenRollForward('${esc(yk)}')">⏩ Roll forward to ${esc(nextYk)}</button>`:""].join("");
+  const autoInfo=yk===cur&&y?.rolledFrom?.auto&&localStorage.teacherDashboardMsAutoNote!==yk?`<section class="card msAutoNote"><button type="button" class="msNoteClose" title="Hide" onclick="localStorage.teacherDashboardMsAutoNote='${esc(yk)}';render()">×</button><b>${esc(yk)} was set up for you</b> from your ${esc(y.rolledFrom.year)} sheets, in the same order, on this year's school days from your Calendar. Days before today show that copied pacing, not what you actually taught — tap any day to fix it. To redo it, use “Roll forward ${esc(y.rolledFrom.year)} → ${esc(yk)}”; it shows a preview and keeps what you've written unless you choose to replace it.</section>`:"";
+  const waitInfo=msWaitingForCalendar()?`<section class="card msAutoNote"><b>${esc(cur)} isn't set up yet.</b> Add your first and last student day for ${esc(cur)} on the Calendar page, then come back — this year's master schedule will be built from ${esc(msPrevYearKey(cur))} automatically. Or use Roll forward to do it now.</section>`:"";
   const yearOpts=keys.map(k=>`<option value="${k}" ${k===yk?"selected":""}>${esc(k)}</option>`).join("");
   const tabs=(y?.courses||[]).map(c=>`<button type="button" class="${c.id===course?.id?"active":""}" onclick="window.msSetCourse('${esc(c.id)}')">${esc(c.name)}</button>`).join("");
   const months=msMonths(yk),mi=Math.max(0,months.indexOf(msView.month)),unsure=msUnsureCount(course);
@@ -2490,8 +2536,8 @@ function masterSchedule(){
   const segNote=segs.length?`<span class="msSegNames">${segs.map(s=>`${esc(s.name)} ${esc(msShortDate(s.start))}–${esc(msShortDate(s.end))}${s.source==="estimate"?" (estimated)":""}`).join(" · ")}</span>`:"";
   const b=msBounds(yk);
   return `<header><div><h2>Master Schedule</h2><p>Your year at a glance — one column per month, one row per school day. Tap a day to edit it.</p></div>
-  <div class="msHeadActions"><label>School year<select id="msYearSelect" onchange="window.msSetYear(this.value)">${yearOpts}</select></label><button type="button" onclick="window.msOpenRollForward('${esc(nextExists?yk:rollFrom)}')">⏩ Roll forward to ${esc(nextExists?msNextYearKey(yk):next)}</button><button type="button" onclick="window.msPrint()" ${course?"":"disabled"}>🖨 Print</button></div></header>
-  <div class="msCourseTabs">${tabs}<button type="button" class="msAddCourse" onclick="window.msOpenCourseEditor('')">＋ Course</button></div>
+  <div class="msHeadActions"><label>School year<select id="msYearSelect" onchange="window.msSetYear(this.value)">${yearOpts}</select></label>${rollBtns}<button type="button" onclick="window.msPrint()" ${course?"":"disabled"}>🖨 Print</button></div></header>
+  ${autoInfo}${waitInfo}<div class="msCourseTabs">${tabs}<button type="button" class="msAddCourse" onclick="window.msOpenCourseEditor('')">＋ Course</button></div>
   ${course?`<section class="card msSheet">
     <div class="msSheetHead"><div class="msCourseBox"><small>– COURSE –</small><b>${esc(course.name)}</b></div><div class="msTitle">MASTER SCHEDULE <b>${esc(msYearLabel(yk))}</b></div><button type="button" class="msCourseEdit" onclick="window.msOpenCourseEditor('${esc(course.id)}')">✏️ Course</button></div>
     ${segNote?`<p class="small msSegLine">${segNote}</p>`:""}
@@ -2502,7 +2548,7 @@ function masterSchedule(){
   <p class="small">No School, In Service and Early Dismiss days also come straight from your Calendar page — change those there and this page follows. Debate, Acad. League and the other colors are saved here once per date for the whole school, and a course can use its own color on a day when it differs.${b.source==="calendar"?` This year runs ${esc(msShortDate(b.start))} – ${esc(msShortDate(b.end))}, from your Calendar's first and last student days.`:""}</p>
   ${unsure?`<p class="small msUnsureNote"><i class="msUnsureMark"></i> ${unsure} ${unsure===1?"day is":"days are"} marked with a small orange corner to double-check (mostly handwriting on your sheets that was hard to read). Tap one to see why; saving it with “Flag as unsure” unticked clears the mark.</p>`:""}</section>`;
 }
-window.msSetYear=v=>{msView.year=v;msView.month="";localStorage.teacherDashboardMsYear=v;render();};
+window.msSetYear=v=>{msView.year=v;msView.month="";render();};
 window.msSetCourse=id=>{msView.course=id;localStorage.teacherDashboardMsCourse=id;render();};
 window.msShiftMonth=n=>{const months=msMonths(msCurrentYear()),i=Math.max(0,months.indexOf(msView.month));msView.month=months[Math.min(months.length-1,Math.max(0,i+n))];render();};
 
@@ -2644,10 +2690,18 @@ window.msRollChoice=sel=>{
 };
 window.msCloseRoll=()=>{document.querySelector("#msRollModal")?.remove();msRollChoices=null;};
 window.msApplyRoll=(fromYk,toYk)=>{
-  const units=msRollPlan(fromYk,toYk),replace=!!document.getElementById("msRollReplace")?.checked;
-  const conflicts=units.reduce((t,u)=>t+u.conflicts,0);
+  const replace=!!document.getElementById("msRollReplace")?.checked;
+  const conflicts=msRollPlan(fromYk,toYk).reduce((t,u)=>t+u.conflicts,0);
   if(replace&&conflicts&&!confirm(`Replace ${conflicts} day${conflicts===1?"":"s"} you've already written in ${toYk}? This can't be undone.`))return;
-  const m=msStore();
+  const {kept}=msDoRoll(fromYk,toYk,replace);
+  msStore().years[toYk].rolledFrom={year:fromYk,at:new Date().toISOString()};
+  window.msCloseRoll();msView.year=toYk;msView.month="";
+  toast=`${toYk} master schedules ${kept?`updated (${kept} day${kept===1?"":"s"} you'd already written differently ${kept===1?"was":"were"} kept)`:"updated"}.`;
+  save();render();
+};
+// Copy the plan into the target year. Existing text is only replaced when replace=true.
+function msDoRoll(fromYk,toYk,replace){
+  const units=msRollPlan(fromYk,toYk),m=msStore();
   if(!m.years[toYk])m.years[toYk]={dayTypes:{},dayLabels:{},courses:[]};
   const y=m.years[toYk];let placed=0,kept=0;
   units.forEach(u=>{
@@ -2656,7 +2710,7 @@ window.msApplyRoll=(fromYk,toYk)=>{
     if(u.seg){const s=(c.segments||[]).find(s=>s.name===u.seg.name);if(s)s.from=u.src;}else c.from=u.src;
     u.placed.forEach(p=>{
       const old=c.cells[p.date];
-      if(old&&old.text&&!replace){kept++;return;}
+      if(old&&old.text&&!replace){if(old.text!==p.text)kept++;return;}
       if(!p.text&&!(old&&old.text))return;
       const cell={...(old||{})};if(p.text)cell.text=p.text;else delete cell.text;
       if(p.unsure)cell.unsure=`Carried over from ${fromYk} (${msShortDate(p.from)}): ${p.unsure}`;else if(old&&old.unsure&&replace)delete cell.unsure;
@@ -2664,11 +2718,9 @@ window.msApplyRoll=(fromYk,toYk)=>{
       placed++;
     });
   });
-  y.rolledFrom={year:fromYk,at:new Date().toISOString()};
-  msStore();window.msCloseRoll();msView.year=toYk;msView.month="";localStorage.teacherDashboardMsYear=toYk;
-  toast=`${toYk} master schedules ${kept?`updated (${kept} day${kept===1?"":"s"} you'd already written were kept)`:"created"}.`;
-  save();render();
-};
+  msStore();
+  return {placed,kept};
+}
 
 // --- Print ----------------------------------------------------------------------
 window.msPrint=()=>{
