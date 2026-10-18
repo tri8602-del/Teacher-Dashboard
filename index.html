@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.5.0</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.5.1</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -864,7 +864,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.5.0";
+const APP_VERSION="4.5.1";
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -873,6 +873,7 @@ const CLOUD_DOCUMENT="main";
 // V4.3.3: the home-screen icon and the browser-tab icon are Lindsay's artwork, in icons/ (linked in <head>).
 // V4.4.0: Lesson Plans can pin a plan to its day (📌). Pushing moves the other plans around pinned ones; pushes can be undone.
 // V4.4.2: removing a student from a PVAAS-reported class keeps them on the PVAAS page (class.rosterHistory).
+// V4.5.1: Lesson Plans icon is now 📝 and Master Schedule is 🗒️, so they no longer look like the Calendar 🗓️.
 // V4.5.0: pins are shared: a pin made in Lesson Plans or the Master Schedule shows in both and on the Calendar. The lessons themselves stay independent.
 // V4.4.1: a push stops at the first blank day: the plan just before it moves into it, later plans stay put.
 // V4.4.0: pinned plans are not listed in Still Needs to Be Done. The Master Schedule gets the same pins (📌, also in Select mode) and a Push.
@@ -1315,8 +1316,8 @@ const SIDEBAR_ITEMS=[
   ["live","🏠","Live Class"],
   ["reminders","📣","Reminders & Announcements"],
   ["students","👥","Students & Classes"],
-  ["lessonplans","🗓️","Lesson Plans"],
-  ["masterschedule","📆","Master Schedule"],
+  ["lessonplans","📝","Lesson Plans"],
+  ["masterschedule","🗒️","Master Schedule"],
   ["forms","📋","Forms & Records"],
   ["accommodations","🧩","Accommodations"],
   ["calendar","🗓️","Calendar"],
@@ -3179,7 +3180,7 @@ function spPinsOnDate(date){
 function spCalendarSnippet(date){const l=spPinsOnDate(date);if(!l.length)return "";const s=`📌 ${l[0].name}: ${l[0].text}`;return `<span class="noteSnippet pinSnippet" title="${esc(l.map(x=>`📌 ${x.name}: ${x.text}`).join("\n"))}">${esc(s)}${l.length>1?` +${l.length-1}`:""}</span>`}
 function spCalendarModalHTML(date){
   const l=spPinsOnDate(date);if(!l.length)return "";
-  return `<hr><b>📌 Pinned this day</b><p class="small" style="margin:4px 0 6px">From Lesson Plans and the Master Schedule. Change or unpin them there, or unpin here (both places update).</p><div class="calPinList">${l.map(x=>`<div class="calPinItem" data-key="${esc(x.key)}"><div><b>${esc(x.name)}</b>: ${esc(x.text)}</div><div class="calPinBtns">${x.lp?`<button type="button" onclick="window.spOpenLesson('${esc(x.rowId)}','${date}')">Lesson Plans</button>`:""}${x.ms?`<button type="button" onclick="window.spOpenMs('${esc(x.yk)}','${esc(x.courseId)}','${date}')">Master Schedule</button>`:""}<button type="button" onclick="window.spUnpin('${esc(x.key)}')">Unpin</button></div></div>`).join("")}</div>`;
+  return `<hr><b>📌 Pinned this day</b><p class="small" style="margin:4px 0 6px">From Lesson Plans and the Master Schedule. Change or unpin them there, or unpin here (both places update).</p><div class="calPinList">${l.map(x=>`<div class="calPinItem" data-key="${esc(x.key)}"><div><b>${esc(x.name)}</b>: ${esc(x.text)}</div><div class="calPinBtns">${x.lp?`<button type="button" onclick="window.spOpenLesson('${esc(x.rowId)}','${date}')">📝 Lesson Plans</button>`:""}${x.ms?`<button type="button" onclick="window.spOpenMs('${esc(x.yk)}','${esc(x.courseId)}','${date}')">🗒️ Master Schedule</button>`:""}<button type="button" onclick="window.spUnpin('${esc(x.key)}')">Unpin</button></div></div>`).join("")}</div>`;
 }
 window.spUnpin=key=>{
   const reg=spState(),p=reg[key];if(!p)return;const rows=spRows();
