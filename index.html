@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.5.1</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.6.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -864,7 +864,21 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.5.1";
+const APP_VERSION="4.6.0";
+// V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
+// dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
+// AI Accommodations are left out. The product profile can only be chosen on a local test server
+// (localhost / 127.0.0.1) with ?profile=product. Later jobs add the Settings switches and move her seeds.
+const PROFILES={
+  lindsay:{name:"lindsay",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:true,accommodations:true}},
+  product:{name:"product",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:false,accommodations:false}}
+};
+const PROFILE=(()=>{try{const q=new URLSearchParams(location.search).get("profile");if(q&&PROFILES[q]&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return PROFILES[q];}catch(e){}return PROFILES.lindsay})();
+// Core pages (always on): Live Class, Students & Classes, Calendar, Reminders & Announcements, Settings.
+const PAGE_MODULE={lessonplans:"lessonPlans",masterschedule:"masterSchedule",forms:"forms",accommodations:"accommodations",buttons:"quickButtons",grades:"gradeCalc",reports:"reports",pvaas:"pvaas"};
+function moduleOn(id){return PROFILE.modules[id]!==false}
+function pageOn(id){const m=PAGE_MODULE[id];return !m||moduleOn(m)}
+window.TD_PROFILE=PROFILE.name;
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1881,7 +1895,7 @@ function restoreRootFocus(keep){
   try{el.focus({preventScroll:true});if(keep.start!==null&&el.setSelectionRange)el.setSelectionRange(keep.start,keep.end);}catch(e){}
 }
 function loginHTML(){return `<div class="loginScreen"><section class="loginCard"><div class="loginLogo">${appLogoHTML()}</div><h1>Teacher Dashboard</h1><p>Sign in with Google to securely access your own Teacher Dashboard.</p><button class="googleBtn primary" onclick="window.signIn()" ${authBusy?"disabled":""}>${authBusy?"Signing in...":"G  Sign in with Google"}</button>${loginError?`<div class="loginError">${esc(loginError)}</div>`:""}<p class="small" style="margin-top:20px">Each Google account has its own private dashboard and browser backup.</p></section></div>`}
-function nav(){ensureSidebarSettings();const hidden=new Set(data.sidebarHidden||[]);return data.sidebarOrder.map(id=>SIDEBAR_ITEMS.find(x=>x[0]===id)).filter(Boolean).filter(x=>!hidden.has(x[0])).map(x=>`<button class="nav ${page===x[0]?"active":""}" data-page="${x[0]}">${x[1]} ${x[2]}</button>`).join("")}
+function nav(){ensureSidebarSettings();const hidden=new Set(data.sidebarHidden||[]);return data.sidebarOrder.map(id=>SIDEBAR_ITEMS.find(x=>x[0]===id)).filter(Boolean).filter(x=>!hidden.has(x[0])&&pageOn(x[0])).map(x=>`<button class="nav ${page===x[0]?"active":""}" data-page="${x[0]}">${x[1]} ${x[2]}</button>`).join("")}
 function classPeriodNumber(label){const m=String(label||"").match(/^(\d+)(?:st|nd|rd|th)?\s+Period\b/i);return m?Number(m[1]):null}
 function timeToMinutes(value,previous=-1){
   const m=String(value||"").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);if(!m)return null;
@@ -2216,7 +2230,7 @@ function lessonplans(){
     }).join('');
 
     const todoCard=lessonPlanTodoHTML(rows,dates);
-    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions"><button onclick="window.openDailySubPlanModal(window.lessonPlanWeekStart || window.localDateKey())">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button><button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>${lpUndoToastHTML()}`;
+    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions">${moduleOn("subPlans")?`<button onclick="window.openDailySubPlanModal(window.lessonPlanWeekStart || window.localDateKey())">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button>`:""}<button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>${lpUndoToastHTML()}`;
   }catch(err){
     console.error('Lesson Plans error:',err);
     return `<header><div><h2>Lesson Plans</h2><p>Something went wrong while loading this page.</p></div></header><section class="card"><p><b>The rest of your dashboard is safe.</b></p><p class="small">${esc(err?.message||String(err))}</p><button onclick="window.openLessonPlanManager()">Open Lesson Plan Customize</button></section>`;
@@ -3338,7 +3352,7 @@ window.msPrint=()=>{
   printDocument(`Master Schedule ${yk} - ${course.name}`,body,true);
 };
 
-function pageHTML(){return ({live,reminders:remindersPage,students,lessonplans,masterschedule:masterSchedule,groups,forms,accommodations,calendar,buttons:quickButtons,grades,reports,pvaas,settings})[page]()}
+function pageHTML(){if(!pageOn(page))page="live";return ({live,reminders:remindersPage,students,lessonplans,masterschedule:masterSchedule,groups,forms,accommodations,calendar,buttons:quickButtons,grades,reports,pvaas,settings})[page]()}
 
 function classroomToolsHTML(cls,block){
   ensureClassroomTools();
@@ -4812,7 +4826,7 @@ function calendar(){
   <section class="card calendarSettings"><div><label>🎒 First Student Day<br><input type="date" value="${esc(firstStudent)}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label></div><div><label>🏁 Last Student Day<br><input type="date" value="${esc(lastStudent)}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label></div><div class="calendarCount"><b>${countedDaysTotal()}</b><span>counted days</span></div></section>${upcomingHTML}
   <section class="card"><div class="calHead"><button onclick="window.changeMonth(-1)">◀</button><h3>${monthLabel}</h3><button onclick="window.changeMonth(1)">▶</button></div><div class="weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendarGrid">${cells}</div></section>
   <section class="card small"><b>Legend:</b> <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().instructional};background:${hexToRgba(calendarColors().instructional,.11)}"></span> Instructional &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().inservice};background:${hexToRgba(calendarColors().inservice,.11)}"></span> In-Service &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().noschool};background:${hexToRgba(calendarColors().noschool,.11)}"></span> No School &nbsp; <span style="display:inline-block;width:10px;height:10px;border-left:4px solid ${calendarColors().earlydismissal};background:${hexToRgba(calendarColors().earlydismissal,.11)}"></span> Early Dismissal &nbsp; <span class="markerCard" style="color:${calendarColors().nineWeeks}">Q-Beg</span> Beginning Nine Weeks &nbsp; <span class="markerCard" style="color:${calendarColors().endNineWeeks}">Q-End</span> End Nine Weeks &nbsp; <span class="markerCard" style="color:${calendarColors().trimester}">T-Beg</span> Beginning Trimester &nbsp; <span class="markerCard" style="color:${calendarColors().endTrimester}">T-End</span> End Trimester &nbsp; <span class="markerCard" style="color:${calendarColors().semester}">S-Beg</span> Beginning Semester &nbsp; <span class="markerCard" style="color:${calendarColors().endSemester}">S-End</span> End Semester &nbsp; 🎒 First Student Day &nbsp; 🏁 Last Student Day</section>
-  <section class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">🕐 Bell Schedules</h3><p class="small" style="margin:6px 0 0">Regular is the default for instructional days. Choose a different schedule only when that day is an exception.</p></div><button class="primary" onclick="window.openBellScheduleModal()">＋ Add Custom Schedule</button></div><div class="bellScheduleList">${bellSchedulesList()}</div></section>`;
+  ${moduleOn("bellSchedules")?`<section class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">🕐 Bell Schedules</h3><p class="small" style="margin:6px 0 0">Regular is the default for instructional days. Choose a different schedule only when that day is an exception.</p></div><button class="primary" onclick="window.openBellScheduleModal()">＋ Add Custom Schedule</button></div><div class="bellScheduleList">${bellSchedulesList()}</div></section>`:""}`;
 }
 function bellSchedulesList(){
   ensureBellSchedules();
@@ -5063,7 +5077,7 @@ function sidebarSettingsHTML(){
   ensureSidebarSettings();
   const hidden=new Set(data.sidebarHidden||[]);
   return data.sidebarOrder.map((id,index)=>{
-    const item=SIDEBAR_ITEMS.find(x=>x[0]===id);if(!item)return "";
+    const item=SIDEBAR_ITEMS.find(x=>x[0]===id);if(!item||!pageOn(id))return "";
     const fixed=id==="live"||id==="settings";
     return `<div class="sidebarEditorRow ${hidden.has(id)?"isHidden":""} ${fixed?"isFixed":""}" draggable="true" data-sidebar-drag-id="${id}" ondragstart="window.sidebarDragStart(event,'${id}')" ondragover="window.sidebarDragOver(event)" ondrop="window.sidebarDrop(event,'${id}')" ondragend="window.sidebarDragEnd(event)"><div class="sidebarEditorGrip" title="Drag to reorder">☰</div><label class="sidebarEditorLabel"><input type="checkbox" ${hidden.has(id)?"":"checked"} ${fixed?"disabled checked":""} onchange="window.toggleSidebarItem('${id}',this.checked)"><span>${item[1]} ${item[2]}</span></label><div class="sidebarEditorActions"><button type="button" title="Move up" ${index===0?"disabled":""} onclick="window.moveSidebarItem('${id}',-1)">↑</button><button type="button" title="Move down" ${index===data.sidebarOrder.length-1?"disabled":""} onclick="window.moveSidebarItem('${id}',1)">↓</button></div></div>`;
   }).join("");
