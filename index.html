@@ -6214,17 +6214,11 @@ function calcSettings(){data.calcSettings=data.calcSettings&&typeof data.calcSet
   const teacher=s.teacher||"Lindsay Shay";
   return {cost:Number.isFinite(Number(s.cost))&&s.cost!==""?Number(s.cost):150,schoolYear:s.schoolYear||`${y}-${String((y+1)%100).padStart(2,"0")}`,teacher,
     closingName:s.closingName||(teacher==="Lindsay Shay"?"Mrs. Lindsay Shay":teacher),closingTitle:s.closingTitle??"Mathematics Teacher",
-    sigMode:["default","custom","none"].includes(s.sigMode)?s.sigMode:"default",signature:s.signature||""};}
-// V4.8.1: signature shown under "Sincerely," — her own uploaded/drawn image, or the one from her original contract.
+    sigMode:s.sigMode==="none"?"none":"custom",signature:s.signature||""};}
+// V4.8.1: signature shown under "Sincerely," — her own uploaded/drawn image (kept only in her account data).
 let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
-const CALC_DEFAULT_SIG="assets/signature-lshay.png";
-const calcSigCache={};
-// Printed pages get the signature inlined, so it is there even before/without the image download in the print window.
-function calcSigForPrint(s=calcSettings()){const u=calcSignatureSrc(s);if(!u||u.startsWith("data:"))return u;
-  if(!calcSigCache[u]){calcSigCache[u]="loading";fetch(u).then(r=>r.ok?r.blob():null).then(b=>{if(!b)return;const f=new FileReader();f.onload=()=>{calcSigCache[u]=f.result;};f.readAsDataURL(b);}).catch(()=>{delete calcSigCache[u];});}
-  return calcSigCache[u]&&calcSigCache[u]!=="loading"?calcSigCache[u]:u;}
-function calcSignatureSrc(s=calcSettings()){if(s.sigMode==="none")return "";if(s.sigMode==="custom"&&s.signature)return s.signature;
-  return PROFILE===PROFILES.lindsay?new URL(CALC_DEFAULT_SIG,location.href.split("?")[0].split("#")[0]).href:"";}
+function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
+function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
 function calcLetter(c,st){const s=calcSettings(),cost=calcMoney(s.cost),color=c.color?`${c.color} `:"";return {version:2,
   greeting:`Dear Parent or Guardian of ${st},`,
@@ -6303,7 +6297,7 @@ window.printCalcList=()=>{ensureCalculators();const list=calcShownIds().map(find
   <script>(function(){var e=document.getElementById("clFit"),s=10;e.style.width="${W}px";while(e.scrollHeight>${Math.floor(H)}-6&&s>4.5){s-=.25;e.style.fontSize=s+"pt";}e.style.width="";e.dataset.fit=s;})();<\/script>`,land);};
 window.saveCalcSettings=()=>{const c=Number($("#calcSetCost").value);if(!Number.isFinite(c)||c<0){alert("Enter a replacement cost.");return;}
   const old=calcSettings();data.calcSettings={...data.calcSettings,cost:c,schoolYear:$("#calcSetYear").value.trim(),teacher:$("#calcSetTeacher").value.trim(),closingName:$("#calcSetClosing").value.trim(),closingTitle:$("#calcSetTitle").value.trim(),sigMode:$("#calcSetSigMode").value};
-  if(data.calcSettings.sigMode==="custom"&&!old.signature){data.calcSettings.sigMode=old.sigMode;}save();showToast("Contract settings saved");};
+save();showToast("Contract settings saved");};
 // Signature image: uploaded photo/scan (paper made transparent) or drawn with a finger; kept small (PNG, ≤480×200).
 function calcSigFromSource(src,w,h,threshold){const sc=Math.min(1,960/w,400/h),cw=Math.max(1,Math.round(w*sc)),ch=Math.max(1,Math.round(h*sc));
   const cv=document.createElement("canvas");cv.width=cw;cv.height=ch;const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,cw,ch);x.drawImage(src,0,0,cw,ch);
@@ -6323,7 +6317,7 @@ window.openCalcSigDraw=()=>{calcModal("","Draw your signature",`<p class="small"
   cv.onpointermove=e=>{if(!dn)return;const [a,b]=pt(e);x.lineTo(a,b);x.stroke();};cv.onpointerup=cv.onpointercancel=()=>{dn=false;};};
 window.clearCalcSigPad=()=>{const cv=$("#calcSigPad");if(!cv)return;const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,cv.width,cv.height);delete cv.dataset.ink;};
 window.saveCalcSigDraw=()=>{const cv=$("#calcSigPad");if(!cv?.dataset.ink){alert("Please sign first.");return;}const u=calcSigFromSource(cv,cv.width,cv.height,230);window.closeCalcModal();calcStoreSig(u);};
-window.removeCalcSig=()=>{if(!confirm("Remove your uploaded signature?"))return;calcSettings();delete data.calcSettings.signature;data.calcSettings.sigMode="default";save();};
+window.removeCalcSig=()=>{if(!confirm("Remove your uploaded signature?"))return;calcSettings();delete data.calcSettings.signature;data.calcSettings.sigMode="custom";save();};
 window.openCalcDetail=id=>{calcOpenId=id;render();};
 window.closeCalcDetail=()=>{calcOpenId=null;render();};
 window.toggleCalcSel=(id,on)=>{on?calcSelected.add(id):calcSelected.delete(id);render();};
@@ -6405,9 +6399,9 @@ function calculatorsPage(){
     <label style="flex:1;min-width:160px">Teacher name<br><input id="calcSetTeacher" value="${esc(S.teacher)}" style="width:100%"></label>
     <label style="flex:1;min-width:160px">Letter signed as<br><input id="calcSetClosing" value="${esc(S.closingName)}" style="width:100%"></label>
     <label style="flex:1;min-width:160px">Title under name<br><input id="calcSetTitle" value="${esc(S.closingTitle)}" style="width:100%"></label>
-    <label>Signature<br><select id="calcSetSigMode" onchange="window.saveCalcSettings()"><option value="default" ${S.sigMode==="default"?"selected":""}>From my original contract</option>${S.signature?`<option value="custom" ${S.sigMode==="custom"?"selected":""}>My uploaded/drawn signature</option>`:""}<option value="none" ${S.sigMode==="none"?"selected":""}>No signature image</option></select></label>
+    <label>Signature<br><select id="calcSetSigMode" onchange="window.saveCalcSettings()"><option value="custom" ${S.sigMode==="custom"?"selected":""}>My uploaded/drawn signature</option><option value="none" ${S.sigMode==="none"?"selected":""}>No signature image</option></select></label>
     <button onclick="window.saveCalcSettings()">Save</button></div>
-    <div class="calcSigSet">${calcSignatureSrc(S)?`<img src="${esc(calcSignatureSrc(S))}" alt="Signature preview" class="calcSigPreview">`:`<span class="small">No signature image</span>`}
+    <div class="calcSigSet">${calcSignatureSrc(S)?`<img src="${esc(calcSignatureSrc(S))}" alt="Signature preview" class="calcSigPreview">`:`<span class="small">${S.sigMode==="none"?"No signature image":"No signature yet — upload or draw one"}</span>`}
       <div><button onclick="document.getElementById('calcSigFile').click()">📷 Upload signature</button> <button onclick="window.openCalcSigDraw()">✍️ Draw signature</button>${S.signature?` <button onclick="window.removeCalcSig()">Remove mine</button>`:""}
       <input type="file" id="calcSigFile" accept="image/*" hidden onchange="window.calcSigUpload(this)"><div class="small">Sign on white paper and take a photo; the paper is removed automatically. New contracts use the new wording and signature; contracts already sent keep their wording.</div></div></div></details>
   ${calcOpenId&&findCalc(calcOpenId)?calcDetailHTML(findCalc(calcOpenId)):""}
