@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.6.1</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.7.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -844,7 +844,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 </style>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {getFirestore,doc,getDoc,onSnapshot,runTransaction} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,getDoc,setDoc,deleteDoc,onSnapshot,runTransaction} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {getAuth,GoogleAuthProvider,onAuthStateChanged,signInWithPopup,signInWithRedirect,getRedirectResult,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig={
@@ -864,18 +864,18 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.6.1";
+const APP_VERSION="4.7.0";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
 // (localhost / 127.0.0.1) with ?profile=product. Later jobs add the Settings switches and move her seeds.
 const PROFILES={
-  lindsay:{name:"lindsay",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:true,accommodations:true}},
-  product:{name:"product",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:false,accommodations:false}}
+  lindsay:{name:"lindsay",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:true,accommodations:true,calculators:true}},
+  product:{name:"product",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:false,accommodations:false,calculators:false}}
 };
 const PROFILE=(()=>{try{const q=new URLSearchParams(location.search).get("profile");if(q&&PROFILES[q]&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return PROFILES[q];}catch(e){}return PROFILES.lindsay})();
 // Core pages (always on): Live Class, Students & Classes, Calendar, Reminders & Announcements, Settings.
-const PAGE_MODULE={lessonplans:"lessonPlans",masterschedule:"masterSchedule",forms:"forms",accommodations:"accommodations",buttons:"quickButtons",grades:"gradeCalc",reports:"reports",pvaas:"pvaas"};
+const PAGE_MODULE={lessonplans:"lessonPlans",masterschedule:"masterSchedule",forms:"forms",accommodations:"accommodations",buttons:"quickButtons",grades:"gradeCalc",reports:"reports",pvaas:"pvaas",calculators:"calculators"};
 function moduleOn(id){return PROFILE.modules[id]!==false}
 function pageOn(id){const m=PAGE_MODULE[id];return !m||moduleOn(m)}
 window.TD_PROFILE=PROFILE.name;
@@ -1339,6 +1339,7 @@ const SIDEBAR_ITEMS=[
   ["grades","📚","Grade Calculator"],
   ["reports","📊","Reports"],
   ["pvaas","📈","PVAAS Reporting"],
+  ["calculators","🧮","Graphing Calculators"],
   ["settings","⚙️","Settings"]
 ];
 function ensureSidebarSettings(){
@@ -1434,7 +1435,7 @@ function bellScheduleOptions(selectedId){
 function normalizeLoadedDashboard(raw){
   const x=(raw&&typeof raw==="object"&&!Array.isArray(raw))?raw:{};
   const out={...structuredClone(seed),...x};
-  ["classes","students","groups","forms","accommodations","accommodationSources","events","notes","schoolDays","gradeCourses","lessonPlanSyncGroups"].forEach(k=>{if(!Array.isArray(out[k]))out[k]=[];});
+  ["classes","students","groups","forms","accommodations","accommodationSources","events","notes","schoolDays","gradeCourses","lessonPlanSyncGroups","calculators"].forEach(k=>{if(!Array.isArray(out[k]))out[k]=[];});
   if(!Array.isArray(out.buttons)||!out.buttons.length)out.buttons=structuredClone(seed.buttons);
   if(!Array.isArray(out.bellSchedules)||!out.bellSchedules.length)out.bellSchedules=defaultBellSchedules();
   ["calendarSettings","pvaasSettings","googleClassroom","calendarColors"].forEach(k=>{const v=x[k];out[k]={...structuredClone(seed[k]),...((v&&typeof v==="object"&&!Array.isArray(v))?v:{})};});
@@ -1578,7 +1579,12 @@ function isEditingNow(){
   if(el.isContentEditable)return true;
   return /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)&&!/^(checkbox|radio|button|submit|file)$/i.test(el.type||"");
 }
-function renderUnlessTypingLesson(){if(!document.querySelector('.lessonCell textarea:focus'))render();}
+// V4.7.0: a background re-render (sync status, live update) between a finger/mouse press and its release
+// replaced the button under it, so the tap was lost (e.g. "Add" calculator did nothing). Wait for the release.
+let pointerHeld=false,renderAfterRelease=false;
+document.addEventListener("pointerdown",()=>{pointerHeld=true},true);
+["pointerup","pointercancel"].forEach(t=>document.addEventListener(t,()=>{pointerHeld=false;if(renderAfterRelease){renderAfterRelease=false;setTimeout(renderUnlessTypingLesson,0);}},true));
+function renderUnlessTypingLesson(){if(pointerHeld){renderAfterRelease=true;return;}if(!document.querySelector('.lessonCell textarea:focus'))render();}
 function dashboardHasContent(x){return !!(x&&((x.classes||[]).some(c=>c&&c.id!=="c1")||(x.students||[]).some(s=>s&&!/^s[123]$/.test(String(s.id)))||(x.accommodations||[]).length||(x.events||[]).length));}
 function adoptCloudData(remote){
   const avatar=data.profileAvatar||loadLocalForUser().profileAvatar||"";
@@ -3352,7 +3358,7 @@ window.msPrint=()=>{
   printDocument(`Master Schedule ${yk} - ${course.name}`,body,true);
 };
 
-function pageHTML(){if(!pageOn(page))page="live";return ({live,reminders:remindersPage,students,lessonplans,masterschedule:masterSchedule,groups,forms,accommodations,calendar,buttons:quickButtons,grades,reports,pvaas,settings})[page]()}
+function pageHTML(){if(!pageOn(page))page="live";return ({live,reminders:remindersPage,students,lessonplans,masterschedule:masterSchedule,groups,forms,accommodations,calendar,buttons:quickButtons,grades,reports,pvaas,calculators:calculatorsPage,settings})[page]()}
 
 function classroomToolsHTML(cls,block){
   ensureClassroomTools();
@@ -5720,7 +5726,7 @@ window.openStudentModal=id=>{
       <label style="flex:1;min-width:170px">Last Name<br><input id="editStudentLastName" value="${esc(st.lastName||"")}" style="width:100%"></label>
     </div>
     <details class="collapsibleFieldset"><summary>Classes</summary><div class="collapsibleInner"><p class="small">Check every class this student belongs to.</p><div class="checkGrid">${data.classes.map(c=>`<label><input type="checkbox" name="studentClass" value="${esc(c.id)}" ${(c.studentIds||[]).includes(st.id)?"checked":""}> ${esc(c.name)}</label>`).join("")||"<span class='small'>No classes yet. Add a class first.</span>"}</div></div></details>
-    <details class="collapsibleFieldset"><summary>Do Not Seat With</summary><div class="collapsibleInner"><p class="small">These restrictions apply across all classes and are used when making groups.</p><div class="checkGrid">${sortedStudents(data.students.filter(other=>other.id!==st.id)).map(other=>`<label><input type="checkbox" name="studentRestriction" value="${esc(other.id)}" ${(st.doNotSeatWith||[]).includes(other.id)?"checked":""}> ${esc(studentDisplayName(other))}</label>`).join("")||"<span class='small'>Add other students first.</span>"}</div></div></details><div style="margin-top:16px"><button class="primary" onclick="window.saveStudent('${st.id}')">Save Student</button> <button onclick="window.closeStudentModal()">Cancel</button></div></div></div>`);
+    <details class="collapsibleFieldset"><summary>Do Not Seat With</summary><div class="collapsibleInner"><p class="small">These restrictions apply across all classes and are used when making groups.</p><div class="checkGrid">${sortedStudents(data.students.filter(other=>other.id!==st.id)).map(other=>`<label><input type="checkbox" name="studentRestriction" value="${esc(other.id)}" ${(st.doNotSeatWith||[]).includes(other.id)?"checked":""}> ${esc(studentDisplayName(other))}</label>`).join("")||"<span class='small'>Add other students first.</span>"}</div></div></details>${studentCalcHTML(st.id)}<div style="margin-top:16px"><button class="primary" onclick="window.saveStudent('${st.id}')">Save Student</button> <button onclick="window.closeStudentModal()">Cancel</button></div></div></div>`);
 }
 window.closeStudentModal=()=>document.querySelector("#studentModal")?.remove();
 window.saveStudent=id=>{
@@ -6175,6 +6181,164 @@ window.closeAccommodationPrintMenu=()=>document.querySelector("#accommodationPri
 window.printAccommodationFromMenu=(tracker)=>{const id=document.getElementById("accommodationPrintStudent")?.value;if(!id){alert("Choose a student first.");return;}window.closeAccommodationPrintMenu();window.printAccommodationStudent(id,tracker);};
 window.printAccommodationClassFromMenu=()=>{const id=document.getElementById("accommodationPrintClass")?.value;if(!id){alert("Choose a class first.");return;}window.closeAccommodationPrintMenu();window.printAccommodationClassMatrix(id);};
 
+
+// V4.7.0: Graphing Calculators (add-on module "calculators"). Each calculator: JM #, serial, color, who has it,
+// sign-out date, contract received (+date), contract scan, and a history of past sign-outs.
+// Scans are NOT kept in the dashboard document (it has a 1 MB limit and is also stored in localStorage).
+// Each scan is its own Firestore document next to it: users/{uid}/dashboards/calcScan_<id>, written only
+// when it is uploaded. Photos are shrunk to a JPEG first; PDFs must be under about 700 KB.
+const SCAN_MAX_CHARS=900000;
+const scanCache=new Map();
+const calcDraft={};
+window.calcDraftSet=el=>{calcDraft[el.id]=el.value;};
+let calcFilter="all",calcSearch="",calcYear="",calcSort="jm";
+const CALC_DEFAULT_COLORS=["White CE","Green CE","Yellow"];
+function calcColors(){const extra=Array.isArray(data.calculatorColors)?data.calculatorColors:[];return [...new Set([...CALC_DEFAULT_COLORS,...extra,...(data.calculators||[]).map(c=>c.color).filter(Boolean)])];}
+function calcColorSelect(id,cur){return `<select id="${id}" style="width:100%" onchange="window.calcColorChanged(this)"><option value="">Choose…</option>${calcColors().map(c=>`<option ${c===cur?"selected":""}>${esc(c)}</option>`).join("")}<option value="__new">＋ New color…</option></select>`}
+window.calcColorChanged=el=>{if(el.value!=="__new"){if(el.id==="calcColor")calcDraft.calcColor=el.value;return;}const n=(prompt("New color name")||"").trim();if(!n){el.value="";return;}data.calculatorColors=[...new Set([...(Array.isArray(data.calculatorColors)?data.calculatorColors:[]),n])];save();const o=document.createElement("option");o.textContent=n;el.insertBefore(o,el.lastElementChild);el.value=n;if(el.id==="calcColor")calcDraft.calcColor=n;};
+function scanRef(id){return currentUser?doc(db,"users",currentUser.uid,CLOUD_SUBCOLLECTION,"calcScan_"+id):null}
+function ensureCalculators(){
+  data.calculators=Array.isArray(data.calculators)?data.calculators:[];
+  data.calculators.forEach(c=>{c.history=Array.isArray(c.history)?c.history:[];});
+}
+function calcHolder(c){if(!c.out)return "";const st=c.out.studentId?data.students.find(s=>s.id===c.out.studentId):null;return st?studentDisplayName(st):(c.out.name||"Unknown");}
+function calcFmtDate(k){if(!k)return "";const [y,m,d]=String(k).split("-").map(Number);return y?new Date(y,m-1,d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):""}
+function calcStatus(c){if(!c.out)return ["available","Available"];if(!c.out.contract)return ["missing","Signed out · no contract"];return ["out","Signed out"];}
+function calculatorsPage(){
+  ensureCalculators();
+  const q=calcSearch.trim().toLowerCase();
+  const list=data.calculators.filter(c=>{
+    const s=calcStatus(c)[0];
+    if(calcFilter==="available"&&s!=="available")return false;
+    if(calcFilter==="out"&&s==="available")return false;
+    if(calcFilter==="missing"&&s!=="missing")return false;
+    if(calcYear&&String(c.year||"")!==calcYear)return false;
+    if(q&&!(`${c.jm} ${c.serial} ${calcHolder(c)}`.toLowerCase().includes(q)))return false;
+    return true;
+  }).sort((a,b)=>(calcSort==="year"?(Number(a.year)||9999)-(Number(b.year)||9999):0)||String(a.jm).localeCompare(String(b.jm),undefined,{numeric:true}));
+  const n=k=>data.calculators.filter(c=>k==="out"?calcStatus(c)[0]!=="available":calcStatus(c)[0]===k).length;
+  const rows=list.map(c=>{
+    const [s,label]=calcStatus(c),o=c.out;
+    const scan=o?.scan;
+    return `<div class="calcItem calc-${s}" data-calc="${esc(c.id)}">
+      <div class="calcMain"><div><b>🧮 JM ${esc(c.jm||"—")}</b> <span class="small">S/N ${esc(c.serial||"—")}${c.color?` · ${esc(c.color)}`:""}${c.year?` · bought ${esc(c.year)}`:""}</span></div>${c.notes?`<div class="small calcNotes">📝 ${esc(c.notes)}</div>`:""}
+      <div class="calcStatus">${esc(label)}${o?` — <b>${esc(calcHolder(c))}</b> since ${esc(calcFmtDate(o.date))}`:""}</div></div>
+      ${o?`<div class="calcContract"><label><input type="checkbox" ${o.contract?"checked":""} onchange="window.setCalcContract('${c.id}',this.checked)" aria-label="Contract received JM ${esc(c.jm)}"> Contract received</label>${o.contract?` <input type="date" value="${esc(o.contractDate||"")}" onchange="window.setCalcContractDate('${c.id}',this.value)" aria-label="Contract date">`:""}
+        <div class="calcScan">${scan?`📄 ${esc(scan.name||"Contract scan")} <button onclick="window.viewCalcScan('${c.id}')">View</button> <button onclick="window.pickCalcScan('${c.id}',true)">📷 Replace</button> <button onclick="window.pickCalcScan('${c.id}',false)">📎 Replace with file</button> <button onclick="window.deleteCalcScan('${c.id}')">Delete scan</button>`:`<button onclick="window.pickCalcScan('${c.id}',true)">📷 Scan contract</button> <button onclick="window.pickCalcScan('${c.id}',false)">📎 Upload file</button>`}</div></div>`:""}
+      <div class="calcActions">${o?`<button class="primary" onclick="window.checkInCalc('${c.id}')">Check In</button>`:`<button class="primary" onclick="window.openCalcSignOut('${c.id}')">Sign Out</button>`} <button onclick="window.openCalcEdit('${c.id}')">Edit</button> <button onclick="window.deleteCalc('${c.id}')">Delete</button></div>
+      ${c.history.length?`<details class="calcHistory"><summary>History (${c.history.length})</summary>${c.history.slice().reverse().map(h=>`<div class="small">${esc(h.name)} · ${esc(calcFmtDate(h.date))} → ${esc(calcFmtDate(h.returned))}${h.contract?" · contract ✓":" · no contract"}${h.condOut?` · out: ${esc(h.condOut)}`:""}${h.condIn?` · back: ${esc(h.condIn)}`:""}${h.scan?` · <a href="#" onclick="window.viewCalcScan('${c.id}','${h.id}');return false">scan</a>`:""}</div>`).join("")}</details>`:""}
+    </div>`}).join("")||`<p class="small">${data.calculators.length?"No calculators match.":"No calculators yet. Add one above."}</p>`;
+  return `<header><h2>🧮 Graphing Calculators</h2><p class="small">${data.calculators.length} total · ${n("available")} available · ${n("out")} signed out · ${n("missing")} missing a contract</p></header>
+  <section class="card"><h3 style="margin-top:0">Add Calculator</h3><div class="add" style="flex-wrap:wrap;align-items:end">
+    <label style="flex:1;min-width:110px">JM Number<br><input id="calcJm" style="width:100%" value="${esc(calcDraft.calcJm||"")}" oninput="window.calcDraftSet(this)"></label>
+    <label style="flex:1;min-width:140px">Serial Number<br><input id="calcSerial" style="width:100%" value="${esc(calcDraft.calcSerial||"")}" oninput="window.calcDraftSet(this)"></label>
+    <label style="flex:1;min-width:120px">Color<br>${calcColorSelect("calcColor",calcDraft.calcColor||"")}</label>
+    <label style="flex:1;min-width:90px">Year Purchased<br><input id="calcYearIn" type="number" inputmode="numeric" min="1990" max="2100" placeholder="${new Date().getFullYear()}" style="width:100%" value="${esc(calcDraft.calcYearIn||"")}" oninput="window.calcDraftSet(this)"></label>
+    <button class="primary" onclick="window.addCalc()">Add</button></div></section>
+  <section class="card"><div class="add" style="flex-wrap:wrap;align-items:end">
+    <label>Show<br><select onchange="window.setCalcFilter(this.value)">${[["all","All"],["available","Available"],["out","Signed out"],["missing","Missing contract"]].map(([v,l])=>`<option value="${v}" ${calcFilter===v?"selected":""}>${l}</option>`).join("")}</select></label>
+    <label>Year<br><select onchange="window.setCalcYear(this.value)"><option value="">All years</option>${[...new Set(data.calculators.map(c=>String(c.year||"")).filter(Boolean))].sort().map(y=>`<option ${calcYear===y?"selected":""}>${esc(y)}</option>`).join("")}</select></label>
+    <label>Sort<br><select onchange="window.setCalcSort(this.value)"><option value="jm" ${calcSort==="jm"?"selected":""}>JM #</option><option value="year" ${calcSort==="year"?"selected":""}>Year purchased</option></select></label>
+    <label style="flex:1;min-width:180px">Search JM #, serial or student<br><input id="calcSearch" type="search" value="${esc(calcSearch)}" oninput="window.setCalcSearch(this.value)" style="width:100%"></label></div>
+  <div class="calcList">${rows}</div></section>
+  <input type="file" id="calcScanCamera" accept="image/*" capture="environment" hidden onchange="window.calcScanPicked(this)">
+  <input type="file" id="calcScanFile" accept="image/*,application/pdf" hidden onchange="window.calcScanPicked(this)">`;
+}
+function findCalc(id){ensureCalculators();return data.calculators.find(c=>c.id===id)}
+window.setCalcFilter=v=>{calcFilter=v;render();}
+window.setCalcYear=v=>{calcYear=v;render();}
+window.setCalcSort=v=>{calcSort=v;render();}
+function calcYearVal(id){const v=($(id)?.value||"").trim();return /^\d{4}$/.test(v)?v:"";}
+window.setCalcSearch=v=>{calcSearch=v;clearTimeout(window.__calcSearchT);window.__calcSearchT=setTimeout(()=>{render();const el=$("#calcSearch");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},250);}
+window.addCalc=()=>{
+  ensureCalculators();const jm=$("#calcJm")?.value.trim()||"",serial=$("#calcSerial")?.value.trim()||"",color=($("#calcColor")?.value||"").replace("__new","");const year=calcYearVal("#calcYearIn");
+  if(!jm&&!serial){alert("Enter a JM number or serial number.");return;}
+  if(jm&&data.calculators.some(c=>String(c.jm).toLowerCase()===jm.toLowerCase())&&!confirm(`JM ${jm} is already in the list. Add it anyway?`))return;
+  for(const k of Object.keys(calcDraft))delete calcDraft[k];
+  data.calculators.push({id:uid(),jm,serial,color,year,out:null,history:[],created:new Date().toISOString()});
+  save();showToast(`Added calculator JM ${jm||serial}`);
+}
+function calcModal(id,title,body){document.querySelector("#calcModal")?.remove();document.body.insertAdjacentHTML("beforeend",`<div id="calcModal" class="modalbg"><div class="modal"><h3>${title}</h3>${body}</div></div>`);}
+window.closeCalcModal=()=>document.querySelector("#calcModal")?.remove();
+window.openCalcEdit=id=>{const c=findCalc(id);if(!c)return;calcModal(id,"Edit Calculator",`<label>JM Number<br><input id="calcEditJm" value="${esc(c.jm)}" style="width:100%"></label><label>Serial Number<br><input id="calcEditSerial" value="${esc(c.serial)}" style="width:100%"></label><label>Color<br>${calcColorSelect("calcEditColor",c.color)}</label><label>Year Purchased<br><input id="calcEditYear" type="number" inputmode="numeric" value="${esc(c.year||"")}" style="width:100%"></label><label>Condition notes<br><textarea id="calcEditNotes" rows="3" style="width:100%" placeholder="Scratches, missing cover, battery…">${esc(c.notes||"")}</textarea></label><div style="margin-top:14px"><button class="primary" onclick="window.saveCalcEdit('${id}')">Save</button> <button onclick="window.closeCalcModal()">Cancel</button></div>`);}
+window.saveCalcEdit=id=>{const c=findCalc(id);if(!c)return;c.jm=$("#calcEditJm").value.trim();c.serial=$("#calcEditSerial").value.trim();c.color=$("#calcEditColor").value.replace("__new","");c.year=calcYearVal("#calcEditYear");c.notes=$("#calcEditNotes").value.trim();save();window.closeCalcModal();render();}
+window.openCalcSignOut=id=>{const c=findCalc(id);if(!c)return;
+  calcModal(id,`Sign Out JM ${esc(c.jm)}`,`<label>Student<br><select id="calcStudent" style="width:100%" onchange="document.getElementById('calcOtherWrap').hidden=this.value!=='__other'"><option value="">Choose a student…</option>${sortedStudents(data.students).map(s=>`<option value="${esc(s.id)}">${esc(studentDisplayName(s))}</option>`).join("")}<option value="__other">Someone else (type a name)</option></select></label>
+  <label id="calcOtherWrap" hidden>Name<br><input id="calcOtherName" style="width:100%" placeholder="Name"></label>
+  <label>Sign-out date<br><input id="calcOutDate" type="date" value="${localDateKey()}"></label>
+  <label style="display:block;margin-top:8px"><input type="checkbox" id="calcOutContract"> Contract received</label>
+  <label>Condition at sign-out (optional)<br><textarea id="calcOutCond" rows="2" style="width:100%"></textarea></label>
+  <div style="margin-top:14px"><button class="primary" onclick="window.saveCalcSignOut('${id}')">Sign Out</button> <button onclick="window.closeCalcModal()">Cancel</button></div>`);}
+window.saveCalcSignOut=id=>{const c=findCalc(id);if(!c)return;const sel=$("#calcStudent").value;let studentId="",name="";
+  if(sel==="__other"){name=$("#calcOtherName").value.trim();if(!name){alert("Type a name.");return;}}
+  else if(sel){studentId=sel;name=studentDisplayName(data.students.find(s=>s.id===sel)||{});}
+  else{alert("Choose a student.");return;}
+  const contract=$("#calcOutContract").checked;
+  c.out={id:uid(),studentId,name,date:$("#calcOutDate").value||localDateKey(),contract,contractDate:contract?localDateKey():"",scan:null,condOut:$("#calcOutCond").value.trim()};
+  save();window.closeCalcModal();showToast(`JM ${c.jm} signed out to ${name}`);}
+window.checkInCalc=id=>{const c=findCalc(id);if(!c?.out)return;const who=calcHolder(c);
+  calcModal(id,`Check In JM ${esc(c.jm)}`,`<p>From <b>${esc(who)}</b>. The sign-out stays in the history.</p><label>Return date<br><input id="calcInDate" type="date" value="${localDateKey()}"></label><label>Condition on return (optional)<br><textarea id="calcInCond" rows="2" style="width:100%"></textarea></label><div style="margin-top:14px"><button class="primary" onclick="window.saveCalcCheckIn('${id}')">Check In</button> <button onclick="window.closeCalcModal()">Cancel</button></div>`);}
+window.saveCalcCheckIn=id=>{const c=findCalc(id);if(!c?.out)return;const who=calcHolder(c);
+  c.history.push({...c.out,name:who,returned:$("#calcInDate").value||localDateKey(),condIn:$("#calcInCond").value.trim()});c.out=null;window.closeCalcModal();save();showToast(`JM ${c.jm} checked in`);}
+window.setCalcContract=(id,on)=>{const c=findCalc(id);if(!c?.out)return;c.out.contract=!!on;c.out.contractDate=on?(c.out.contractDate||localDateKey()):"";save();render();}
+window.setCalcContractDate=(id,v)=>{const c=findCalc(id);if(!c?.out)return;c.out.contractDate=v;save();}
+window.deleteCalc=async id=>{const c=findCalc(id);if(!c)return;if(!confirm(`Delete calculator JM ${c.jm} and its history and scans?`))return;
+  const scans=[c.out?.scan,...c.history.map(h=>h.scan)].filter(Boolean);
+  data.calculators=data.calculators.filter(x=>x!==c);save();render();
+  for(const s of scans){try{await deleteDoc(scanRef(s.id));}catch(e){console.warn("scan delete",e);}}}
+let calcScanTarget=null;
+window.pickCalcScan=(id,camera)=>{calcScanTarget=id;const el=$(camera?"#calcScanCamera":"#calcScanFile");if(el){el.value="";el.click();}}
+function fileToDataUrl(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(f);})}
+async function shrinkImage(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("That picture could not be opened."));i.src=url;});
+    for(const [max,q] of [[1800,.72],[1500,.65],[1200,.6],[1000,.55],[800,.5]]){
+      const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const cv=document.createElement("canvas");
+      cv.width=Math.round(img.naturalWidth*k);cv.height=Math.round(img.naturalHeight*k);
+      const ctx=cv.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);ctx.drawImage(img,0,0,cv.width,cv.height);
+      const d=cv.toDataURL("image/jpeg",q);if(d.length<=SCAN_MAX_CHARS)return d;
+    }
+    throw new Error("That picture is too large even after shrinking it.");
+  }finally{URL.revokeObjectURL(url);}
+}
+window.calcScanPicked=async input=>{
+  const f=input.files?.[0],c=findCalc(calcScanTarget);input.value="";if(!f||!c?.out)return;
+  if(!currentUser){alert("Sign in first so the scan can sync to your other devices.");return;}
+  try{
+    let dataUrl,type;
+    if(f.type==="application/pdf"||/\.pdf$/i.test(f.name)){dataUrl=await fileToDataUrl(f);type="application/pdf";if(dataUrl.length>SCAN_MAX_CHARS){alert("That PDF is too large (limit about 650 KB). Use “📷 Scan contract” to take a photo instead, or save a smaller PDF.");return;}}
+    else{dataUrl=await shrinkImage(f);type="image/jpeg";}
+    const old=c.out.scan,id=uid();
+    showToast("Uploading scan…");
+    await Promise.race([setDoc(scanRef(id),{dataUrl,type,name:f.name||"scan",calculatorId:c.id,ownerUid:currentUser.uid,updatedAt:new Date().toISOString()}),new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),20000))]);
+    scanCache.set(id,dataUrl);
+    const cc=findCalc(c.id);if(!cc?.out)return;
+    cc.out.scan={id,name:f.name||"scan",type,size:dataUrl.length,uploaded:new Date().toISOString()};
+    if(!cc.out.contract){cc.out.contract=true;cc.out.contractDate=localDateKey();}
+    save();showToast(old?"Scan replaced":"Scan saved");
+    if(old){try{await deleteDoc(scanRef(old.id));}catch(e){}scanCache.delete(old.id);}
+  }catch(e){console.warn("scan upload",e);alert(e.message==="timeout"?"The scan could not be uploaded (no connection). Please try again when online.":"The scan could not be saved: "+(e.message||e));toast="";render();}
+}
+async function loadScan(meta){
+  if(scanCache.has(meta.id))return scanCache.get(meta.id);
+  const s=await getDoc(scanRef(meta.id));if(!s.exists())throw new Error("missing");
+  const d=s.data().dataUrl;scanCache.set(meta.id,d);return d;
+}
+function dataUrlToBlobUrl(d){const [h,b]=d.split(",");const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return URL.createObjectURL(new Blob([u],{type:h.slice(5).split(";")[0]}));}
+window.viewCalcScan=async(id,histId)=>{const c=findCalc(id);if(!c)return;const meta=histId?c.history.find(h=>h.id===histId)?.scan:c.out?.scan;if(!meta)return;
+  calcModal(id,`Contract scan · JM ${esc(c.jm)}`,`<div id="calcScanView" class="small">Loading…</div><div style="margin-top:12px"><button onclick="window.closeCalcModal()">Close</button></div>`);
+  try{const d=await loadScan(meta);const url=dataUrlToBlobUrl(d);const v=$("#calcScanView");if(!v)return;
+    v.innerHTML=meta.type==="application/pdf"?`<a class="primary" href="${url}" target="_blank" rel="noopener">Open PDF</a><iframe src="${url}" title="Contract PDF" style="width:100%;height:60vh;border:1px solid var(--line);margin-top:8px"></iframe>`:`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Contract scan" style="max-width:100%;border:1px solid var(--line);border-radius:8px"></a>`;}
+  catch(e){const v=$("#calcScanView");if(v)v.textContent=e.message==="missing"?"This scan is no longer saved.":"The scan could not be loaded. Check your connection.";}}
+window.deleteCalcScan=async id=>{const c=findCalc(id);const s=c?.out?.scan;if(!s)return;if(!confirm("Delete this contract scan?"))return;
+  c.out.scan=null;save();showToast("Scan deleted");try{await deleteDoc(scanRef(s.id));}catch(e){console.warn("scan delete",e);}scanCache.delete(s.id);}
+function studentCalcHTML(stId){
+  if(!moduleOn("calculators"))return "";ensureCalculators();
+  const now=data.calculators.filter(c=>c.out?.studentId===stId),past=data.calculators.flatMap(c=>c.history.filter(h=>h.studentId===stId).map(h=>({c,h})));
+  if(!now.length&&!past.length)return "";
+  return `<details class="collapsibleFieldset" open><summary>🧮 Graphing Calculator</summary><div class="collapsibleInner">${now.map(c=>`<p>Has JM ${esc(c.jm)} (S/N ${esc(c.serial||"—")}${c.color?`, ${esc(c.color)}`:""}) since ${esc(calcFmtDate(c.out.date))} · ${c.out.contract?"contract ✓":"<b>no contract yet</b>"}</p>`).join("")}${past.map(({c,h})=>`<p class="small">Had JM ${esc(c.jm)} ${esc(calcFmtDate(h.date))} → ${esc(calcFmtDate(h.returned))}</p>`).join("")}</div></details>`;
+}
 </script>
 
 <style id="v2318-ipad-status-controls">
@@ -6297,6 +6461,12 @@ main{min-width:0}
 .calPinList{display:grid;gap:6px}.calPinItem{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;align-items:center;padding:6px 8px;border:1px solid #f0d68a;background:#fffbeb;border-radius:8px}
 .calPinBtns{display:flex;gap:4px;flex-wrap:wrap}.calPinBtns button{padding:3px 8px;font-size:12px}
 .msPinShareNote{margin:4px 0 0;color:#92400e}
+</style>
+<style id="v470-calculators">
+.calcItem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:grid;gap:8px}
+.calcItem.calc-available{border-left:5px solid #3a8f5c}.calcItem.calc-out{border-left:5px solid #3b6fb6}.calcItem.calc-missing{border-left:5px solid #c9822b}
+.calcStatus{margin-top:2px}.calcContract input[type=date]{max-width:170px}.calcScan{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.calcActions{display:flex;gap:6px;flex-wrap:wrap}.calcHistory summary{cursor:pointer}
 </style>
 <style id="v440-lesson-pins">
 /* V4.4.0: pinned lesson plans */
