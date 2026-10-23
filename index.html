@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.6.0</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.6.1</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -864,7 +864,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.6.0";
+const APP_VERSION="4.6.1";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -6014,8 +6014,10 @@ window.downloadBeforeSyncCopy=()=>{try{const x=localStorage.getItem("teacherDash
 $("#root").innerHTML=`<div class="loadingScreen">Loading Teacher Dashboard...</div>`;
 
 
+// V4.6.1: Early Dismissal days still have classes (the periods on that day's bell schedule).
+function lessonClassDayType(t){return t==='instructional'||t==='earlydismissal'}
 function lessonRowClassAvailable(cls,date,weekday){
-  const info=getDateInfo(date);if(info.type!=='instructional'||!classMeetsOnWeekday(cls,weekday))return false;
+  const info=getDateInfo(date);if(!lessonClassDayType(info.type)||!classMeetsOnWeekday(cls,weekday))return false;
   if(info.schedule&&info.schedule!=='regular'){
     const sch=(data.bellSchedules||[]).find(s=>s.id===info.schedule);
     if(sch&&Array.isArray(sch.periods)){
@@ -6028,7 +6030,7 @@ function lessonRowClassAvailable(cls,date,weekday){
 }
 function lessonRowAvailableOnDate(row,date,weekday){
   if(row.type==='custom'){
-    const info=getDateInfo(date);if(info.type!=='instructional'||!(row.days||[]).includes(Number(weekday)))return false;
+    const info=getDateInfo(date);if(!lessonClassDayType(info.type)||!(row.days||[]).includes(Number(weekday)))return false;
     if(info.schedule&&info.schedule!=='regular'&&row.period){const sch=(data.bellSchedules||[]).find(s=>s.id===info.schedule);if(sch&&Array.isArray(sch.periods)){const nums=sch.periods.map(x=>classPeriodNumber(x[0])).filter(Boolean);if(nums.length&&!nums.includes(Number(row.period)))return false;}}
     return true;
   }
