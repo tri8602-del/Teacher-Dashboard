@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Graphing Calculator Contract</title>
+<link rel="icon" href="icons/favicon-32.png">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#eef1f6;color:#172033;line-height:1.45}
+.wrap{max-width:640px;margin:0 auto;padding:18px}
+.card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 10px #0001}
+h1{font-size:22px;margin:0 0 4px}.meta{color:#596579;font-size:14px;margin:0 0 14px}
+table{border-collapse:collapse;width:100%;margin:10px 0 14px;font-size:15px}th,td{border:1px solid #d5dbe5;padding:7px;text-align:left}th{background:#f3f5f9;width:40%}
+p{margin:10px 0}label{display:block;margin:14px 0 6px;font-weight:600}
+input[type=text]{width:100%;font-size:17px;padding:11px;border:1px solid #b8c1cf;border-radius:9px}
+.agree{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin-top:16px}.agree input{width:24px;height:24px;flex:none}
+button{margin-top:18px;width:100%;font-size:17px;padding:13px;border:0;border-radius:10px;background:#2d3b59;color:#fff;font-weight:700}
+button:disabled{opacity:.45}.ok{background:#eef8f1;border:1px solid #b9dfc6;border-radius:10px;padding:14px}.err{background:#fff4ed;border:1px solid #f2c7a8;border-radius:10px;padding:14px}
+.small{font-size:13px;color:#667085}
+</style></head><body><div class="wrap"><div class="card" id="app"><p>Loading contract…</p></div>
+<p class="small" style="text-align:center">Teacher Dashboard · graphing calculator contract</p></div>
+<script type="module">
+// Public page: a parent opens their private link (sign.html?t=<token>), reads the contract and signs it.
+// It only ever reads or updates the one record calcAcks/<token>; no sign-in.
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getFirestore,doc,getDoc,updateDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const app=initializeApp({apiKey:"AIzaSyAum-USwVh7epu7X7gMuFjlGzszkPKPA7U",authDomain:"teacher-dashboard-b4441.firebaseapp.com",projectId:"teacher-dashboard-b4441",storageBucket:"teacher-dashboard-b4441.firebasestorage.app",messagingSenderId:"191461146682",appId:"1:191461146682:web:c30279a76a586db32af503"});
+const db=getFirestore(app);
+const el=document.getElementById("app");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const token=new URLSearchParams(location.search).get("t")||"";
+function when(v){const d=v?.toDate?v.toDate():new Date(v);return isNaN(d)?"":d.toLocaleString("en-US",{dateStyle:"long",timeStyle:"short"})}
+function show(r){
+  const c=r.contract||{};
+  const head=`<h1>Graphing Calculator Contract</h1><p class="meta">${esc(c.schoolYear)} school year · Teacher: ${esc(c.teacher)}</p>
+  <table><tr><th>Student</th><td>${esc(c.studentName)}</td></tr><tr><th>Calculator color</th><td>${esc(c.color||"—")}</td></tr><tr><th>JM Number</th><td>${esc(c.jm||"—")}</td></tr><tr><th>Serial Number</th><td>${esc(c.serial||"—")}</td></tr></table>
+  ${(c.paragraphs||[]).filter(t=>!/^JM Number:/.test(t)).map(t=>`<p>${esc(t).replace(/\n/g,"<br>")}</p>`).join("")}`;
+  if(r.signed){el.innerHTML=head+`<div class="ok">✅ <b>Signed</b> by ${esc(r.signerName)} on ${esc(when(r.signedAt))}. Thank you! You can close this page.</div>`;return;}
+  el.innerHTML=head+`<form id="f"><label for="nm">Parent/Guardian full name</label><input type="text" id="nm" autocomplete="name" maxlength="100" required>
+  <label class="agree"><input type="checkbox" id="ag"> <span>I have read this contract and I agree to it, including the replacement cost if the calculator is lost or damaged.</span></label>
+  <button id="go" disabled>Sign contract</button><p id="msg" class="small"></p></form>`;
+  const nm=document.getElementById("nm"),ag=document.getElementById("ag"),go=document.getElementById("go");
+  const upd=()=>go.disabled=!(nm.value.trim().length>=2&&ag.checked);nm.oninput=upd;ag.onchange=upd;
+  document.getElementById("f").onsubmit=async e=>{e.preventDefault();if(go.disabled)return;go.disabled=true;go.textContent="Signing…";
+    try{await updateDoc(doc(db,"calcAcks",token),{signed:true,agreed:true,signerName:nm.value.trim().slice(0,100),signedAt:serverTimestamp()});
+      const s=await getDoc(doc(db,"calcAcks",token));show(s.data());}
+    catch(err){console.warn(err);document.getElementById("msg").textContent="Sorry, that didn't go through. Please check your connection and try again, or sign the paper copy.";go.disabled=false;go.textContent="Sign contract";}};
+}
+(async()=>{
+  if(!/^[a-f0-9]{32,64}$/.test(token)){el.innerHTML=`<div class="err">This link is not complete. Please use the full link or QR code from the contract.</div>`;return;}
+  try{const s=await getDoc(doc(db,"calcAcks",token));if(!s.exists()){el.innerHTML=`<div class="err">This contract link is no longer active. Please contact the teacher.</div>`;return;}show(s.data());}
+  catch(e){console.warn(e);el.innerHTML=`<div class="err">The contract could not be loaded. Please check your connection and reload the page.</div>`;}
+})();
+</script></body></html>
