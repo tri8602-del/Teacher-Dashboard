@@ -14,7 +14,7 @@ input[type=text]{width:100%;font-size:17px;padding:11px;border:1px solid #b8c1cf
 .agree{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin-top:16px}.agree input{width:24px;height:24px;flex:none}
 button{margin-top:18px;width:100%;font-size:17px;padding:13px;border:0;border-radius:10px;background:#2d3b59;color:#fff;font-weight:700}
 button:disabled{opacity:.45}.ok{background:#eef8f1;border:1px solid #b9dfc6;border-radius:10px;padding:14px}.err{background:#fff4ed;border:1px solid #f2c7a8;border-radius:10px;padding:14px}
-.small{font-size:13px;color:#667085}
+.small{font-size:13px;color:#667085}ul{margin:4px 0 10px 4px;padding-left:20px}li{margin:4px 0}.closing{margin:16px 0 8px 40%;line-height:1.35}.sig{display:block;height:62px;max-width:220px;object-fit:contain;margin:2px 0}.ack{background:#f6f7fb;border:1px solid #dfe3ea;border-radius:10px;padding:10px 12px;margin-top:14px}.ack p{margin:6px 0 0}@media(max-width:480px){.closing{margin-left:28%}}
 </style></head><body><div class="wrap"><div class="card" id="app"><p>Loading contract…</p></div>
 <p class="small" style="text-align:center">Teacher Dashboard · graphing calculator contract</p></div>
 <script type="module">
@@ -28,14 +28,19 @@ const el=document.getElementById("app");
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const token=new URLSearchParams(location.search).get("t")||"";
 function when(v){const d=v?.toDate?v.toDate():new Date(v);return isNaN(d)?"":d.toLocaleString("en-US",{dateStyle:"long",timeStyle:"short"})}
+// V4.8.1 letter (older contracts keep their stored paragraphs).
+function letterHTML(L,sig){const p=t=>`<p>${esc(t)}</p>`;const okSig=typeof sig==="string"&&/^(data:image\/png;base64,|https:\/\/|http:\/\/127\.0\.0\.1)/.test(sig);
+  return `${p(L.greeting)}${(L.body||[]).map(p).join("")}<ul>${(L.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join("")}</ul>${(L.after||[]).map(p).join("")}
+  <div class="closing"><div>${esc(L.closing?.valediction||"Sincerely,")}</div>${okSig?`<img src="${esc(sig)}" alt="Signature" class="sig">`:""}<div><b>${esc(L.closing?.name||"")}</b></div>${L.closing?.title?`<div>${esc(L.closing.title)}</div>`:""}</div>
+  ${L.ackParent?`<div class="ack"><b>Parent/Guardian acknowledgement</b><p>${esc(L.ackParent)}</p></div>`:""}`;}
 function show(r){
   const c=r.contract||{};
-  const head=`<h1>Graphing Calculator Contract</h1><p class="meta">${esc(c.schoolYear)} school year · Teacher: ${esc(c.teacher)}</p>
+  const head=`<h1>${c.letter?"Graphing Calculator Agreement":"Graphing Calculator Contract"}</h1><p class="meta">${esc(c.schoolYear)} school year · Teacher: ${esc(c.teacher)}</p>
   <table><tr><th>Student</th><td>${esc(c.studentName)}</td></tr><tr><th>Calculator color</th><td>${esc(c.color||"—")}</td></tr><tr><th>JM Number</th><td>${esc(c.jm||"—")}</td></tr><tr><th>Serial Number</th><td>${esc(c.serial||"—")}</td></tr></table>
-  ${(c.paragraphs||[]).filter(t=>!/^JM Number:/.test(t)).map(t=>`<p>${esc(t).replace(/\n/g,"<br>")}</p>`).join("")}`;
+  ${c.letter?letterHTML(c.letter,c.signature):(c.paragraphs||[]).filter(t=>!/^JM Number:/.test(t)).map(t=>`<p>${esc(t).replace(/\n/g,"<br>")}</p>`).join("")}`;
   if(r.signed){el.innerHTML=head+`<div class="ok">✅ <b>Signed</b> by ${esc(r.signerName)} on ${esc(when(r.signedAt))}. Thank you! You can close this page.</div>`;return;}
   el.innerHTML=head+`<form id="f"><label for="nm">Parent/Guardian full name</label><input type="text" id="nm" autocomplete="name" maxlength="100" required>
-  <label class="agree"><input type="checkbox" id="ag"> <span>I have read this contract and I agree to it, including the replacement cost if the calculator is lost or damaged.</span></label>
+  <label class="agree"><input type="checkbox" id="ag"> <span>${c.letter?"I have read this letter and I agree to the acknowledgement above.":"I have read this contract and I agree to it, including the replacement cost if the calculator is lost or damaged."}</span></label>
   <button id="go" disabled>Sign contract</button><p id="msg" class="small"></p></form>`;
   const nm=document.getElementById("nm"),ag=document.getElementById("ag"),go=document.getElementById("go");
   const upd=()=>go.disabled=!(nm.value.trim().length>=2&&ag.checked);nm.oninput=upd;ag.onchange=upd;

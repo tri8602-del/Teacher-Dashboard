@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.8.0</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.8.1</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -865,7 +865,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.8.0";
+const APP_VERSION="4.8.1";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -6211,24 +6211,42 @@ function calcStatus(c){if(!c.out)return ["available","Available"];if(calcIsTeach
 // Signatures live in the top-level collection calcAcks/{token} (proposed rules: rules/calcAcks.rules).
 let calcOpenId=null;const calcSelected=new Set();let calcAckCheckedAt=0;
 function calcSettings(){data.calcSettings=data.calcSettings&&typeof data.calcSettings==="object"?data.calcSettings:{};const s=data.calcSettings;const d=new Date(),y=d.getMonth()>=6?d.getFullYear():d.getFullYear()-1;
-  return {cost:Number.isFinite(Number(s.cost))&&s.cost!==""?Number(s.cost):150,schoolYear:s.schoolYear||`${y}-${String((y+1)%100).padStart(2,"0")}`,teacher:s.teacher||"Lindsay Shay"};}
+  const teacher=s.teacher||"Lindsay Shay";
+  return {cost:Number.isFinite(Number(s.cost))&&s.cost!==""?Number(s.cost):150,schoolYear:s.schoolYear||`${y}-${String((y+1)%100).padStart(2,"0")}`,teacher,
+    closingName:s.closingName||(teacher==="Lindsay Shay"?"Mrs. Lindsay Shay":teacher),closingTitle:s.closingTitle??"Mathematics Teacher",
+    sigMode:["default","custom","none"].includes(s.sigMode)?s.sigMode:"default",signature:s.signature||""};}
+// V4.8.1: signature shown under "Sincerely," — her own uploaded/drawn image, or the one from her original contract.
+let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
+const CALC_DEFAULT_SIG="assets/signature-lshay.png";
+const calcSigCache={};
+// Printed pages get the signature inlined, so it is there even before/without the image download in the print window.
+function calcSigForPrint(s=calcSettings()){const u=calcSignatureSrc(s);if(!u||u.startsWith("data:"))return u;
+  if(!calcSigCache[u]){calcSigCache[u]="loading";fetch(u).then(r=>r.ok?r.blob():null).then(b=>{if(!b)return;const f=new FileReader();f.onload=()=>{calcSigCache[u]=f.result;};f.readAsDataURL(b);}).catch(()=>{delete calcSigCache[u];});}
+  return calcSigCache[u]&&calcSigCache[u]!=="loading"?calcSigCache[u]:u;}
+function calcSignatureSrc(s=calcSettings()){if(s.sigMode==="none")return "";if(s.sigMode==="custom"&&s.signature)return s.signature;
+  return PROFILE===PROFILES.lindsay?new URL(CALC_DEFAULT_SIG,location.href.split("?")[0].split("#")[0]).href:"";}
+// The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+function calcLetter(c,st){const s=calcSettings(),cost=calcMoney(s.cost),color=c.color?`${c.color} `:"";return {version:2,
+  greeting:`Dear Parent or Guardian of ${st},`,
+  body:[`I'm happy to let you know that ${st} has been issued a ${color}graphing calculator to use in math class for the ${s.schoolYear} school year. It's a tool we'll use almost every day, and I'm glad your student will have one of their own.`,
+    `To help us get the most out of it, please encourage your student to:`],
+  bullets:[`Bring the calculator to class every day, fully charged.`,`Take good care of it and keep it in a safe place, both at school and at home.`],
+  after:[`Because these calculators belong to the school district, a ${cost} replacement fee applies if the calculator is lost, stolen, or damaged.`,
+    `Thank you so much for your support. I'm looking forward to a wonderful year together!`],
+  closing:{valediction:"Sincerely,",name:s.closingName,title:s.closingTitle},
+  ackStudent:`I agree to take good care of this calculator, bring it to class charged every day, and return it in good condition.`,
+  ackParent:`I have read this letter and understand our responsibility for this calculator, including the ${cost} replacement fee if it is lost, stolen, or damaged.`};}
 function calcContractState(c){const o=c.out;if(!o)return ["none","—"];if(calcIsTeacher(c))return ["teacher","Teacher - no contract needed"];
   if(o.contract)return ["ok",o.contractMethod==="electronic"?`✓ E-signed${o.ack?.signerName?` (${o.ack.signerName})`:""}`:"✓ Received"];
   if(o.ack?.token)return ["wait","⏳ Sent, not signed"];return ["missing","✗ Missing"];}
 function calcMoney(n){return "$"+Number(n).toFixed(Number(n)%1?2:0)}
-function calcContractParagraphs(c,st){const s=calcSettings();const color=c.color?`${c.color} `:"";return [
-  `Dear Parent or Guardian of ${st},`,
-  `Your child has been issued a ${color}graphing calculator for the ${s.schoolYear} school year.`,
-  `Please help your child take good care of it. Your child must bring the calculator to class charged every day.`,
-  `JM Number: ${c.jm||"—"}    Serial Number: ${c.serial||"—"}`,
-  `If the calculator is lost or damaged, the family is responsible for paying the ${calcMoney(s.cost)} replacement cost.`,
-  `Thank you,\n${s.teacher}`];}
+function calcContractParagraphs(c,st){const L=calcLetter(c,st);return [L.greeting,...L.body,...L.bullets.map(b=>"• "+b),...L.after,`${L.closing.valediction}\n${L.closing.name}${L.closing.title?`\n${L.closing.title}`:""}`];}
 function calcNewToken(){const a=new Uint8Array(20);crypto.getRandomValues(a);return [...a].map(x=>x.toString(16).padStart(2,"0")).join("");}
 function calcSignUrl(token){return new URL("sign.html?t="+token,location.href.split("?")[0].split("#")[0]).href;}
 function calcQrSvg(text,cell=3){try{const q=qrcode(0,"M");q.addData(text);q.make();return q.createSvgTag({cellSize:cell,margin:2,scalable:false});}catch(e){return "";}}
 function calcAckRecord(c){const o=c.out,st=calcHolder(c),s=calcSettings();
   return {ownerUid:currentUser.uid,calculatorId:c.id,outId:o.id,createdAt:new Date().toISOString(),
-    contract:{studentName:st,teacher:s.teacher,color:c.color||"",schoolYear:s.schoolYear,jm:c.jm||"",serial:c.serial||"",cost:s.cost,paragraphs:calcContractParagraphs(c,st)},
+    contract:{studentName:st,teacher:s.teacher,color:c.color||"",schoolYear:s.schoolYear,jm:c.jm||"",serial:c.serial||"",cost:s.cost,paragraphs:calcContractParagraphs(c,st),letter:calcLetter(c,st),signature:calcSignatureSrc(s)},
     signed:false,signerName:"",agreed:false,signedAt:null};}
 // Make sure this sign-out has a link. The token is created here, on the device; the record is written to the cloud
 // in the background so printing can open its window right away (iPad Safari blocks pop-ups after a wait).
@@ -6238,21 +6256,22 @@ function calcEnsureAck(c){const o=c.out;if(!o||!currentUser)return null;
   const rec=calcAckRecord(c);
   const p=setDoc(doc(db,"calcAcks",token),rec).then(()=>{const cc=findCalc(c.id);if(cc?.out?.ack?.token===token){cc.out.ack.uploaded=true;save();}}).catch(e=>{console.warn("contract link",e);alert("The signing link could not be saved to the cloud, so a parent can't sign online yet. ("+(e.code||e.message)+")\nThe printed contract can still be signed on paper.");});
   return token;}
+function calcLetterHTML(L,sig,info){const p=t=>`<p class="calcLetterP">${esc(t)}</p>`;
+  return `${info}${p(L.greeting)}${L.body.map(p).join("")}<ul class="calcLetterUl">${L.bullets.map(b=>`<li>${esc(b)}</li>`).join("")}</ul>${L.after.map(p).join("")}
+  <div class="calcClosing"><div>${esc(L.closing.valediction)}</div>${sig?`<img class="calcSigImg" src="${esc(sig)}" alt="Signature">`:`<div style="height:34px"></div>`}<div><b>${esc(L.closing.name)}</b></div>${L.closing.title?`<div>${esc(L.closing.title)}</div>`:""}</div>`;}
+function calcInfoTable(o){return `<table class="calcInfo"><tbody><tr><th>Student</th><td>${esc(o.st)}</td><th>School year</th><td>${esc(o.year)}</td></tr><tr><th>Calculator</th><td>${esc(o.color||"Graphing calculator")}</td><th>JM #</th><td>${esc(o.jm||"—")}</td></tr><tr><th>Serial #</th><td colspan="3">${esc(o.serial||"—")}</td></tr></tbody></table>`;}
 function calcContractPage(c){const st=calcHolder(c),token=calcEnsureAck(c),url=token?calcSignUrl(token):"",s=calcSettings();
-  const ps=calcContractParagraphs(c,st);
-  return `<section class="calcContractPage"><div class="formTrackerTitle"><h1>Graphing Calculator Contract</h1><div class="trackerBadge">${esc(s.schoolYear)} School Year</div></div>
-  <p class="printMeta">Student: <b>${esc(st)}</b> · Teacher: <b>${esc(s.teacher)}</b></p>
-  <table style="margin:10px 0"><tbody><tr><th>JM Number</th><td>${esc(c.jm||"—")}</td><th>Serial Number</th><td>${esc(c.serial||"—")}</td><th>Color</th><td>${esc(c.color||"—")}</td></tr></tbody></table>
-  ${ps.filter((_,i)=>i!==3).map(t=>`<p style="font-size:11pt;margin:9px 0">${esc(t).replace(/\n/g,"<br>")}</p>`).join("")}
-  <div class="calcSigGrid"><p>Student signature <span class="blankLine" style="min-width:250px"></span> Date <span class="blankLine" style="min-width:110px"></span></p>
-  <p>Parent/Guardian signature <span class="blankLine" style="min-width:210px"></span> Date <span class="blankLine" style="min-width:110px"></span></p>
-  <p>Parent/Guardian printed name <span class="blankLine" style="min-width:250px"></span></p></div>
+  const L=calcLetter(c,st);
+  return `<section class="calcContractPage"><div class="formTrackerTitle"><h1>Graphing Calculator Agreement</h1><div class="trackerBadge">${esc(s.schoolYear)} School Year</div></div>
+  ${calcLetterHTML(L,calcSigForPrint(s),calcInfoTable({st,year:s.schoolYear,color:c.color,jm:c.jm,serial:c.serial}))}
+  <div class="calcAckGrid"><div class="calcAckBox"><b>Student</b><p>${esc(L.ackStudent)}</p><p class="calcLine">Student signature</p><p class="calcLine">Date</p></div>
+  <div class="calcAckBox"><b>Parent/Guardian</b><p>${esc(L.ackParent)}</p><p class="calcLine">Parent/Guardian signature</p><p class="calcLine">Printed name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date</p></div></div>
   ${url?`<div class="calcQrBox">${calcQrSvg(url,3)}<div><b>Prefer to sign online?</b><br>Scan the QR code or open:<br><span class="small" style="word-break:break-all">${esc(url)}</span></div></div>`:""}</section>`;}
 window.generateCalcContracts=ids=>{ensureCalculators();
   const list=(ids||[...calcSelected]).map(findCalc).filter(Boolean),out=list.filter(c=>c.out&&!calcIsTeacher(c)),skip=list.filter(c=>!c.out||calcIsTeacher(c));
   if(!out.length){alert(skip.length?"Contracts can only be made for calculators that are signed out to a student (not available or teacher calculators).":"Select calculators first.");return;}
   const body=out.map(calcContractPage).join("");save();
-  printDocument(out.length===1?`Calculator Contract - ${calcHolder(out[0])}`:`Calculator Contracts (${out.length})`,`<style>.calcContractPage{break-after:page;page-break-after:always;padding-top:4px}.calcContractPage:last-child{break-after:auto;page-break-after:auto}.calcQrBox{display:flex;gap:14px;align-items:center;margin-top:22px;border:1px dashed #98a2b3;border-radius:8px;padding:10px}.calcQrBox svg{flex:none}.calcSigGrid p{margin:20px 0}</style>${body}`);
+  printDocument(out.length===1?`Calculator Contract - ${calcHolder(out[0])}`:`Calculator Contracts (${out.length})`,`<style>.calcContractPage{break-after:page;page-break-after:always;padding-top:4px}.calcContractPage:last-child{break-after:auto;page-break-after:auto}.calcQrBox{display:flex;gap:14px;align-items:center;margin-top:22px;border:1px dashed #98a2b3;border-radius:8px;padding:10px}.calcQrBox svg{flex:none}.calcQrBox{margin-top:14px;padding:8px}.calcLetterP{font-size:11pt;margin:8px 0;line-height:1.45}.calcLetterUl{margin:4px 0 8px 22px;font-size:11pt;line-height:1.45}.calcInfo{margin:8px 0 12px;width:100%}.calcInfo th{width:16%}.calcClosing{margin:14px 0 6px 52%;font-size:11pt;line-height:1.35}.calcSigImg{display:block;height:58px;max-width:220px;object-fit:contain;margin:2px 0}.calcAckGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.calcAckBox{border:1px solid #c8cfda;border-radius:8px;padding:8px 10px;font-size:10pt}.calcAckBox p{margin:5px 0}.calcLine{border-top:1px solid #333;margin-top:26px!important;padding-top:2px;font-size:9pt;color:#444}</style>${body}`);
   if(skip.length)showToast(`${skip.length} calculator${skip.length>1?"s were":" was"} skipped (available or teacher calculator).`);else render();};
 window.copyCalcLink=async id=>{const c=findCalc(id);if(!c?.out||calcIsTeacher(c))return;const t=calcEnsureAck(c);save();const url=calcSignUrl(t);
   try{await navigator.clipboard.writeText(url);showToast("Signing link copied");}catch(e){prompt("Copy this signing link:",url);}render();};
@@ -6272,8 +6291,39 @@ async function refreshCalcAcks(force){
   if(changed){save();showToast(`${changed} contract${changed>1?"s":""} signed online`);}
   else if(force)showToast("No new online signatures yet");}
 window.checkCalcSignatures=()=>refreshCalcAcks(true);
+// V4.8.1: the list as shown (filters + sort), on one sheet. Font shrinks until it fits; landscape for long lists.
+window.printCalcList=()=>{ensureCalculators();const list=calcShownIds().map(findCalc).filter(Boolean);if(!list.length){alert("No calculators to print.");return;}
+  const land=list.length>30,f=[calcFilter!=="all"?{available:"Available",out:"Signed out",missing:"Missing contract"}[calcFilter]:"",calcYear?`Year ${calcYear}`:"",calcSearch.trim()?`Search “${calcSearch.trim()}”`:""].filter(Boolean).join(" · ");
+  const sortL={jm:"JM #",serial:"Serial",color:"Color",year:"Year",holder:"Signed out to",contract:"Contract status",cond:"Condition"}[calcSort]||"JM #";
+  const rows=list.map(c=>`<tr class="${calcIsTeacher(c)?"t":""}"><td><b>${esc(c.jm||"—")}</b></td><td>${esc(c.serial||"—")}</td><td>${esc(c.color||"")}</td><td>${esc(c.year||"")}</td><td>${esc(c.out?calcHolder(c)+(calcIsTeacher(c)?" (teacher)":""):"Available")}</td><td>${esc(calcContractState(c)[1])}</td><td>${esc(c.out?.condOut||c.notes||"")}</td></tr>`).join("");
+  const W=land?(11-.6)*96:(8.5-.9)*96,H=land?(8.5-.6)*96:(11-.9)*96;
+  printDocument(`Graphing Calculators - ${localDateKey()}`,`<style>.cl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:inherit!important}.cl th,.cl td{border:1px solid #b9c1ce;padding:.2em .4em!important;font-size:inherit!important;line-height:1.25!important;height:auto!important;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cl th{background:#eef1f6}.cl tr.t td{background:#f6f2fb}.cl tr:nth-child(even) td{background:#fafbfc}.clHead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #2d3b59;margin-bottom:6px}.clHead h1{font-size:1.6em;margin:0}</style>
+  <div id="clFit" style="font-size:10pt"><div class="clHead"><h1>🧮 Graphing Calculators</h1><div>${esc(new Date().toLocaleDateString("en-US",{dateStyle:"long"}))} · ${list.length} calculator${list.length>1?"s":""}${f?` · ${esc(f)}`:""} · sorted by ${esc(sortL)}${calcSortDir<0?" (desc)":""}</div></div>
+  <table class="cl"><colgroup><col style="width:7%"><col style="width:13%"><col style="width:10%"><col style="width:6%"><col style="width:20%"><col style="width:18%"><col style="width:26%"></colgroup><thead><tr><th>JM #</th><th>Serial</th><th>Color</th><th>Year</th><th>Signed out to</th><th>Contract status</th><th>Condition</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <script>(function(){var e=document.getElementById("clFit"),s=10;e.style.width="${W}px";while(e.scrollHeight>${Math.floor(H)}-6&&s>4.5){s-=.25;e.style.fontSize=s+"pt";}e.style.width="";e.dataset.fit=s;})();<\/script>`,land);};
 window.saveCalcSettings=()=>{const c=Number($("#calcSetCost").value);if(!Number.isFinite(c)||c<0){alert("Enter a replacement cost.");return;}
-  data.calcSettings={cost:c,schoolYear:$("#calcSetYear").value.trim(),teacher:$("#calcSetTeacher").value.trim()};save();showToast("Contract settings saved");};
+  const old=calcSettings();data.calcSettings={...data.calcSettings,cost:c,schoolYear:$("#calcSetYear").value.trim(),teacher:$("#calcSetTeacher").value.trim(),closingName:$("#calcSetClosing").value.trim(),closingTitle:$("#calcSetTitle").value.trim(),sigMode:$("#calcSetSigMode").value};
+  if(data.calcSettings.sigMode==="custom"&&!old.signature){data.calcSettings.sigMode=old.sigMode;}save();showToast("Contract settings saved");};
+// Signature image: uploaded photo/scan (paper made transparent) or drawn with a finger; kept small (PNG, ≤480×200).
+function calcSigFromSource(src,w,h,threshold){const sc=Math.min(1,960/w,400/h),cw=Math.max(1,Math.round(w*sc)),ch=Math.max(1,Math.round(h*sc));
+  const cv=document.createElement("canvas");cv.width=cw;cv.height=ch;const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,cw,ch);x.drawImage(src,0,0,cw,ch);
+  const d=x.getImageData(0,0,cw,ch),p=d.data;let x0=cw,y0=ch,x1=-1,y1=-1;
+  for(let i=0;i<p.length;i+=4){const l=.3*p[i]+.59*p[i+1]+.11*p[i+2];const a=Math.max(0,Math.min(1,(threshold-l)/110));p[i]=25;p[i+1]=30;p[i+2]=45;p[i+3]=Math.round(a*255);
+    if(a>.35){const k=i/4,px=k%cw,py=(k/cw)|0;if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;}}
+  if(x1<0)return "";x.putImageData(d,0,0);const pad=8;x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(cw-1,x1+pad);y1=Math.min(ch-1,y1+pad);
+  const bw=x1-x0+1,bh=y1-y0+1,s2=Math.min(1,480/bw,200/bh),o=document.createElement("canvas");o.width=Math.round(bw*s2);o.height=Math.round(bh*s2);
+  o.getContext("2d").drawImage(cv,x0,y0,bw,bh,0,0,o.width,o.height);return o.toDataURL("image/png");}
+function calcStoreSig(url){if(!url){alert("No signature found in that image. Try a darker pen or a closer photo.");return;}if(url.length>150000){alert("That signature image is too large. Please try a closer crop.");return;}
+  calcSettings();data.calcSettings.signature=url;data.calcSettings.sigMode="custom";save();showToast("Signature saved");}
+window.calcSigUpload=input=>{const f=input.files?.[0];input.value="";if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>calcStoreSig(calcSigFromSource(im,im.naturalWidth,im.naturalHeight,200));im.onerror=()=>alert("That file isn't an image.");im.src=r.result;};r.readAsDataURL(f);};
+window.openCalcSigDraw=()=>{calcModal("","Draw your signature",`<p class="small">Sign with your finger or mouse.</p><canvas id="calcSigPad" width="600" height="220" style="width:100%;max-width:600px;height:auto;aspect-ratio:600/220;border:1px solid #b8c1cf;border-radius:8px;background:#fff;touch-action:none"></canvas><div style="margin-top:10px"><button class="primary" onclick="window.saveCalcSigDraw()">Use this signature</button> <button onclick="window.clearCalcSigPad()">Clear</button> <button onclick="window.closeCalcModal()">Cancel</button></div>`);
+  const cv=$("#calcSigPad"),x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,cv.width,cv.height);x.lineWidth=3.2;x.lineCap="round";x.lineJoin="round";x.strokeStyle="#111";let dn=false;
+  const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  cv.onpointerdown=e=>{dn=true;cv.setPointerCapture(e.pointerId);const [a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+.1,b+.1);x.stroke();cv.dataset.ink="1";};
+  cv.onpointermove=e=>{if(!dn)return;const [a,b]=pt(e);x.lineTo(a,b);x.stroke();};cv.onpointerup=cv.onpointercancel=()=>{dn=false;};};
+window.clearCalcSigPad=()=>{const cv=$("#calcSigPad");if(!cv)return;const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,cv.width,cv.height);delete cv.dataset.ink;};
+window.saveCalcSigDraw=()=>{const cv=$("#calcSigPad");if(!cv?.dataset.ink){alert("Please sign first.");return;}const u=calcSigFromSource(cv,cv.width,cv.height,230);window.closeCalcModal();calcStoreSig(u);};
+window.removeCalcSig=()=>{if(!confirm("Remove your uploaded signature?"))return;calcSettings();delete data.calcSettings.signature;data.calcSettings.sigMode="default";save();};
 window.openCalcDetail=id=>{calcOpenId=id;render();};
 window.closeCalcDetail=()=>{calcOpenId=null;render();};
 window.toggleCalcSel=(id,on)=>{on?calcSelected.add(id):calcSelected.delete(id);render();};
@@ -6312,7 +6362,7 @@ function calcNewOut(pk,date,contract,cond){const o={id:uid(),studentId:pk.studen
 function calcTypedToggle(v,wrap){const w=document.getElementById(wrap);if(w){w.hidden=!(v==="__other"||v==="__teacher");const i=w.querySelector("input");if(i)i.placeholder=v==="__teacher"?"Teacher name":"Name";}}
 window.calcTypedToggle=calcTypedToggle;
 function calculatorsPage(){
-  ensureCalculators();setTimeout(()=>refreshCalcAcks(false),0);
+  ensureCalculators();calcSigForPrint();setTimeout(()=>refreshCalcAcks(false),0);
   const q=calcSearch.trim().toLowerCase(),S=calcSettings();
   const list=data.calculators.filter(c=>{
     const s=calcStatus(c)[0];
@@ -6347,13 +6397,19 @@ function calculatorsPage(){
     <label>Year<br><select onchange="window.setCalcYear(this.value)"><option value="">All years</option>${[...new Set(data.calculators.map(c=>String(c.year||"")).filter(Boolean))].sort().map(y=>`<option ${calcYear===y?"selected":""}>${esc(y)}</option>`).join("")}</select></label>
     <label>Sort<br><select onchange="window.setCalcSort(this.value)"><option value="jm" ${calcSort==="jm"?"selected":""}>JM #</option><option value="year" ${calcSort==="year"?"selected":""}>Year purchased</option>${["jm","year"].includes(calcSort)?"":`<option selected value="">(column)</option>`}</select></label>
     <label style="flex:1;min-width:180px">Search JM #, serial or student<br><input id="calcSearch" type="search" value="${esc(calcSearch)}" oninput="window.setCalcSearch(this.value)" style="width:100%"></label></div>
-  <div class="calcBatchBar"><span class="small">${calcSelected.size} selected</span> <button class="primary" ${calcSelected.size?"":"disabled"} onclick="window.generateCalcContracts()">🖨 Generate contracts${calcSelected.size?` (${calcSelected.size})`:""}</button>${calcSelected.size?` <button onclick="window.toggleCalcSelAll(false)">Clear</button>`:""} <button onclick="window.checkCalcSignatures()">Check e-signatures</button></div>
+  <div class="calcBatchBar"><span class="small">${calcSelected.size} selected</span> <button class="primary" ${calcSelected.size?"":"disabled"} onclick="window.generateCalcContracts()">🖨 Generate contracts${calcSelected.size?` (${calcSelected.size})`:""}</button>${calcSelected.size?` <button onclick="window.toggleCalcSelAll(false)">Clear</button>`:""} <button onclick="window.checkCalcSignatures()">Check e-signatures</button> <button onclick="window.printCalcList()">🖨 Print / Export PDF</button></div>
   ${list.length?`<div class="calcTableWrap"><table class="calcTable"><thead><tr><th class="calcSel"><input type="checkbox" ${allSel?"checked":""} onchange="window.toggleCalcSelAll(this.checked)" aria-label="Select all shown"></th>${calcTh("jm","JM #")}${calcTh("serial","Serial")}${calcTh("color","Color","calcHideSm")}${calcTh("year","Year","calcHideSm")}${calcTh("holder","Signed out to")}${calcTh("contract","Contract")}${calcTh("cond","Condition","calcHideSm")}</tr></thead><tbody>${rows}</tbody></table></div>`:`<p class="small">${data.calculators.length?"No calculators match.":"No calculators yet. Add one above."}</p>`}</section>
-  <details class="card calcSettingsCard"><summary><b>Contract settings</b> <span class="small">· ${esc(S.schoolYear)} · ${esc(calcMoney(S.cost))} replacement · ${esc(S.teacher)}</span></summary><div class="add" style="flex-wrap:wrap;align-items:end;margin-top:10px">
+  <details class="card calcSettingsCard" ${calcSettingsOpen?"open":""} ontoggle="window.__calcSetOpen(this.open)"><summary><b>Contract settings</b> <span class="small">· ${esc(S.schoolYear)} · ${esc(calcMoney(S.cost))} replacement · ${esc(S.teacher)}</span></summary><div class="add" style="flex-wrap:wrap;align-items:end;margin-top:10px">
     <label>School year<br><input id="calcSetYear" value="${esc(S.schoolYear)}" style="width:110px"></label>
     <label>Replacement cost ($)<br><input id="calcSetCost" type="number" min="0" step="1" inputmode="decimal" value="${esc(S.cost)}" style="width:110px"></label>
     <label style="flex:1;min-width:160px">Teacher name<br><input id="calcSetTeacher" value="${esc(S.teacher)}" style="width:100%"></label>
-    <button onclick="window.saveCalcSettings()">Save</button></div></details>
+    <label style="flex:1;min-width:160px">Letter signed as<br><input id="calcSetClosing" value="${esc(S.closingName)}" style="width:100%"></label>
+    <label style="flex:1;min-width:160px">Title under name<br><input id="calcSetTitle" value="${esc(S.closingTitle)}" style="width:100%"></label>
+    <label>Signature<br><select id="calcSetSigMode" onchange="window.saveCalcSettings()"><option value="default" ${S.sigMode==="default"?"selected":""}>From my original contract</option>${S.signature?`<option value="custom" ${S.sigMode==="custom"?"selected":""}>My uploaded/drawn signature</option>`:""}<option value="none" ${S.sigMode==="none"?"selected":""}>No signature image</option></select></label>
+    <button onclick="window.saveCalcSettings()">Save</button></div>
+    <div class="calcSigSet">${calcSignatureSrc(S)?`<img src="${esc(calcSignatureSrc(S))}" alt="Signature preview" class="calcSigPreview">`:`<span class="small">No signature image</span>`}
+      <div><button onclick="document.getElementById('calcSigFile').click()">📷 Upload signature</button> <button onclick="window.openCalcSigDraw()">✍️ Draw signature</button>${S.signature?` <button onclick="window.removeCalcSig()">Remove mine</button>`:""}
+      <input type="file" id="calcSigFile" accept="image/*" hidden onchange="window.calcSigUpload(this)"><div class="small">Sign on white paper and take a photo; the paper is removed automatically. New contracts use the new wording and signature; contracts already sent keep their wording.</div></div></div></details>
   ${calcOpenId&&findCalc(calcOpenId)?calcDetailHTML(findCalc(calcOpenId)):""}
   <input type="file" id="calcScanCamera" accept="image/*" capture="environment" hidden onchange="window.calcScanPicked(this)">
   <input type="file" id="calcScanFile" accept="image/*,application/pdf" hidden onchange="window.calcScanPicked(this)">`;
@@ -6588,7 +6644,7 @@ main{min-width:0}
 .calcCs-ok{color:#2f7a4c;font-weight:600}.calcCs-missing{color:#b4531f;font-weight:600}.calcCs-wait{color:#3b6fb6}
 .calcBatchBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .calcDetailModal{width:min(620px,100%)}.calcEsigned{background:#eef8f1;border:1px solid #b9dfc6;border-radius:8px;padding:8px;margin:8px 0}
-.calcSettingsCard summary{cursor:pointer}
+.calcSettingsCard summary{cursor:pointer}.calcSigSet{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}.calcSigPreview{height:60px;max-width:220px;object-fit:contain;background:#fff;border:1px dashed #c8cfda;border-radius:6px;padding:4px}
 @media (max-width:600px){.calcTable{min-width:0;font-size:13px}.calcTable th:nth-child(4),.calcTable td:nth-child(4),.calcTable th:nth-child(5),.calcTable td:nth-child(5),.calcTable th:nth-child(8),.calcTable td:nth-child(8){display:none}.calcTable th,.calcTable td{padding:7px 5px;white-space:normal}.calcTable td:nth-child(3){font-size:12px;word-break:break-all}}
 </style>
 <style id="v470-calculators">
