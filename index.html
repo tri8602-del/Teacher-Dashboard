@@ -1579,7 +1579,12 @@ function isEditingNow(){
   if(el.isContentEditable)return true;
   return /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)&&!/^(checkbox|radio|button|submit|file)$/i.test(el.type||"");
 }
-function renderUnlessTypingLesson(){if(!document.querySelector('.lessonCell textarea:focus'))render();}
+// V4.7.0: a background re-render (sync status, live update) between a finger/mouse press and its release
+// replaced the button under it, so the tap was lost (e.g. "Add" calculator did nothing). Wait for the release.
+let pointerHeld=false,renderAfterRelease=false;
+document.addEventListener("pointerdown",()=>{pointerHeld=true},true);
+["pointerup","pointercancel"].forEach(t=>document.addEventListener(t,()=>{pointerHeld=false;if(renderAfterRelease){renderAfterRelease=false;setTimeout(renderUnlessTypingLesson,0);}},true));
+function renderUnlessTypingLesson(){if(pointerHeld){renderAfterRelease=true;return;}if(!document.querySelector('.lessonCell textarea:focus'))render();}
 function dashboardHasContent(x){return !!(x&&((x.classes||[]).some(c=>c&&c.id!=="c1")||(x.students||[]).some(s=>s&&!/^s[123]$/.test(String(s.id)))||(x.accommodations||[]).length||(x.events||[]).length));}
 function adoptCloudData(remote){
   const avatar=data.profileAvatar||loadLocalForUser().profileAvatar||"";
