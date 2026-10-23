@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.7.0</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.8.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -842,6 +842,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 @media(max-width:750px){.msBulkTop{gap:6px}.msBulkTop b{font-size:14px;width:100%}.msBulkTop button{padding:5px 9px;font-size:13px}}
 .msKeepChips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px;max-height:96px;overflow:auto}.msKeepChip{display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
 </style>
+<script src="vendor/qrcode.js"></script>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getFirestore,doc,getDoc,setDoc,deleteDoc,onSnapshot,runTransaction} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -864,7 +865,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.7.0";
+const APP_VERSION="4.8.0";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -6191,7 +6192,7 @@ const SCAN_MAX_CHARS=900000;
 const scanCache=new Map();
 const calcDraft={};
 window.calcDraftSet=el=>{calcDraft[el.id]=el.value;};
-let calcFilter="all",calcSearch="",calcYear="",calcSort="jm";
+let calcFilter="all",calcSearch="",calcYear="",calcSort="jm",calcSortDir=1;
 const CALC_DEFAULT_COLORS=["White CE","Green CE","Yellow"];
 function calcColors(){const extra=Array.isArray(data.calculatorColors)?data.calculatorColors:[];return [...new Set([...CALC_DEFAULT_COLORS,...extra,...(data.calculators||[]).map(c=>c.color).filter(Boolean)])];}
 function calcColorSelect(id,cur){return `<select id="${id}" style="width:100%" onchange="window.calcColorChanged(this)"><option value="">Choose…</option>${calcColors().map(c=>`<option ${c===cur?"selected":""}>${esc(c)}</option>`).join("")}<option value="__new">＋ New color…</option></select>`}
@@ -6203,10 +6204,116 @@ function ensureCalculators(){
 }
 function calcHolder(c){if(!c.out)return "";const st=c.out.studentId?data.students.find(s=>s.id===c.out.studentId):null;return st?studentDisplayName(st):(c.out.name||"Unknown");}
 function calcFmtDate(k){if(!k)return "";const [y,m,d]=String(k).split("-").map(Number);return y?new Date(y,m-1,d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):""}
-function calcStatus(c){if(!c.out)return ["available","Available"];if(!c.out.contract)return ["missing","Signed out · no contract"];return ["out","Signed out"];}
+function calcIsTeacher(c){return c?.out?.kind==="teacher";}
+function calcStatus(c){if(!c.out)return ["available","Available"];if(calcIsTeacher(c))return ["teacher","Teacher calculator"];if(!c.out.contract)return ["missing","Signed out · no contract"];return ["out","Signed out"];}
+// V4.8.0: the list is a compact table (tap a row for the full details), contracts can be printed one at a time
+// or in a batch, and each contract has a private link + QR code a parent can use to sign it electronically.
+// Signatures live in the top-level collection calcAcks/{token} (proposed rules: rules/calcAcks.rules).
+let calcOpenId=null;const calcSelected=new Set();let calcAckCheckedAt=0;
+function calcSettings(){data.calcSettings=data.calcSettings&&typeof data.calcSettings==="object"?data.calcSettings:{};const s=data.calcSettings;const d=new Date(),y=d.getMonth()>=6?d.getFullYear():d.getFullYear()-1;
+  return {cost:Number.isFinite(Number(s.cost))&&s.cost!==""?Number(s.cost):150,schoolYear:s.schoolYear||`${y}-${String((y+1)%100).padStart(2,"0")}`,teacher:s.teacher||"Lindsay Shay"};}
+function calcContractState(c){const o=c.out;if(!o)return ["none","—"];if(calcIsTeacher(c))return ["teacher","Teacher - no contract needed"];
+  if(o.contract)return ["ok",o.contractMethod==="electronic"?`✓ E-signed${o.ack?.signerName?` (${o.ack.signerName})`:""}`:"✓ Received"];
+  if(o.ack?.token)return ["wait","⏳ Sent, not signed"];return ["missing","✗ Missing"];}
+function calcMoney(n){return "$"+Number(n).toFixed(Number(n)%1?2:0)}
+function calcContractParagraphs(c,st){const s=calcSettings();const color=c.color?`${c.color} `:"";return [
+  `Dear Parent or Guardian of ${st},`,
+  `Your child has been issued a ${color}graphing calculator for the ${s.schoolYear} school year.`,
+  `Please help your child take good care of it. Your child must bring the calculator to class charged every day.`,
+  `JM Number: ${c.jm||"—"}    Serial Number: ${c.serial||"—"}`,
+  `If the calculator is lost or damaged, the family is responsible for paying the ${calcMoney(s.cost)} replacement cost.`,
+  `Thank you,\n${s.teacher}`];}
+function calcNewToken(){const a=new Uint8Array(20);crypto.getRandomValues(a);return [...a].map(x=>x.toString(16).padStart(2,"0")).join("");}
+function calcSignUrl(token){return new URL("sign.html?t="+token,location.href.split("?")[0].split("#")[0]).href;}
+function calcQrSvg(text,cell=3){try{const q=qrcode(0,"M");q.addData(text);q.make();return q.createSvgTag({cellSize:cell,margin:2,scalable:false});}catch(e){return "";}}
+function calcAckRecord(c){const o=c.out,st=calcHolder(c),s=calcSettings();
+  return {ownerUid:currentUser.uid,calculatorId:c.id,outId:o.id,createdAt:new Date().toISOString(),
+    contract:{studentName:st,teacher:s.teacher,color:c.color||"",schoolYear:s.schoolYear,jm:c.jm||"",serial:c.serial||"",cost:s.cost,paragraphs:calcContractParagraphs(c,st)},
+    signed:false,signerName:"",agreed:false,signedAt:null};}
+// Make sure this sign-out has a link. The token is created here, on the device; the record is written to the cloud
+// in the background so printing can open its window right away (iPad Safari blocks pop-ups after a wait).
+function calcEnsureAck(c){const o=c.out;if(!o||!currentUser)return null;
+  if(o.ack?.token&&o.ack.studentName===calcHolder(c))return o.ack.token;
+  const token=calcNewToken();o.ack={token,studentName:calcHolder(c),created:new Date().toISOString(),signed:false};
+  const rec=calcAckRecord(c);
+  const p=setDoc(doc(db,"calcAcks",token),rec).then(()=>{const cc=findCalc(c.id);if(cc?.out?.ack?.token===token){cc.out.ack.uploaded=true;save();}}).catch(e=>{console.warn("contract link",e);alert("The signing link could not be saved to the cloud, so a parent can't sign online yet. ("+(e.code||e.message)+")\nThe printed contract can still be signed on paper.");});
+  return token;}
+function calcContractPage(c){const st=calcHolder(c),token=calcEnsureAck(c),url=token?calcSignUrl(token):"",s=calcSettings();
+  const ps=calcContractParagraphs(c,st);
+  return `<section class="calcContractPage"><div class="formTrackerTitle"><h1>Graphing Calculator Contract</h1><div class="trackerBadge">${esc(s.schoolYear)} School Year</div></div>
+  <p class="printMeta">Student: <b>${esc(st)}</b> · Teacher: <b>${esc(s.teacher)}</b></p>
+  <table style="margin:10px 0"><tbody><tr><th>JM Number</th><td>${esc(c.jm||"—")}</td><th>Serial Number</th><td>${esc(c.serial||"—")}</td><th>Color</th><td>${esc(c.color||"—")}</td></tr></tbody></table>
+  ${ps.filter((_,i)=>i!==3).map(t=>`<p style="font-size:11pt;margin:9px 0">${esc(t).replace(/\n/g,"<br>")}</p>`).join("")}
+  <div class="calcSigGrid"><p>Student signature <span class="blankLine" style="min-width:250px"></span> Date <span class="blankLine" style="min-width:110px"></span></p>
+  <p>Parent/Guardian signature <span class="blankLine" style="min-width:210px"></span> Date <span class="blankLine" style="min-width:110px"></span></p>
+  <p>Parent/Guardian printed name <span class="blankLine" style="min-width:250px"></span></p></div>
+  ${url?`<div class="calcQrBox">${calcQrSvg(url,3)}<div><b>Prefer to sign online?</b><br>Scan the QR code or open:<br><span class="small" style="word-break:break-all">${esc(url)}</span></div></div>`:""}</section>`;}
+window.generateCalcContracts=ids=>{ensureCalculators();
+  const list=(ids||[...calcSelected]).map(findCalc).filter(Boolean),out=list.filter(c=>c.out&&!calcIsTeacher(c)),skip=list.filter(c=>!c.out||calcIsTeacher(c));
+  if(!out.length){alert(skip.length?"Contracts can only be made for calculators that are signed out to a student (not available or teacher calculators).":"Select calculators first.");return;}
+  const body=out.map(calcContractPage).join("");save();
+  printDocument(out.length===1?`Calculator Contract - ${calcHolder(out[0])}`:`Calculator Contracts (${out.length})`,`<style>.calcContractPage{break-after:page;page-break-after:always;padding-top:4px}.calcContractPage:last-child{break-after:auto;page-break-after:auto}.calcQrBox{display:flex;gap:14px;align-items:center;margin-top:22px;border:1px dashed #98a2b3;border-radius:8px;padding:10px}.calcQrBox svg{flex:none}.calcSigGrid p{margin:20px 0}</style>${body}`);
+  if(skip.length)showToast(`${skip.length} calculator${skip.length>1?"s were":" was"} skipped (available or teacher calculator).`);else render();};
+window.copyCalcLink=async id=>{const c=findCalc(id);if(!c?.out||calcIsTeacher(c))return;const t=calcEnsureAck(c);save();const url=calcSignUrl(t);
+  try{await navigator.clipboard.writeText(url);showToast("Signing link copied");}catch(e){prompt("Copy this signing link:",url);}render();};
+window.showCalcQr=id=>{const c=findCalc(id);if(!c?.out||calcIsTeacher(c))return;const t=calcEnsureAck(c);save();const url=calcSignUrl(t);
+  calcModal(id,`Signing link · ${esc(calcHolder(c))}`,`<div style="text-align:center">${calcQrSvg(url,5)}</div><p class="small" style="word-break:break-all">${esc(url)}</p><div><button onclick="window.copyCalcLink('${id}')">Copy link</button> <button onclick="window.closeCalcModal()">Close</button></div>`);};
+// Look for parent signatures (at most every 20 seconds unless asked).
+async function refreshCalcAcks(force){
+  if(!currentUser||(!force&&Date.now()-calcAckCheckedAt<20000))return;calcAckCheckedAt=Date.now();ensureCalculators();
+  let changed=0;
+  for(const c of data.calculators){const a=c.out?.ack;if(!a?.token||a.signed)continue;
+    try{const s=await getDoc(doc(db,"calcAcks",a.token));if(!s.exists())continue;const r=s.data();
+      if(r.signed&&r.agreed){const cc=findCalc(c.id);if(!cc?.out?.ack||cc.out.ack.token!==a.token)continue;
+        const at=r.signedAt?.toDate?r.signedAt.toDate():new Date(r.signedAt||Date.now());
+        Object.assign(cc.out.ack,{signed:true,signerName:String(r.signerName||"").slice(0,100),signedAt:at.toISOString()});
+        cc.out.contract=true;cc.out.contractMethod="electronic";cc.out.contractDate=localDateKey(at);changed++;}}
+    catch(e){console.warn("signature check",e);}}
+  if(changed){save();showToast(`${changed} contract${changed>1?"s":""} signed online`);}
+  else if(force)showToast("No new online signatures yet");}
+window.checkCalcSignatures=()=>refreshCalcAcks(true);
+window.saveCalcSettings=()=>{const c=Number($("#calcSetCost").value);if(!Number.isFinite(c)||c<0){alert("Enter a replacement cost.");return;}
+  data.calcSettings={cost:c,schoolYear:$("#calcSetYear").value.trim(),teacher:$("#calcSetTeacher").value.trim()};save();showToast("Contract settings saved");};
+window.openCalcDetail=id=>{calcOpenId=id;render();};
+window.closeCalcDetail=()=>{calcOpenId=null;render();};
+window.toggleCalcSel=(id,on)=>{on?calcSelected.add(id):calcSelected.delete(id);render();};
+window.toggleCalcSelAll=on=>{calcShownIds().forEach(id=>on?calcSelected.add(id):calcSelected.delete(id));render();};
+let calcShownCache=[];function calcShownIds(){return calcShownCache;}
+function calcDetailHTML(c){const [s,label]=calcStatus(c),o=c.out,scan=o?.scan,cs=calcContractState(c);
+  return `<div class="modalbg" id="calcDetail" onclick="if(event.target===this)window.closeCalcDetail()"><div class="modal calcDetailModal">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:start"><h3 style="margin:0">🧮 JM ${esc(c.jm||"—")}</h3><button onclick="window.closeCalcDetail()" aria-label="Close">✕</button></div>
+    <p class="small">S/N ${esc(c.serial||"—")}${c.color?` · ${esc(c.color)}`:""}${c.year?` · bought ${esc(c.year)}`:""}</p>${c.notes?`<p class="small">📝 ${esc(c.notes)}</p>`:""}
+    <p class="calcStatus">${esc(label)}${o?` — <b>${esc(calcHolder(c))}</b> since ${esc(calcFmtDate(o.date))}`:""}</p>
+    ${o&&calcIsTeacher(c)?`<p class="calcTeacherNote">👩‍🏫 Teacher calculator — no contract needed.</p>`:""}${o&&!calcIsTeacher(c)?`<div class="calcContract"><label><input type="checkbox" ${o.contract?"checked":""} onchange="window.setCalcContract('${c.id}',this.checked)" aria-label="Contract received JM ${esc(c.jm)}"> Contract received${o.contract&&o.contractMethod==="electronic"?" (electronic)":""}</label>${o.contract?` <input type="date" value="${esc(o.contractDate||"")}" onchange="window.setCalcContractDate('${c.id}',this.value)" aria-label="Contract date">`:""}
+      ${o.contractMethod==="electronic"&&o.ack?.signed?`<p class="calcEsigned">✍️ Signed online by <b>${esc(o.ack.signerName)}</b> on ${esc(new Date(o.ack.signedAt).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"}))}</p>`:o.ack?.token?`<p class="small">⏳ Signing link sent; not signed yet.</p>`:""}
+      <div class="calcScan"><button class="primary" onclick="window.generateCalcContracts(['${c.id}'])">🖨 Generate contract</button> <button onclick="window.copyCalcLink('${c.id}')">🔗 Copy signing link</button> <button onclick="window.showCalcQr('${c.id}')">QR code</button>${o.ack?.token&&!o.ack.signed?` <button onclick="window.checkCalcSignatures()">Check for signature</button>`:""}</div>
+      <div class="calcScan">${scan?`📄 ${esc(scan.name||"Contract scan")} <button onclick="window.viewCalcScan('${c.id}')">View</button> <button onclick="window.pickCalcScan('${c.id}',true)">📷 Replace</button> <button onclick="window.pickCalcScan('${c.id}',false)">📎 Replace with file</button> <button onclick="window.deleteCalcScan('${c.id}')">Delete scan</button>`:`<button onclick="window.pickCalcScan('${c.id}',true)">📷 Scan contract</button> <button onclick="window.pickCalcScan('${c.id}',false)">📎 Upload file</button>`}</div></div>`:""}
+    <div class="calcActions" style="margin-top:10px">${o?`<button class="primary" onclick="window.checkInCalc('${c.id}')">Check In</button>`:`<button class="primary" onclick="window.openCalcSignOut('${c.id}')">Sign Out</button>`} <button onclick="window.openCalcEdit('${c.id}')">Edit</button> <button onclick="window.deleteCalc('${c.id}')">Delete</button></div>
+    ${c.history.length?`<details class="calcHistory" open><summary>History (${c.history.length})</summary>${c.history.slice().reverse().map(h=>`<div class="small">${esc(h.name)} · ${esc(calcFmtDate(h.date))} → ${esc(calcFmtDate(h.returned))}${h.kind==="teacher"?" · teacher":h.contract?(h.contractMethod==="electronic"?` · e-signed${h.ack?.signerName?` by ${esc(h.ack.signerName)}`:""}`:" · contract ✓"):" · no contract"}${h.condOut?` · out: ${esc(h.condOut)}`:""}${h.condIn?` · back: ${esc(h.condIn)}`:""}${h.scan?` · <a href="#" onclick="window.viewCalcScan('${c.id}','${h.id}');return false">scan</a>`:""}</div>`).join("")}</details>`:""}
+  </div></div>`;}
+const CALC_CS_ORDER={missing:0,wait:1,ok:2,teacher:3,none:4};
+function calcCompare(a,b,k){const txt=(x,y)=>{const ex=!x,ey=!y;if(ex!==ey)return ex?1:-1;return String(x).localeCompare(String(y),undefined,{numeric:true,sensitivity:"base"});};
+  if(k==="jm")return txt(a.jm,b.jm);if(k==="serial")return txt(a.serial,b.serial);if(k==="color")return txt(a.color,b.color);
+  if(k==="year")return (Number(a.year)||9999)-(Number(b.year)||9999);
+  if(k==="holder")return txt(calcHolder(a),calcHolder(b));
+  if(k==="contract")return CALC_CS_ORDER[calcContractState(a)[0]]-CALC_CS_ORDER[calcContractState(b)[0]];
+  if(k==="cond")return txt(a.out?.condOut||a.notes,b.out?.condOut||b.notes);return 0;}
+window.sortCalcBy=k=>{if(calcSort===k)calcSortDir=-calcSortDir;else{calcSort=k;calcSortDir=1;}render();};
+function calcTh(k,l,cls=""){const on=calcSort===k;return `<th class="calcSortTh ${cls}${on?" sorted":""}" aria-sort="${on?(calcSortDir>0?"ascending":"descending"):"none"}"><button type="button" onclick="window.sortCalcBy('${k}')">${l}<span class="calcArrow">${on?(calcSortDir>0?" ▲":" ▼"):""}</span></button></th>`;}
+// Who a calculator goes to: roster student, typed name, me (teacher), or another teacher.
+function calcAssignOptions(withNone,cur=""){return calcMarkSel(`${withNone?`<option value="">Not assigned (available)</option>`:`<option value="">Choose…</option>`}<optgroup label="Students">${sortedStudents(data.students).map(s=>`<option value="${esc(s.id)}">${esc(studentDisplayName(s))}</option>`).join("")}<option value="__other">Someone else (type a name)</option></optgroup><optgroup label="Teacher (no contract)"><option value="__me">My teacher calculator (${esc(calcSettings().teacher)})</option><option value="__teacher">Another teacher (type name)</option></optgroup>`,cur);}
+function calcMarkSel(h,cur){return cur?h.replace(`value="${esc(cur)}"`,`value="${esc(cur)}" selected`):h;}
+function calcPick(sel,typed){typed=(typed||"").trim();
+  if(sel==="__other"){if(!typed)return {err:"Type a name."};return {studentId:"",name:typed};}
+  if(sel==="__me")return {studentId:"",name:calcSettings().teacher,kind:"teacher",teacherSelf:true};
+  if(sel==="__teacher"){if(!typed)return {err:"Type the teacher's name."};return {studentId:"",name:typed,kind:"teacher"};}
+  if(sel)return {studentId:sel,name:studentDisplayName(data.students.find(s=>s.id===sel)||{})};return null;}
+function calcNewOut(pk,date,contract,cond){const o={id:uid(),studentId:pk.studentId,name:pk.name,date:date||localDateKey(),contract:pk.kind==="teacher"?false:!!contract,contractDate:contract&&pk.kind!=="teacher"?localDateKey():"",scan:null,condOut:cond||""};if(pk.kind==="teacher"){o.kind="teacher";if(pk.teacherSelf)o.teacherSelf=true;}return o;}
+function calcTypedToggle(v,wrap){const w=document.getElementById(wrap);if(w){w.hidden=!(v==="__other"||v==="__teacher");const i=w.querySelector("input");if(i)i.placeholder=v==="__teacher"?"Teacher name":"Name";}}
+window.calcTypedToggle=calcTypedToggle;
 function calculatorsPage(){
-  ensureCalculators();
-  const q=calcSearch.trim().toLowerCase();
+  ensureCalculators();setTimeout(()=>refreshCalcAcks(false),0);
+  const q=calcSearch.trim().toLowerCase(),S=calcSettings();
   const list=data.calculators.filter(c=>{
     const s=calcStatus(c)[0];
     if(calcFilter==="available"&&s!=="available")return false;
@@ -6215,72 +6322,77 @@ function calculatorsPage(){
     if(calcYear&&String(c.year||"")!==calcYear)return false;
     if(q&&!(`${c.jm} ${c.serial} ${calcHolder(c)}`.toLowerCase().includes(q)))return false;
     return true;
-  }).sort((a,b)=>(calcSort==="year"?(Number(a.year)||9999)-(Number(b.year)||9999):0)||String(a.jm).localeCompare(String(b.jm),undefined,{numeric:true}));
-  const n=k=>data.calculators.filter(c=>k==="out"?calcStatus(c)[0]!=="available":calcStatus(c)[0]===k).length;
-  const rows=list.map(c=>{
-    const [s,label]=calcStatus(c),o=c.out;
-    const scan=o?.scan;
-    return `<div class="calcItem calc-${s}" data-calc="${esc(c.id)}">
-      <div class="calcMain"><div><b>🧮 JM ${esc(c.jm||"—")}</b> <span class="small">S/N ${esc(c.serial||"—")}${c.color?` · ${esc(c.color)}`:""}${c.year?` · bought ${esc(c.year)}`:""}</span></div>${c.notes?`<div class="small calcNotes">📝 ${esc(c.notes)}</div>`:""}
-      <div class="calcStatus">${esc(label)}${o?` — <b>${esc(calcHolder(c))}</b> since ${esc(calcFmtDate(o.date))}`:""}</div></div>
-      ${o?`<div class="calcContract"><label><input type="checkbox" ${o.contract?"checked":""} onchange="window.setCalcContract('${c.id}',this.checked)" aria-label="Contract received JM ${esc(c.jm)}"> Contract received</label>${o.contract?` <input type="date" value="${esc(o.contractDate||"")}" onchange="window.setCalcContractDate('${c.id}',this.value)" aria-label="Contract date">`:""}
-        <div class="calcScan">${scan?`📄 ${esc(scan.name||"Contract scan")} <button onclick="window.viewCalcScan('${c.id}')">View</button> <button onclick="window.pickCalcScan('${c.id}',true)">📷 Replace</button> <button onclick="window.pickCalcScan('${c.id}',false)">📎 Replace with file</button> <button onclick="window.deleteCalcScan('${c.id}')">Delete scan</button>`:`<button onclick="window.pickCalcScan('${c.id}',true)">📷 Scan contract</button> <button onclick="window.pickCalcScan('${c.id}',false)">📎 Upload file</button>`}</div></div>`:""}
-      <div class="calcActions">${o?`<button class="primary" onclick="window.checkInCalc('${c.id}')">Check In</button>`:`<button class="primary" onclick="window.openCalcSignOut('${c.id}')">Sign Out</button>`} <button onclick="window.openCalcEdit('${c.id}')">Edit</button> <button onclick="window.deleteCalc('${c.id}')">Delete</button></div>
-      ${c.history.length?`<details class="calcHistory"><summary>History (${c.history.length})</summary>${c.history.slice().reverse().map(h=>`<div class="small">${esc(h.name)} · ${esc(calcFmtDate(h.date))} → ${esc(calcFmtDate(h.returned))}${h.contract?" · contract ✓":" · no contract"}${h.condOut?` · out: ${esc(h.condOut)}`:""}${h.condIn?` · back: ${esc(h.condIn)}`:""}${h.scan?` · <a href="#" onclick="window.viewCalcScan('${c.id}','${h.id}');return false">scan</a>`:""}</div>`).join("")}</details>`:""}
-    </div>`}).join("")||`<p class="small">${data.calculators.length?"No calculators match.":"No calculators yet. Add one above."}</p>`;
-  return `<header><h2>🧮 Graphing Calculators</h2><p class="small">${data.calculators.length} total · ${n("available")} available · ${n("out")} signed out · ${n("missing")} missing a contract</p></header>
+  }).sort((a,b)=>calcSortDir*calcCompare(a,b,calcSort)||String(a.jm).localeCompare(String(b.jm),undefined,{numeric:true}));
+  calcShownCache=list.map(c=>c.id);
+  [...calcSelected].forEach(id=>{if(!findCalc(id))calcSelected.delete(id)});
+  const n=k=>data.calculators.filter(c=>k==="out"?!["available","teacher"].includes(calcStatus(c)[0]):calcStatus(c)[0]===k).length;
+  const allSel=list.length&&list.every(c=>calcSelected.has(c.id));
+  const rows=list.map(c=>{const [s]=calcStatus(c),[cs,cl]=calcContractState(c);
+    return `<tr class="calcRow calc-${s}" data-calc="${esc(c.id)}" onclick="if(!event.target.closest('input'))window.openCalcDetail('${c.id}')" tabindex="0" onkeydown="if(event.key==='Enter')window.openCalcDetail('${c.id}')">
+      <td class="calcSel"><input type="checkbox" ${calcSelected.has(c.id)?"checked":""} onchange="window.toggleCalcSel('${c.id}',this.checked)" aria-label="Select JM ${esc(c.jm)}"></td>
+      <td class="calcJmCell"><b>${esc(c.jm||"—")}</b></td><td>${esc(c.serial||"—")}</td><td>${esc(c.color||"")}</td><td>${esc(c.year||"")}</td>
+      <td>${calcIsTeacher(c)?`<b>👩‍🏫 ${esc(calcHolder(c))}</b><div class="small">Teacher${c.out.teacherSelf?" (mine)":""}</div>`:c.out?`<b>${esc(calcHolder(c))}</b><div class="small">${esc(calcFmtDate(c.out.date))}</div>`:`<span class="small">Available</span>`}</td>
+      <td class="calcCs calcCs-${cs}">${esc(cl)}</td><td class="calcCond" title="${esc(c.out?.condOut||c.notes||"")}">${esc(c.out?.condOut||c.notes||"")}</td></tr>`}).join("");
+  return `<header><h2>🧮 Graphing Calculators</h2><p class="small">${data.calculators.length} total · ${n("available")} available · ${n("out")} signed out · ${n("missing")} missing a contract${n("teacher")?` · ${n("teacher")} teacher`:""}</p></header>
   <section class="card"><h3 style="margin-top:0">Add Calculator</h3><div class="add" style="flex-wrap:wrap;align-items:end">
     <label style="flex:1;min-width:110px">JM Number<br><input id="calcJm" style="width:100%" value="${esc(calcDraft.calcJm||"")}" oninput="window.calcDraftSet(this)"></label>
     <label style="flex:1;min-width:140px">Serial Number<br><input id="calcSerial" style="width:100%" value="${esc(calcDraft.calcSerial||"")}" oninput="window.calcDraftSet(this)"></label>
     <label style="flex:1;min-width:120px">Color<br>${calcColorSelect("calcColor",calcDraft.calcColor||"")}</label>
     <label style="flex:1;min-width:90px">Year Purchased<br><input id="calcYearIn" type="number" inputmode="numeric" min="1990" max="2100" placeholder="${new Date().getFullYear()}" style="width:100%" value="${esc(calcDraft.calcYearIn||"")}" oninput="window.calcDraftSet(this)"></label>
+    <label style="flex:1;min-width:170px">Assign to (optional)<br><select id="calcAddTo" style="width:100%" onchange="window.calcDraftSet(this);window.calcTypedToggle(this.value,'calcAddNameWrap')">${calcAssignOptions(true,calcDraft.calcAddTo||"")}</select></label>
+    <label id="calcAddNameWrap" style="flex:1;min-width:140px" ${["__other","__teacher"].includes(calcDraft.calcAddTo)?"":"hidden"}>Name<br><input id="calcAddName" style="width:100%" value="${esc(calcDraft.calcAddName||"")}" oninput="window.calcDraftSet(this)"></label>
     <button class="primary" onclick="window.addCalc()">Add</button></div></section>
   <section class="card"><div class="add" style="flex-wrap:wrap;align-items:end">
     <label>Show<br><select onchange="window.setCalcFilter(this.value)">${[["all","All"],["available","Available"],["out","Signed out"],["missing","Missing contract"]].map(([v,l])=>`<option value="${v}" ${calcFilter===v?"selected":""}>${l}</option>`).join("")}</select></label>
     <label>Year<br><select onchange="window.setCalcYear(this.value)"><option value="">All years</option>${[...new Set(data.calculators.map(c=>String(c.year||"")).filter(Boolean))].sort().map(y=>`<option ${calcYear===y?"selected":""}>${esc(y)}</option>`).join("")}</select></label>
-    <label>Sort<br><select onchange="window.setCalcSort(this.value)"><option value="jm" ${calcSort==="jm"?"selected":""}>JM #</option><option value="year" ${calcSort==="year"?"selected":""}>Year purchased</option></select></label>
+    <label>Sort<br><select onchange="window.setCalcSort(this.value)"><option value="jm" ${calcSort==="jm"?"selected":""}>JM #</option><option value="year" ${calcSort==="year"?"selected":""}>Year purchased</option>${["jm","year"].includes(calcSort)?"":`<option selected value="">(column)</option>`}</select></label>
     <label style="flex:1;min-width:180px">Search JM #, serial or student<br><input id="calcSearch" type="search" value="${esc(calcSearch)}" oninput="window.setCalcSearch(this.value)" style="width:100%"></label></div>
-  <div class="calcList">${rows}</div></section>
+  <div class="calcBatchBar"><span class="small">${calcSelected.size} selected</span> <button class="primary" ${calcSelected.size?"":"disabled"} onclick="window.generateCalcContracts()">🖨 Generate contracts${calcSelected.size?` (${calcSelected.size})`:""}</button>${calcSelected.size?` <button onclick="window.toggleCalcSelAll(false)">Clear</button>`:""} <button onclick="window.checkCalcSignatures()">Check e-signatures</button></div>
+  ${list.length?`<div class="calcTableWrap"><table class="calcTable"><thead><tr><th class="calcSel"><input type="checkbox" ${allSel?"checked":""} onchange="window.toggleCalcSelAll(this.checked)" aria-label="Select all shown"></th>${calcTh("jm","JM #")}${calcTh("serial","Serial")}${calcTh("color","Color","calcHideSm")}${calcTh("year","Year","calcHideSm")}${calcTh("holder","Signed out to")}${calcTh("contract","Contract")}${calcTh("cond","Condition","calcHideSm")}</tr></thead><tbody>${rows}</tbody></table></div>`:`<p class="small">${data.calculators.length?"No calculators match.":"No calculators yet. Add one above."}</p>`}</section>
+  <details class="card calcSettingsCard"><summary><b>Contract settings</b> <span class="small">· ${esc(S.schoolYear)} · ${esc(calcMoney(S.cost))} replacement · ${esc(S.teacher)}</span></summary><div class="add" style="flex-wrap:wrap;align-items:end;margin-top:10px">
+    <label>School year<br><input id="calcSetYear" value="${esc(S.schoolYear)}" style="width:110px"></label>
+    <label>Replacement cost ($)<br><input id="calcSetCost" type="number" min="0" step="1" inputmode="decimal" value="${esc(S.cost)}" style="width:110px"></label>
+    <label style="flex:1;min-width:160px">Teacher name<br><input id="calcSetTeacher" value="${esc(S.teacher)}" style="width:100%"></label>
+    <button onclick="window.saveCalcSettings()">Save</button></div></details>
+  ${calcOpenId&&findCalc(calcOpenId)?calcDetailHTML(findCalc(calcOpenId)):""}
   <input type="file" id="calcScanCamera" accept="image/*" capture="environment" hidden onchange="window.calcScanPicked(this)">
   <input type="file" id="calcScanFile" accept="image/*,application/pdf" hidden onchange="window.calcScanPicked(this)">`;
 }
 function findCalc(id){ensureCalculators();return data.calculators.find(c=>c.id===id)}
 window.setCalcFilter=v=>{calcFilter=v;render();}
 window.setCalcYear=v=>{calcYear=v;render();}
-window.setCalcSort=v=>{calcSort=v;render();}
+window.setCalcSort=v=>{if(!v)return;calcSort=v;calcSortDir=1;render();}
 function calcYearVal(id){const v=($(id)?.value||"").trim();return /^\d{4}$/.test(v)?v:"";}
 window.setCalcSearch=v=>{calcSearch=v;clearTimeout(window.__calcSearchT);window.__calcSearchT=setTimeout(()=>{render();const el=$("#calcSearch");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},250);}
 window.addCalc=()=>{
   ensureCalculators();const jm=$("#calcJm")?.value.trim()||"",serial=$("#calcSerial")?.value.trim()||"",color=($("#calcColor")?.value||"").replace("__new","");const year=calcYearVal("#calcYearIn");
   if(!jm&&!serial){alert("Enter a JM number or serial number.");return;}
+  const pk=calcPick($("#calcAddTo")?.value||"",$("#calcAddName")?.value);if(pk?.err){alert(pk.err);return;}
   if(jm&&data.calculators.some(c=>String(c.jm).toLowerCase()===jm.toLowerCase())&&!confirm(`JM ${jm} is already in the list. Add it anyway?`))return;
   for(const k of Object.keys(calcDraft))delete calcDraft[k];
-  data.calculators.push({id:uid(),jm,serial,color,year,out:null,history:[],created:new Date().toISOString()});
-  save();showToast(`Added calculator JM ${jm||serial}`);
+  data.calculators.push({id:uid(),jm,serial,color,year,out:pk?calcNewOut(pk):null,history:[],created:new Date().toISOString()});
+  save();showToast(`Added calculator JM ${jm||serial}${pk?` · signed out to ${pk.name}`:""}`);
 }
 function calcModal(id,title,body){document.querySelector("#calcModal")?.remove();document.body.insertAdjacentHTML("beforeend",`<div id="calcModal" class="modalbg"><div class="modal"><h3>${title}</h3>${body}</div></div>`);}
 window.closeCalcModal=()=>document.querySelector("#calcModal")?.remove();
 window.openCalcEdit=id=>{const c=findCalc(id);if(!c)return;calcModal(id,"Edit Calculator",`<label>JM Number<br><input id="calcEditJm" value="${esc(c.jm)}" style="width:100%"></label><label>Serial Number<br><input id="calcEditSerial" value="${esc(c.serial)}" style="width:100%"></label><label>Color<br>${calcColorSelect("calcEditColor",c.color)}</label><label>Year Purchased<br><input id="calcEditYear" type="number" inputmode="numeric" value="${esc(c.year||"")}" style="width:100%"></label><label>Condition notes<br><textarea id="calcEditNotes" rows="3" style="width:100%" placeholder="Scratches, missing cover, battery…">${esc(c.notes||"")}</textarea></label><div style="margin-top:14px"><button class="primary" onclick="window.saveCalcEdit('${id}')">Save</button> <button onclick="window.closeCalcModal()">Cancel</button></div>`);}
 window.saveCalcEdit=id=>{const c=findCalc(id);if(!c)return;c.jm=$("#calcEditJm").value.trim();c.serial=$("#calcEditSerial").value.trim();c.color=$("#calcEditColor").value.replace("__new","");c.year=calcYearVal("#calcEditYear");c.notes=$("#calcEditNotes").value.trim();save();window.closeCalcModal();render();}
 window.openCalcSignOut=id=>{const c=findCalc(id);if(!c)return;
-  calcModal(id,`Sign Out JM ${esc(c.jm)}`,`<label>Student<br><select id="calcStudent" style="width:100%" onchange="document.getElementById('calcOtherWrap').hidden=this.value!=='__other'"><option value="">Choose a student…</option>${sortedStudents(data.students).map(s=>`<option value="${esc(s.id)}">${esc(studentDisplayName(s))}</option>`).join("")}<option value="__other">Someone else (type a name)</option></select></label>
+  calcModal(id,`Sign Out JM ${esc(c.jm)}`,`<label>Sign out to<br><select id="calcStudent" style="width:100%" onchange="window.calcTypedToggle(this.value,'calcOtherWrap')">${calcAssignOptions(false)}</select></label>
   <label id="calcOtherWrap" hidden>Name<br><input id="calcOtherName" style="width:100%" placeholder="Name"></label>
   <label>Sign-out date<br><input id="calcOutDate" type="date" value="${localDateKey()}"></label>
   <label style="display:block;margin-top:8px"><input type="checkbox" id="calcOutContract"> Contract received</label>
   <label>Condition at sign-out (optional)<br><textarea id="calcOutCond" rows="2" style="width:100%"></textarea></label>
   <div style="margin-top:14px"><button class="primary" onclick="window.saveCalcSignOut('${id}')">Sign Out</button> <button onclick="window.closeCalcModal()">Cancel</button></div>`);}
-window.saveCalcSignOut=id=>{const c=findCalc(id);if(!c)return;const sel=$("#calcStudent").value;let studentId="",name="";
-  if(sel==="__other"){name=$("#calcOtherName").value.trim();if(!name){alert("Type a name.");return;}}
-  else if(sel){studentId=sel;name=studentDisplayName(data.students.find(s=>s.id===sel)||{});}
-  else{alert("Choose a student.");return;}
-  const contract=$("#calcOutContract").checked;
-  c.out={id:uid(),studentId,name,date:$("#calcOutDate").value||localDateKey(),contract,contractDate:contract?localDateKey():"",scan:null,condOut:$("#calcOutCond").value.trim()};
-  save();window.closeCalcModal();showToast(`JM ${c.jm} signed out to ${name}`);}
+window.saveCalcSignOut=id=>{const c=findCalc(id);if(!c)return;const pk=calcPick($("#calcStudent").value,$("#calcOtherName").value);
+  if(!pk){alert("Choose a student or teacher.");return;}if(pk.err){alert(pk.err);return;}
+  c.out=calcNewOut(pk,$("#calcOutDate").value,$("#calcOutContract").checked,$("#calcOutCond").value.trim());
+  save();window.closeCalcModal();showToast(`JM ${c.jm} signed out to ${pk.name}`);}
 window.checkInCalc=id=>{const c=findCalc(id);if(!c?.out)return;const who=calcHolder(c);
   calcModal(id,`Check In JM ${esc(c.jm)}`,`<p>From <b>${esc(who)}</b>. The sign-out stays in the history.</p><label>Return date<br><input id="calcInDate" type="date" value="${localDateKey()}"></label><label>Condition on return (optional)<br><textarea id="calcInCond" rows="2" style="width:100%"></textarea></label><div style="margin-top:14px"><button class="primary" onclick="window.saveCalcCheckIn('${id}')">Check In</button> <button onclick="window.closeCalcModal()">Cancel</button></div>`);}
 window.saveCalcCheckIn=id=>{const c=findCalc(id);if(!c?.out)return;const who=calcHolder(c);
   c.history.push({...c.out,name:who,returned:$("#calcInDate").value||localDateKey(),condIn:$("#calcInCond").value.trim()});c.out=null;window.closeCalcModal();save();showToast(`JM ${c.jm} checked in`);}
-window.setCalcContract=(id,on)=>{const c=findCalc(id);if(!c?.out)return;c.out.contract=!!on;c.out.contractDate=on?(c.out.contractDate||localDateKey()):"";save();render();}
+window.setCalcContract=(id,on)=>{const c=findCalc(id);if(!c?.out||calcIsTeacher(c))return;c.out.contract=!!on;c.out.contractDate=on?(c.out.contractDate||localDateKey()):"";if(!on)delete c.out.contractMethod;save();render();}
 window.setCalcContractDate=(id,v)=>{const c=findCalc(id);if(!c?.out)return;c.out.contractDate=v;save();}
 window.deleteCalc=async id=>{const c=findCalc(id);if(!c)return;if(!confirm(`Delete calculator JM ${c.jm} and its history and scans?`))return;
   const scans=[c.out?.scan,...c.history.map(h=>h.scan)].filter(Boolean);
@@ -6461,6 +6573,23 @@ main{min-width:0}
 .calPinList{display:grid;gap:6px}.calPinItem{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;align-items:center;padding:6px 8px;border:1px solid #f0d68a;background:#fffbeb;border-radius:8px}
 .calPinBtns{display:flex;gap:4px;flex-wrap:wrap}.calPinBtns button{padding:3px 8px;font-size:12px}
 .msPinShareNote{margin:4px 0 0;color:#92400e}
+</style>
+<style id="v480-calculators">
+.calcTableWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;border:1px solid var(--line);border-radius:10px}
+.calcTable{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+.calcTable th,.calcTable td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+.calcTable th{background:#f3f5f9;font-size:12px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}
+.calcRow{cursor:pointer}.calcRow:hover td{background:#f7f9fc}
+.calcRow td:first-child{border-left:5px solid transparent}.calcRow.calc-available td:first-child{border-left-color:#3a8f5c}.calcRow.calc-out td:first-child{border-left-color:#3b6fb6}.calcRow.calc-missing td:first-child{border-left-color:#c9822b}
+.calcSortTh button{all:unset;cursor:pointer;font-weight:700;white-space:nowrap}.calcSortTh button:focus-visible{outline:2px solid #3b6fb6}.calcSortTh.sorted button{color:#2d3b59;text-decoration:underline}
+.calcRow.calc-teacher td{background:#f6f2fb}.calcRow.calc-teacher td:first-child{border-left-color:#7a5aa8}.calcCs-teacher{color:#6b4f94;font-style:italic}.calcTeacherNote{background:#f6f2fb;border:1px solid #d9cdea;border-radius:8px;padding:8px}
+.calcSel{width:34px}.calcSel input{width:20px;height:20px}
+.calcCond{max-width:170px;overflow:hidden;text-overflow:ellipsis;color:#596579}
+.calcCs-ok{color:#2f7a4c;font-weight:600}.calcCs-missing{color:#b4531f;font-weight:600}.calcCs-wait{color:#3b6fb6}
+.calcBatchBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.calcDetailModal{width:min(620px,100%)}.calcEsigned{background:#eef8f1;border:1px solid #b9dfc6;border-radius:8px;padding:8px;margin:8px 0}
+.calcSettingsCard summary{cursor:pointer}
+@media (max-width:600px){.calcTable{min-width:0;font-size:13px}.calcTable th:nth-child(4),.calcTable td:nth-child(4),.calcTable th:nth-child(5),.calcTable td:nth-child(5),.calcTable th:nth-child(8),.calcTable td:nth-child(8){display:none}.calcTable th,.calcTable td{padding:7px 5px;white-space:normal}.calcTable td:nth-child(3){font-size:12px;word-break:break-all}}
 </style>
 <style id="v470-calculators">
 .calcItem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;display:grid;gap:8px}

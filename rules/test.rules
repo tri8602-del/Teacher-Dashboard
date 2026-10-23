@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // PROPOSED (NOT DEPLOYED) - V4.8.0 online calculator contracts.
+    // Add this block inside `match /databases/{database}/documents { ... }` of the live rules.
+    // Leave the existing users/{uid} rules exactly as they are.
+    match /calcAcks/{token} {
+      // Anyone holding the exact link can read that one contract. Nobody can list or query the collection.
+      allow get: if token.size() >= 32;
+      allow list: if false;
+    
+      // Only the signed-in teacher can create a contract, as her own, unsigned.
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.signed == false
+        && token.size() >= 32;
+    
+      // The teacher may change or delete her own contracts (e.g. re-issue), but cannot hand them to another account.
+      allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+      allow update: if (request.auth != null
+            && resource.data.ownerUid == request.auth.uid
+            && request.resource.data.ownerUid == resource.data.ownerUid)
+        // A parent (no sign-in) may sign once: only the four signature fields change, the name is 2-100
+        // characters, "I agree" is true, and the time is the server's clock. After that it is locked.
+        || (resource.data.signed == false
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signed', 'agreed', 'signerName', 'signedAt'])
+            && request.resource.data.signed == true
+            && request.resource.data.agreed == true
+            && request.resource.data.signerName is string
+            && request.resource.data.signerName.size() >= 2
+            && request.resource.data.signerName.size() <= 100
+            && request.resource.data.signedAt == request.time);
+    }
+  }
+}
