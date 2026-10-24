@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.8.1</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.8.2</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -865,7 +865,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.8.1";
+const APP_VERSION="4.8.2";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -6220,10 +6220,14 @@ let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
-function calcLetter(c,st){const s=calcSettings(),cost=calcMoney(s.cost),color=c.color?`${c.color} `:"";return {version:2,
+// V4.8.2: every calculator is a TI-84 Plus; the body uses the student's first name.
+function calcModelLabel(c){const col=String(c.color||"").trim();return /ti-?84/i.test(col)?col:`TI-84 Plus${col?" "+col:""}`;}
+function calcFirstName(c,st){const r=c.out?.studentId?data.students.find(x=>x.id===c.out.studentId):null;
+  const f=r?String(studentFirstName(r)||"").trim():"";return f||String(st||"").trim().split(/\s+/)[0]||"your student";}
+function calcLetter(c,st){const s=calcSettings(),cost=calcMoney(s.cost),model=calcModelLabel(c),first=calcFirstName(c,st);return {version:3,calculatorLabel:model,
   greeting:`Dear Parent or Guardian of ${st},`,
-  body:[`I'm happy to let you know that ${st} has been issued a ${color}graphing calculator to use in math class for the ${s.schoolYear} school year. It's a tool we'll use almost every day, and I'm glad your student will have one of their own.`,
-    `To help us get the most out of it, please encourage your student to:`],
+  body:[`I'm happy to let you know that ${first} has been issued a ${model} graphing calculator to use in math class for the ${s.schoolYear} school year. It's a tool we'll use almost every day, and I'm glad ${first} will have one of their own.`,
+    `To help us get the most out of it, please encourage ${first} to:`],
   bullets:[`Bring the calculator to class every day, fully charged.`,`Take good care of it and keep it in a safe place, both at school and at home.`],
   after:[`Because these calculators belong to the school district, a ${cost} replacement fee applies if the calculator is lost, stolen, or damaged.`,
     `Thank you so much for your support. I'm looking forward to a wonderful year together!`],
@@ -6253,19 +6257,19 @@ function calcEnsureAck(c){const o=c.out;if(!o||!currentUser)return null;
 function calcLetterHTML(L,sig,info){const p=t=>`<p class="calcLetterP">${esc(t)}</p>`;
   return `${info}${p(L.greeting)}${L.body.map(p).join("")}<ul class="calcLetterUl">${L.bullets.map(b=>`<li>${esc(b)}</li>`).join("")}</ul>${L.after.map(p).join("")}
   <div class="calcClosing"><div>${esc(L.closing.valediction)}</div>${sig?`<img class="calcSigImg" src="${esc(sig)}" alt="Signature">`:`<div style="height:34px"></div>`}<div><b>${esc(L.closing.name)}</b></div>${L.closing.title?`<div>${esc(L.closing.title)}</div>`:""}</div>`;}
-function calcInfoTable(o){return `<table class="calcInfo"><tbody><tr><th>Student</th><td>${esc(o.st)}</td><th>School year</th><td>${esc(o.year)}</td></tr><tr><th>Calculator</th><td>${esc(o.color||"Graphing calculator")}</td><th>JM #</th><td>${esc(o.jm||"—")}</td></tr><tr><th>Serial #</th><td colspan="3">${esc(o.serial||"—")}</td></tr></tbody></table>`;}
+function calcInfoTable(o){return `<table class="calcInfo"><tbody><tr><th>Student</th><td>${esc(o.st)}</td><th>School year</th><td>${esc(o.year)}</td></tr><tr><th>Calculator</th><td>${esc(o.model)}</td><th>JM #</th><td>${esc(o.jm||"—")}</td></tr><tr><th>Serial #</th><td colspan="3">${esc(o.serial||"—")}</td></tr></tbody></table>`;}
 function calcContractPage(c){const st=calcHolder(c),token=calcEnsureAck(c),url=token?calcSignUrl(token):"",s=calcSettings();
   const L=calcLetter(c,st);
   return `<section class="calcContractPage"><div class="formTrackerTitle"><h1>Graphing Calculator Agreement</h1><div class="trackerBadge">${esc(s.schoolYear)} School Year</div></div>
-  ${calcLetterHTML(L,calcSigForPrint(s),calcInfoTable({st,year:s.schoolYear,color:c.color,jm:c.jm,serial:c.serial}))}
+  ${calcLetterHTML(L,calcSigForPrint(s),calcInfoTable({st,year:s.schoolYear,model:calcModelLabel(c),jm:c.jm,serial:c.serial}))}
   <div class="calcAckGrid"><div class="calcAckBox"><b>Student</b><p>${esc(L.ackStudent)}</p><p class="calcLine">Student signature</p><p class="calcLine">Date</p></div>
   <div class="calcAckBox"><b>Parent/Guardian</b><p>${esc(L.ackParent)}</p><p class="calcLine">Parent/Guardian signature</p><p class="calcLine">Printed name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date</p></div></div>
-  ${url?`<div class="calcQrBox">${calcQrSvg(url,3)}<div><b>Prefer to sign online?</b><br>Scan the QR code or open:<br><span class="small" style="word-break:break-all">${esc(url)}</span></div></div>`:""}</section>`;}
+  ${url?`<div class="calcQrBox">${calcQrSvg(url,2)}<div><b>Prefer to sign online?</b><br>Scan the QR code or open:<br><span class="small" style="word-break:break-all">${esc(url)}</span></div></div>`:""}</section>`;}
 window.generateCalcContracts=ids=>{ensureCalculators();
   const list=(ids||[...calcSelected]).map(findCalc).filter(Boolean),out=list.filter(c=>c.out&&!calcIsTeacher(c)),skip=list.filter(c=>!c.out||calcIsTeacher(c));
   if(!out.length){alert(skip.length?"Contracts can only be made for calculators that are signed out to a student (not available or teacher calculators).":"Select calculators first.");return;}
   const body=out.map(calcContractPage).join("");save();
-  printDocument(out.length===1?`Calculator Contract - ${calcHolder(out[0])}`:`Calculator Contracts (${out.length})`,`<style>.calcContractPage{break-after:page;page-break-after:always;padding-top:4px}.calcContractPage:last-child{break-after:auto;page-break-after:auto}.calcQrBox{display:flex;gap:14px;align-items:center;margin-top:22px;border:1px dashed #98a2b3;border-radius:8px;padding:10px}.calcQrBox svg{flex:none}.calcQrBox{margin-top:14px;padding:8px}.calcLetterP{font-size:11pt;margin:8px 0;line-height:1.45}.calcLetterUl{margin:4px 0 8px 22px;font-size:11pt;line-height:1.45}.calcInfo{margin:8px 0 12px;width:100%}.calcInfo th{width:16%}.calcClosing{margin:14px 0 6px 52%;font-size:11pt;line-height:1.35}.calcSigImg{display:block;height:58px;max-width:220px;object-fit:contain;margin:2px 0}.calcAckGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.calcAckBox{border:1px solid #c8cfda;border-radius:8px;padding:8px 10px;font-size:10pt}.calcAckBox p{margin:5px 0}.calcLine{border-top:1px solid #333;margin-top:26px!important;padding-top:2px;font-size:9pt;color:#444}</style>${body}`);
+  printDocument(out.length===1?`Calculator Contract - ${calcHolder(out[0])}`:`Calculator Contracts (${out.length})`,`<style>.calcContractPage{break-after:page;page-break-after:always;padding-top:4px}.calcContractPage:last-child{break-after:auto;page-break-after:auto}.calcQrBox{display:flex;gap:14px;align-items:center;margin-top:22px;border:1px dashed #98a2b3;border-radius:8px;padding:10px}.calcQrBox svg{flex:none}@page{size:letter portrait;margin:0.75in}@media screen{.calcContractPage{max-width:7in;margin:0 auto 40px}}.calcQrBox{margin-top:16px;padding:8px 14px;gap:16px}.calcLetterP{font-size:11pt;margin:0 0 9px;line-height:1.5}.calcLetterUl{margin:2px 0 12px 24px;font-size:11pt;line-height:1.5}.calcLetterUl li{margin:2px 0}.calcInfo{margin:12px 0 18px;width:100%}.calcInfo th,.calcInfo td{padding:6px 9px!important}.calcInfo th{width:17%}.calcClosing{margin:16px 0 4px 55%;font-size:11pt;line-height:1.4}.calcSigImg{display:block;height:54px;max-width:200px;object-fit:contain;margin:4px 0}.calcAckGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.calcAckBox{border:1px solid #c8cfda;border-radius:10px;padding:12px 14px;font-size:10pt;line-height:1.45}.calcAckBox p{margin:6px 0}.calcLine{border-top:1px solid #333;margin-top:28px!important;padding-top:3px;font-size:9pt;color:#444}.calcContractPage .formTrackerTitle{margin-bottom:6px}</style>${body}`);
   if(skip.length)showToast(`${skip.length} calculator${skip.length>1?"s were":" was"} skipped (available or teacher calculator).`);else render();};
 window.copyCalcLink=async id=>{const c=findCalc(id);if(!c?.out||calcIsTeacher(c))return;const t=calcEnsureAck(c);save();const url=calcSignUrl(t);
   try{await navigator.clipboard.writeText(url);showToast("Signing link copied");}catch(e){prompt("Copy this signing link:",url);}render();};
