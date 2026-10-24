@@ -5,11 +5,11 @@
 <link rel="icon" href="icons/favicon-32.png">
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#eef1f6;color:#172033;line-height:1.45}
-.wrap{max-width:640px;margin:0 auto;padding:18px}
-.card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 10px #0001}
+.wrap{max-width:640px;margin:0 auto;padding:22px 16px}
+.card{background:#fff;border-radius:14px;padding:26px 24px;box-shadow:0 2px 10px #0001}
 h1{font-size:22px;margin:0 0 4px}.meta{color:#596579;font-size:14px;margin:0 0 14px}
 table{border-collapse:collapse;width:100%;margin:10px 0 14px;font-size:15px}th,td{border:1px solid #d5dbe5;padding:7px;text-align:left}th{background:#f3f5f9;width:40%}
-p{margin:10px 0}label{display:block;margin:14px 0 6px;font-weight:600}
+p{margin:12px 0;line-height:1.6}label{display:block;margin:14px 0 6px;font-weight:600}
 input[type=text]{width:100%;font-size:17px;padding:11px;border:1px solid #b8c1cf;border-radius:9px}
 .agree{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin-top:16px}.agree input{width:24px;height:24px;flex:none}
 button{margin-top:18px;width:100%;font-size:17px;padding:13px;border:0;border-radius:10px;background:#2d3b59;color:#fff;font-weight:700}
@@ -36,7 +36,7 @@ function letterHTML(L,sig){const p=t=>`<p>${esc(t)}</p>`;const okSig=typeof sig=
 function show(r){
   const c=r.contract||{};
   const head=`<h1>${c.letter?"Graphing Calculator Agreement":"Graphing Calculator Contract"}</h1><p class="meta">${esc(c.schoolYear)} school year · Teacher: ${esc(c.teacher)}</p>
-  <table><tr><th>Student</th><td>${esc(c.studentName)}</td></tr><tr><th>Calculator color</th><td>${esc(c.color||"—")}</td></tr><tr><th>JM Number</th><td>${esc(c.jm||"—")}</td></tr><tr><th>Serial Number</th><td>${esc(c.serial||"—")}</td></tr></table>
+  <table><tr><th>Student</th><td>${esc(c.studentName)}</td></tr>${c.letter?.calculatorLabel?`<tr><th>Calculator</th><td>${esc(c.letter.calculatorLabel)}</td></tr>`:`<tr><th>Calculator color</th><td>${esc(c.color||"—")}</td></tr>`}<tr><th>JM Number</th><td>${esc(c.jm||"—")}</td></tr><tr><th>Serial Number</th><td>${esc(c.serial||"—")}</td></tr></table>
   ${c.letter?letterHTML(c.letter,c.signature):(c.paragraphs||[]).filter(t=>!/^JM Number:/.test(t)).map(t=>`<p>${esc(t).replace(/\n/g,"<br>")}</p>`).join("")}`;
   if(r.signed){el.innerHTML=head+`<div class="ok">✅ <b>Signed</b> by ${esc(r.signerName)} on ${esc(when(r.signedAt))}. Thank you! You can close this page.</div>`;return;}
   el.innerHTML=head+`<form id="f"><label for="nm">Parent/Guardian full name</label><input type="text" id="nm" autocomplete="name" maxlength="100" required>
