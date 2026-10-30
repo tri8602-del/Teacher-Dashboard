@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.8.2</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.9.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -224,6 +224,10 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
  .formRowInfo{gap:5px!important}.formRowMeta{display:none!important}
  .formRowActions button{padding:5px 7px!important;font-size:11px!important}
 }
+/* V4.9.0: with the Archive button the row can be wider than the card; the buttons wrap under the name instead of covering it */
+.formCard.compactFormRow .formCardTop{flex-wrap:wrap!important;row-gap:6px!important}
+.formCard.compactFormRow .formRowInfo{flex:1 1 200px!important}
+.formCard.compactFormRow .formRowActions{flex-wrap:wrap!important;justify-content:flex-end!important;margin-left:auto!important;flex-shrink:1!important}
 
 
 /* V1.12.2 — cleaner "Who does this apply to?" selector */
@@ -865,7 +869,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.8.2";
+const APP_VERSION="4.9.0";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -1012,7 +1016,8 @@ function ensureForms(){
     targetGroupIds:Array.isArray(f.targetGroupIds)?f.targetGroupIds:[],
     targetStudentIds:Array.isArray(f.targetStudentIds)?f.targetStudentIds:[],
     fields:Array.isArray(f.fields)?f.fields:[],
-    records:f.records||{}
+    records:f.records||{},
+    ...(f.archived?{archived:true,archivedDate:f.archivedDate||""}:{})
   }));
 }
 function ensureGroups(){
@@ -1810,12 +1815,17 @@ function pvaasNoteRosterChange(cls,beforeIds,afterIds){
   if(!cls.pvaasReported)return;
   before.forEach(sid=>{if(!after.has(sid)&&!pvaasRemovedRecord(cls,sid)){classEnrollmentPeriods(cls,sid);cls.rosterHistory.push({id:"pvaas_"+sid,studentId:sid,pvaasKept:true,removedOn:localDateKey(new Date())});}});
 }
+// V4.9.0: students added straight to the PVAAS page (never on a class roster). They live only in
+// data.pvaasManualStudents, never in data.students, so no roster or other page sees them. Each one
+// is tied to a PVAAS course by a rosterHistory record {studentId,pvaasKept:true,manual:true}.
+function pvaasManualList(){if(!Array.isArray(data.pvaasManualStudents))data.pvaasManualStudents=[];return data.pvaasManualStudents;}
+function pvaasStudentById(sid){return data.students.find(s=>s.id===sid)||pvaasManualList().find(s=>s.id===sid);}
 function pvaasRows(){
   ensurePvaasData();ensureClassFields();
   const classes=data.classes.filter(c=>c.pvaasReported);
   const byStudent=new Map();
   classes.forEach(cls=>[...new Set([...(cls.studentIds||[]),...(cls.rosterHistory||[]).filter(x=>x.pvaasKept).map(x=>x.studentId)])].forEach(sid=>{
-    const st=data.students.find(s=>s.id===sid);if(!st)return;
+    const st=pvaasStudentById(sid);if(!st)return;
     if(!byStudent.has(sid))byStudent.set(sid,{student:st,classes:[]});
     byStudent.get(sid).classes.push(cls);
   }));
@@ -1825,7 +1835,7 @@ function pvaasRows(){
     const merged=mergeEnrollmentPeriods(allPeriods);
     const days=merged.reduce((sum,p)=>sum+pvaasDaysForPeriod(p.start,p.end),0);
     const removed=entry.classes.every(cls=>!(cls.studentIds||[]).includes(st.id));
-    return {...entry,merged,days,removed};
+    return {...entry,merged,days,removed:removed&&!st.pvaasManual,manual:!!st.pvaasManual};
   });
 }
 function pvaas(){
@@ -1837,13 +1847,45 @@ function pvaas(){
   const total=pvaasTotalDays();
   const cohortOptions=[`<option value="allStudents" ${cohortFilter==="allStudents"?"selected":""}>All PVAAS Students</option>`,...data.pvaasCohorts.filter(c=>c.id!=="all").map(c=>`<option value="${c.id}" ${cohortFilter===c.id?"selected":""}>${esc(c.name)}</option>`)];
   return `<header><div><h2>PVAAS Reporting</h2><p>All students from PVAAS-reportable classes are combined into one alphabetized roster. Class sections are kept only as a reference.</p></div></header>
-  <section class="card"><div class="pvaasControls"><div><h3 style="margin-bottom:4px">PVAAS Cohort</h3><label class="small">View cohort<br><select onchange="window.setPvaasCohortFilter(this.value)">${cohortOptions.join("")}</select></label></div><div><button onclick="window.openPvaasCohortManager()">Manage Cohorts</button></div></div>
+  <section class="card"><div class="pvaasControls"><div><h3 style="margin-bottom:4px">PVAAS Cohort</h3><label class="small">View cohort<br><select onchange="window.setPvaasCohortFilter(this.value)">${cohortOptions.join("")}</select></label></div><div><button onclick="window.openPvaasManualStudent()" ${classes.length?"":"disabled"}>＋ Add student</button> <button onclick="window.openPvaasCohortManager()">Manage Cohorts</button></div></div>
   <p class="small" style="margin-top:10px">${classes.length?`${classes.length} course${classes.length===1?"":"s"} selected for PVAAS · ${rows.length} unique student${rows.length===1?"":"s"} · ${total} instructional days`:`No courses are currently marked for PVAAS.`}</p><div class="pvaasEndSetting"><label><b>PVAAS reporting end date</b><br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label><span class="small">Leave blank to use the last student day. Set this to the test date when reporting should stop there.</span></div></section>
-  ${classes.length?`<section class="card"><h3>Student Responsibility Matrix</h3><p class="small">Students are alphabetized by last name. If a student is enrolled in more than one PVAAS class, they appear only once in this matrix.</p><div class="pvaasMatrixWrap"><table class="pvaasTable"><thead><tr><th>Student</th><th>% Responsible</th><th>Enrollment Period(s)</th><th>Responsibility Days</th><th>Cohort</th></tr></thead><tbody>${filtered.map(r=>{const st=r.student;const pct=total?Math.round(r.days/total*1000)/10:0;const cohortId=pvaasCohortId(st.id);const remDate=r.removed?r.classes.map(c=>pvaasRemovedRecord(c,st.id)?.removedOn).filter(Boolean).sort().pop():"";return `<tr${r.removed?' class="pvaasRemovedRow"':''}><td><b>${esc(studentDisplayName(st))}</b>${r.removed?`<br><span class="pvaasRemovedTag">Removed from class${remDate?` ${esc(pvaasUsDate(remDate))}`:""}</span>`:''}${r.classes.filter(c=>!(c.studentIds||[]).includes(st.id)&&pvaasRemovedRecord(c,st.id)).map(c=>`<br><button type="button" class="pvaasDropBtn" onclick="window.dropPvaasStudent('${c.id}','${st.id}')">Drop from PVAAS${r.classes.length>1?` (${esc(c.name)})`:""}</button>`).join("")}</td><td><b>${pct}%</b></td><td><div class="pvaasPeriodsInline">${r.classes.map(cls=>{const periods=classEnrollmentPeriods(cls,st.id);return periods.map(p=>`<div class="pvaasPeriodInline"><label>Enroll <input type="date" value="${p.start||""}" onchange="window.updateEnrollmentPeriod('${cls.id}','${p.id}','start',this.value)"></label><label>Unenroll <input type="date" value="${p.end||""}" onchange="window.updateEnrollmentPeriod('${cls.id}','${p.id}','end',this.value)"></label>${periods.length>1?`<button type="button" class="tinyBtn" title="Remove period" onclick="window.removeEnrollmentPeriod('${cls.id}','${p.id}')">×</button>`:""}</div>`).join("")+`<button type="button" class="tinyBtn" onclick="window.addEnrollmentPeriod('${cls.id}','${st.id}')">+ Period</button>`+(()=>{const rec=(cls.studentIds||[]).includes(st.id)?null:pvaasRemovedRecord(cls,st.id);return rec?`${r.classes.length>1?`<span class="pvaasRemovedTag">Removed from ${esc(cls.name)}${rec.removedOn?` ${esc(pvaasUsDate(rec.removedOn))}`:""}</span>`:""}`:""})()}).join("")}</div></td><td><b>${r.days} / ${total}</b></td><td><select onchange="window.setPvaasStudentCohort('${st.id}',this.value)">${data.pvaasCohorts.map(c=>`<option value="${c.id}" ${cohortId===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select></td></tr>`;}).join("")||`<tr><td colspan="5" class="small">No students in this cohort yet.</td></tr>`}</tbody></table></div></section>`:`<section class="card"><p class="small">Go to Students & Classes → Edit the course → PVAAS Reporting and check “Report this course for PVAAS.”</p></section>`}`;
+  ${classes.length?`<section class="card"><h3>Student Responsibility Matrix</h3><p class="small">Students are alphabetized by last name. If a student is enrolled in more than one PVAAS class, they appear only once in this matrix.</p><div class="pvaasMatrixWrap"><table class="pvaasTable"><thead><tr><th>Student</th><th>% Responsible</th><th>Enrollment Period(s)</th><th>Responsibility Days</th><th>Cohort</th></tr></thead><tbody>${filtered.map(r=>{const st=r.student;const pct=total?Math.round(r.days/total*1000)/10:0;const cohortId=pvaasCohortId(st.id);const remDate=r.removed?r.classes.map(c=>pvaasRemovedRecord(c,st.id)?.removedOn).filter(Boolean).sort().pop():"";return `<tr${r.removed?' class="pvaasRemovedRow"':''}><td><b>${esc(studentDisplayName(st))}</b>${r.removed?`<br><span class="pvaasRemovedTag">Removed from class${remDate?` ${esc(pvaasUsDate(remDate))}`:""}</span>`:''}${r.manual?`<br><span class="pvaasRemovedTag pvaasManualTag">Not on roster</span> <button type="button" class="tinyBtn" onclick="window.openPvaasManualStudent('${st.id}')">Edit</button>`:''}${r.classes.filter(c=>!(c.studentIds||[]).includes(st.id)&&pvaasRemovedRecord(c,st.id)).map(c=>`<br><button type="button" class="pvaasDropBtn" onclick="window.dropPvaasStudent('${c.id}','${st.id}')">Drop from PVAAS${r.classes.length>1?` (${esc(c.name)})`:""}</button>`).join("")}</td><td><b>${pct}%</b></td><td><div class="pvaasPeriodsInline">${r.classes.map(cls=>{const periods=classEnrollmentPeriods(cls,st.id);return periods.map(p=>`<div class="pvaasPeriodInline"><label>Enroll <input type="date" value="${p.start||""}" onchange="window.updateEnrollmentPeriod('${cls.id}','${p.id}','start',this.value)"></label><label>Unenroll <input type="date" value="${p.end||""}" onchange="window.updateEnrollmentPeriod('${cls.id}','${p.id}','end',this.value)"></label>${periods.length>1?`<button type="button" class="tinyBtn" title="Remove period" onclick="window.removeEnrollmentPeriod('${cls.id}','${p.id}')">×</button>`:""}</div>`).join("")+`<button type="button" class="tinyBtn" onclick="window.addEnrollmentPeriod('${cls.id}','${st.id}')">+ Period</button>`+(()=>{const rec=(cls.studentIds||[]).includes(st.id)?null:pvaasRemovedRecord(cls,st.id);return rec?`${r.classes.length>1?`<span class="pvaasRemovedTag">Removed from ${esc(cls.name)}${rec.removedOn?` ${esc(pvaasUsDate(rec.removedOn))}`:""}</span>`:""}`:""})()}).join("")}</div></td><td><b>${r.days} / ${total}</b></td><td><select onchange="window.setPvaasStudentCohort('${st.id}',this.value)">${data.pvaasCohorts.map(c=>`<option value="${c.id}" ${cohortId===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select></td></tr>`;}).join("")||`<tr><td colspan="5" class="small">No students in this cohort yet.</td></tr>`}</tbody></table></div></section>`:`<section class="card"><p class="small">Go to Students & Classes → Edit the course → PVAAS Reporting and check “Report this course for PVAAS.”</p></section>`}`;
 }
-window.dropPvaasStudent=(classId,studentId)=>{const c=data.classes.find(x=>x.id===classId);const st=data.students.find(x=>x.id===studentId);if(!c||!pvaasRemovedRecord(c,studentId))return;
+window.dropPvaasStudent=(classId,studentId)=>{const c=data.classes.find(x=>x.id===classId);const st=pvaasStudentById(studentId);if(!c||!pvaasRemovedRecord(c,studentId))return;
   if(!confirm(`Drop ${st?studentDisplayName(st):"this student"} from PVAAS for ${c.name}? Their enrollment dates for this class will be deleted.`))return;
-  c.rosterHistory=(c.rosterHistory||[]).filter(x=>!(x.studentId===studentId&&x.pvaasKept));c.enrollmentPeriods=(c.enrollmentPeriods||[]).filter(p=>p.studentId!==studentId);save();toast="Dropped from PVAAS.";render();};
+  c.rosterHistory=(c.rosterHistory||[]).filter(x=>!(x.studentId===studentId&&x.pvaasKept));c.enrollmentPeriods=(c.enrollmentPeriods||[]).filter(p=>p.studentId!==studentId);
+  if(st?.pvaasManual&&!data.classes.some(x=>pvaasRemovedRecord(x,studentId))){data.pvaasManualStudents=pvaasManualList().filter(x=>x.id!==studentId);if(data.pvaasStudentCohorts)delete data.pvaasStudentCohorts[studentId];}
+  save();toast="Dropped from PVAAS.";render();};
+window.openPvaasManualStudent=(sid)=>{
+  ensurePvaasData();document.querySelector('#pvaasManualModal')?.remove();
+  const classes=data.classes.filter(c=>c.pvaasReported);if(!classes.length)return;
+  const st=sid?pvaasManualList().find(s=>s.id===sid):null;
+  const cls=st?classes.find(c=>pvaasRemovedRecord(c,st.id)):null;
+  const per=st&&cls?classEnrollmentPeriods(cls,st.id)[0]:null;
+  document.body.insertAdjacentHTML('beforeend',`<div id="pvaasManualModal" class="modalbg"><div class="modal"><h3>${st?"Edit student":"Add student to PVAAS"}</h3><p class="small">For a student you're responsible for who was never on your class roster. They show only on this page.</p>
+  <div class="modalStack"><label>First name<input id="pvmFirst" value="${esc(st?.firstName||"")}"></label><label>Last name<input id="pvmLast" value="${esc(st?.lastName||"")}"></label>
+  <label>Counts toward<select id="pvmClass" ${st?"disabled":""}>${classes.map(c=>`<option value="${c.id}" ${cls?.id===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select></label>
+  ${st?"":`<label>Enroll date<input id="pvmStart" type="date" value="${schoolStartDate()||""}"></label><label>Unenroll date<input id="pvmEnd" type="date" value="${schoolEndDate()||""}"></label>`}</div>
+  ${st?`<p class="small">Change the dates on the PVAAS table.</p>`:""}
+  <div style="margin-top:16px"><button class="primary" onclick="window.savePvaasManualStudent('${st?.id||""}')">${st?"Save":"Add student"}</button> ${st&&cls?`<button class="danger" onclick="window.closePvaasManualStudent();window.dropPvaasStudent('${cls.id}','${st.id}')">Remove</button> `:""}<button onclick="window.closePvaasManualStudent()">Cancel</button></div></div></div>`);
+  setTimeout(()=>document.getElementById('pvmFirst')?.focus(),0);
+};
+window.closePvaasManualStudent=()=>document.querySelector('#pvaasManualModal')?.remove();
+window.savePvaasManualStudent=(sid)=>{
+  const first=($('#pvmFirst')?.value||"").trim(),last=($('#pvmLast')?.value||"").trim();
+  if(!first&&!last){alert("Type the student's name.");return;}
+  if(sid){const st=pvaasManualList().find(s=>s.id===sid);if(st){st.firstName=first;st.lastName=last;st.name=`${first} ${last}`.trim();}}
+  else{
+    const c=data.classes.find(x=>x.id===$('#pvmClass')?.value&&x.pvaasReported);if(!c)return;
+    const id="pvm_"+Math.random().toString(36).slice(2);
+    pvaasManualList().push({id,firstName:first,lastName:last,name:`${first} ${last}`.trim(),pvaasManual:true,addedOn:localDateKey(new Date())});
+    c.rosterHistory=Array.isArray(c.rosterHistory)?c.rosterHistory:[];
+    c.rosterHistory.push({id:"pvaas_"+id,studentId:id,pvaasKept:true,manual:true,removedOn:""});
+    c.enrollmentPeriods=Array.isArray(c.enrollmentPeriods)?c.enrollmentPeriods:[];
+    c.enrollmentPeriods.push({id:`ep_${c.id}_${id}`,studentId:id,start:$('#pvmStart')?.value||"",end:$('#pvmEnd')?.value||""});
+  }
+  save();window.closePvaasManualStudent();render();
+};
 window.setPvaasCohortFilter=value=>{window.pvaasCohortFilter=value;render();};
 window.setPvaasEndDate=value=>{data.pvaasSettings??={customEndDate:""};data.pvaasSettings.customEndDate=value||"";save();render();};
 window.setPvaasStudentCohort=(studentId,cohortId)=>{ensurePvaasData();data.pvaasStudentCohorts[studentId]=cohortId;save();render();};
@@ -4638,26 +4680,40 @@ function orderedForms(){
   return [...ordered,...missing];
 }
 window.moveForm=(id,direction)=>{
-  const ids=orderedForms().map(f=>f.id);
+  const all=orderedForms(), ids=all.filter(f=>!f.archived).map(f=>f.id);
   const i=ids.indexOf(id), j=i+direction;
   if(i<0||j<0||j>=ids.length)return;
   [ids[i],ids[j]]=[ids[j],ids[i]];
-  data.formOrder=ids;
+  data.formOrder=[...ids,...all.filter(f=>f.archived).map(f=>f.id)];
   save();render();
 };
 window.alphabetizeForms=()=>{
   data.formOrder=[];
   save();render();
 };
+// V4.9.0: a form can be archived (f.archived). Archived forms leave the main list but keep every record;
+// they're listed under "Archived" (collapsed) with Unarchive. Nothing is deleted.
+let formsShowArchived=false;
+window.toggleArchivedForms=()=>{formsShowArchived=!formsShowArchived;render();};
+window.archiveForm=(id,on)=>{
+  const f=data.forms.find(x=>x.id===id);if(!f)return;
+  if(on){f.archived=true;f.archivedDate=todayISO();}else{delete f.archived;delete f.archivedDate;}
+  save();render();
+};
 function forms(){
   ensureForms(); ensureGroups(); normalizeStudents();
-  const ordered=orderedForms();
+  const all=orderedForms(), ordered=all.filter(f=>!f.archived), archived=all.filter(f=>f.archived);
+  const archivedRows=archived.map(f=>{
+    const ids=formStudentIds(f), received=ids.filter(id=>f.records[id]?.received).length;
+    return `<section class="card formCard compactFormRow archivedFormRow"><div class="formCardTop"><div class="formRowInfo"><span class="formRowTitle">${esc(f.name)}</span><span class="formRowMeta"><b>${received} / ${ids.length} received</b>${f.archivedDate?` · Archived ${f.archivedDate}`:""}</span></div><div class="formRowActions"><button onclick="window.openFormTracker('${f.id}')">Open Tracker</button><button onclick="window.printFormTracker('${f.id}')">🖨 Print Tracker</button><button class="primary" onclick="window.archiveForm('${f.id}',false)">Unarchive</button></div></div></section>`;
+  }).join("");
+  const archivedSection=archived.length?`<section class="card archivedForms"><div class="formsSectionHeader"><h3>Archived (${archived.length})</h3><button class="smallButton" onclick="window.toggleArchivedForms()">${formsShowArchived?"Hide":"Show"}</button></div>${formsShowArchived?`<p class="small">Archived forms keep all their information. Unarchive one to put it back on the main list.</p>${archivedRows}`:""}</section>`:"";
   const cards=ordered.map((f,index)=>{
     const ids=formStudentIds(f), received=ids.filter(id=>f.records[id]?.received).length;
-    return `<section class="card formCard compactFormRow"><div class="formCardTop"><div class="formRowInfo"><span class="formRowTitle">${esc(f.name)}</span><span class="formRowMeta"><b>${received} / ${ids.length} received</b>${f.dueDate?` · Due ${f.dueDate}`:""}</span></div><div class="formRowActions formReorderActions"><button class="formMove" title="Move up" aria-label="Move ${esc(f.name)} up" onclick="window.moveForm('${f.id}',-1)" ${index===0?"disabled":""}>↑</button><button class="formMove" title="Move down" aria-label="Move ${esc(f.name)} down" onclick="window.moveForm('${f.id}',1)" ${index===ordered.length-1?"disabled":""}>↓</button><button onclick="window.openFormEditor('${f.id}')">Edit</button><button onclick="window.copyForm('${f.id}')">Copy</button><button onclick="window.printForm('${f.id}')">🖨 Print Form</button><button onclick="window.printFormTracker('${f.id}')">🖨 Print Tracker</button><button class="primary" onclick="window.openFormTracker('${f.id}')">Open Tracker</button></div></div></section>`;
+    return `<section class="card formCard compactFormRow"><div class="formCardTop"><div class="formRowInfo"><span class="formRowTitle">${esc(f.name)}</span><span class="formRowMeta"><b>${received} / ${ids.length} received</b>${f.dueDate?` · Due ${f.dueDate}`:""}</span></div><div class="formRowActions formReorderActions"><button class="formMove" title="Move up" aria-label="Move ${esc(f.name)} up" onclick="window.moveForm('${f.id}',-1)" ${index===0?"disabled":""}>↑</button><button class="formMove" title="Move down" aria-label="Move ${esc(f.name)} down" onclick="window.moveForm('${f.id}',1)" ${index===ordered.length-1?"disabled":""}>↓</button><button onclick="window.openFormEditor('${f.id}')">Edit</button><button onclick="window.copyForm('${f.id}')">Copy</button><button onclick="window.printForm('${f.id}')">🖨 Print Form</button><button onclick="window.printFormTracker('${f.id}')">🖨 Print Tracker</button><button onclick="window.archiveForm('${f.id}',true)">Archive</button><button class="primary" onclick="window.openFormTracker('${f.id}')">Open Tracker</button></div></div></section>`;
   }).join("");
   return `<header><div><h2>Forms & Records</h2><p>Create a tracker once, then keep all the information you need in one place.</p></div><button class="primary" onclick="window.openFormEditor()">＋ Create Form</button></header>
-  <section class="card"><div class="formsSectionHeader"><h3>Your Forms & Records</h3><button class="smallButton" onclick="window.alphabetizeForms()">A–Z</button></div>${cards||'<p class="small">No forms yet. Create your Calculator Agreement, permission slips, club forms, or anything else you need to track.</p>'}</section>`;
+  <section class="card"><div class="formsSectionHeader"><h3>Your Forms & Records</h3><button class="smallButton" onclick="window.alphabetizeForms()">A–Z</button></div>${cards||(archived.length?'<p class="small">No active forms. Your archived forms are below.</p>':'<p class="small">No forms yet. Create your Calculator Agreement, permission slips, club forms, or anything else you need to track.</p>')}</section>${archivedSection}`;
 }
 window.copyForm=(id)=>{
   ensureForms();
@@ -6220,6 +6276,8 @@ let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+// V4.9.0: PVAAS "+ Add student" for a student who was never on a roster (kept in pvaasManualStudents only).
+// V4.9.0: Forms & Records can be archived (kept, just off the main list) and unarchived.
 // V4.8.2: every calculator is a TI-84 Plus; the body uses the student's first name.
 function calcModelLabel(c){const col=String(c.color||"").trim();return /ti-?84/i.test(col)?col:`TI-84 Plus${col?" "+col:""}`;}
 function calcFirstName(c,st){const r=c.out?.studentId?data.students.find(x=>x.id===c.out.studentId):null;
