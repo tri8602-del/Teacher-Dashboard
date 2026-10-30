@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.9.0</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.10.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -869,7 +869,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.9.0";
+const APP_VERSION="4.10.0";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -1280,6 +1280,7 @@ function ensureClassFields(){
     c.classroomGradeCache=c.classroomGradeCache&&typeof c.classroomGradeCache==="object"?c.classroomGradeCache:{};
     c.classroomGradeOverrides=c.classroomGradeOverrides&&typeof c.classroomGradeOverrides==="object"?c.classroomGradeOverrides:{};
     c.classroomGradePulled=c.classroomGradePulled&&typeof c.classroomGradePulled==="object"?c.classroomGradePulled:{};
+    c.classroomGradeLocks=c.classroomGradeLocks&&typeof c.classroomGradeLocks==="object"?c.classroomGradeLocks:{};
     c.pvaasReported=!!c.pvaasReported;
     c.enrollmentPeriods=Array.isArray(c.enrollmentPeriods)?c.enrollmentPeriods:[];
     c.rosterHistory=Array.isArray(c.rosterHistory)?c.rosterHistory.filter(x=>x&&x.studentId):[];
@@ -3659,8 +3660,8 @@ async function gcFetchGradesForClass(c){
       const value=gcCalculateSourceValue(sources[comp.id],catalog,submissions,st.googleClassroomUserId);
       const normalized=value===""?"":Number(value.toFixed(2));
       c.classroomGradePulled[st.id][comp.id]=normalized;
-      if(c.classroomGradeOverrides[st.id][comp.id])continue;
-      c.grades[st.id][comp.id]=normalized;
+      if(classroomGradeIsLocked(c,st.id,comp.id))continue;
+      c.grades[st.id][comp.id]=normalized;delete c.classroomGradeOverrides[st.id][comp.id];
     }
   }
   c.classroomGradeLastPulledAt=new Date().toISOString();save();return {catalog,submissions};
@@ -3671,12 +3672,22 @@ window.gcLoadGradeSources=async cid=>{
 };
 window.gcPullGrades=async cid=>{
   const c=data.classes.find(x=>x.id===cid);if(!c)return;
-  try{gcSetStatus("Pulling quarter grades from Google Classroom…");await gcFetchGradesForClass(c);window.closeGradeSettings();render();toast=`Pulled Google Classroom grades for ${c.name}.`;}
+  try{gcSetStatus("Pulling quarter grades from Google Classroom…");await gcFetchGradesForClass(c);window.closeGradeSettings();toast=`Pulled Google Classroom grades for ${c.name}.`;render();}
   catch(err){console.error(err);alert(gcEscapeMessage(err));}
 };
-window.gcRequestGradeAccess=cid=>{
-  const state=window.googleClassroomState;
-  if(state.accessToken&&Date.now()<state.expiresAt){window.gcLoadGradeSources(cid);return;}
+// V4.10.0: top-of-page button. Connected: the same pull as Grade Settings. Not connected: the same
+// Google sign-in as Grade Settings' Connect button, then the pull.
+window.gcSyncGradesTop=async cid=>{
+  const c=data.classes.find(x=>x.id===cid);if(!c)return;
+  const btn=document.getElementById("gcSyncTopBtn");
+  if(!googleClassroomSessionConnected()){window.gcRequestGradeAccess(cid,()=>window.gcSyncGradesTop(cid));return;}
+  if(btn){btn.disabled=true;btn.textContent="Syncing…";}
+  await window.gcPullGrades(cid);
+  const b2=document.getElementById("gcSyncTopBtn");if(b2){b2.disabled=false;b2.textContent="🔄 Google Classroom Sync";}
+};
+window.gcRequestGradeAccess=(cid,next)=>{
+  const state=window.googleClassroomState;const done=()=>next?next():window.gcLoadGradeSources(cid);
+  if(state.accessToken&&Date.now()<state.expiresAt){done();return;}
   const clientId=googleClassroomClientId();
   if(!window.google?.accounts?.oauth2){alert("Google authorization tools are not available yet. Please refresh the dashboard and try again.");return;}
   try{
@@ -3688,7 +3699,7 @@ window.gcRequestGradeAccess=cid=>{
         if(response?.error){alert(response.error_description||response.error||"Google authorization was not completed.");return;}
         state.accessToken=response.access_token||"";
         state.expiresAt=Date.now()+Math.max(0,Number(response.expires_in||3600)-60)*1000;
-        window.gcLoadGradeSources(cid);
+        done();
       },
       error_callback:error=>alert(error?.type||"Google authorization popup could not be opened.")
     });
@@ -5046,6 +5057,10 @@ function recommendationFor(c,avg){
 function classroomGradeSourceFor(c,bucket){return c?.classroomGradeSources?.[bucket]||null;}
 function classroomGradeIsLinked(c,bucket){const src=classroomGradeSourceFor(c,bucket);return !!src&&src.type&&src.type!=="none";}
 function classroomGradeIsOverridden(c,sid,bucket){return !!c?.classroomGradeOverrides?.[sid]?.[bucket];}
+function classroomGradeIsLocked(c,sid,bucket){return !!c?.classroomGradeLocks?.[sid]?.[bucket];}
+window.toggleClassroomGradeLock=(cid,sid,bucket)=>{const c=data.classes.find(x=>x.id===cid);if(!c)return;c.classroomGradeLocks=c.classroomGradeLocks&&typeof c.classroomGradeLocks==="object"?c.classroomGradeLocks:{};c.classroomGradeLocks[sid]??={};if(c.classroomGradeLocks[sid][bucket])delete c.classroomGradeLocks[sid][bucket];else c.classroomGradeLocks[sid][bucket]=true;save();render();};
+// Whole-number display, half up. toFixed(6) first so 84.4999999 float noise can't flip it; the stored value is untouched.
+function gradeDisplayValue(v){if(v===""||v===null||v===undefined)return "";const n=Number(v);if(!Number.isFinite(n))return String(v);return String(Math.round(Number(n.toFixed(6))));}
 window.resetClassroomGradeOverride=(cid,sid,bucket)=>{const c=data.classes.find(x=>x.id===cid);if(!c)return;c.classroomGradeOverrides??={};c.classroomGradeOverrides[sid]??={};delete c.classroomGradeOverrides[sid][bucket];c.grades??={};c.grades[sid]??={};c.grades[sid][bucket]=c.classroomGradePulled?.[sid]?.[bucket]??"";save();render();};
 function grades(){
   const courses=gradeEligibleClasses();
@@ -5056,6 +5071,7 @@ function grades(){
   if(!c)return `<header><h2>Grade Calculator</h2></header><section class="card"><h3>📚 Grades</h3><p>No eligible graded Full-Year or Semester courses yet.</p><p class="small">Edit a class and check <b>This is a graded course</b>. Trimester courses are intentionally excluded.</p></section>`;
   c.grades??={};
   const comps=gradeComponents(c);
+  window.gradeDisplayValue=gradeDisplayValue;
   const allStudents=sortedStudents(data.students.filter(s=>(c.studentIds||[]).includes(s.id)));
   const selectedStudentId=window.gradeStudentId&&allStudents.some(s=>s.id===window.gradeStudentId)?window.gradeStudentId:allStudents[0]?.id||"";
   window.gradeStudentId=selectedStudentId;
@@ -5068,11 +5084,12 @@ function grades(){
     <label>View<br><select onchange="window.setGradeView(this.value)"><option value="class" ${window.gradeViewMode==="class"?"selected":""}>Class Grades</option><option value="student" ${window.gradeViewMode==="student"?"selected":""}>One Student</option></select></label>
     ${window.gradeViewMode==="student"?`<label>Student<br><select onchange="window.selectGradeStudent(this.value)">${studentOptions}</select></label>`:""}
     <button onclick="window.openGradeSettings('${c.id}')">⚙ Grade Settings</button>
+    <button id="gcSyncTopBtn" class="primary" onclick="window.gcSyncGradesTop('${c.id}')">🔄 Google Classroom Sync</button>
   </div>
-  <div class="small" style="margin-top:10px">Midterm: <b>${c.giveMidterm?"Yes":"No"}</b> &nbsp; Final: <b>${c.giveFinal?"Yes":"No"}</b>${c.usesRecommendations?" &nbsp; • Recommendations enabled":""}${Object.values(c.classroomGradeSources||{}).some(x=>x?.type&&x.type!=="none")?" &nbsp; • Classroom-linked buckets enabled":""}</div>${Object.values(c.classroomGradeSources||{}).some(x=>x?.type&&x.type!=="none")?`<p class="small" style="margin:8px 0 0">Editing a Classroom-linked bucket creates a manual override. ↩ restores the latest pulled Classroom value.</p>`:""}</section>
+  <div class="small" style="margin-top:10px">Midterm: <b>${c.giveMidterm?"Yes":"No"}</b> &nbsp; Final: <b>${c.giveFinal?"Yes":"No"}</b>${c.usesRecommendations?" &nbsp; • Recommendations enabled":""}${Object.values(c.classroomGradeSources||{}).some(x=>x?.type&&x.type!=="none")?" &nbsp; • Classroom-linked buckets enabled":""}</div>${Object.values(c.classroomGradeSources||{}).some(x=>x?.type&&x.type!=="none")?`<p class="small" style="margin:8px 0 0">Classroom sync replaces grades you typed in a Classroom-linked bucket. Tap 🔓 on a typed grade to lock it (🔒) so sync keeps your value. ↩ restores the latest pulled Classroom value.</p>`:""}</section>
   <section class="card"><h3>${esc(c.name)}${window.gradeViewMode==="student"&&students[0]?` — ${esc(students[0].name)}`:""}</h3>
   <div style="overflow:auto"><table><thead><tr><th>Student</th>${comps.map(x=>`<th>${x.label}</th>`).join("")}<th>Current Average</th>${c.usesRecommendations?"<th>Recommendation</th>":""}</tr></thead>
-  <tbody>${students.map(s=>{const avg=currentAverage(c,s.id);return `<tr><td>${esc(s.name)}</td>${comps.map(x=>{const linked=classroomGradeIsLinked(c,x.id),over=classroomGradeIsOverridden(c,s.id,x.id);return `<td><div class="gradeCellWrap"><input class="grade" type="number" min="0" max="100" step="0.01" value="${esc(c.grades?.[s.id]?.[x.id]??"")}" oninput="window.setCourseGrade('${c.id}','${s.id}','${x.id}',this.value,true)">${linked?`<div class="gradeSourceBadge ${over?'override':''}">${over?'Override':'Classroom'}${over?` <button type="button" class="gradeResetBtn" title="Restore the latest Classroom grade" onclick="window.resetClassroomGradeOverride('${c.id}','${s.id}','${x.id}')">↩</button>`:""}</div>`:""}</div></td>`}).join("")}<td class="currentAvg ${formatCurrentAverage(avg,c).isF?'failing':''}"><b>${esc(formatCurrentAverage(avg,c).text)}</b></td>${c.usesRecommendations?`<td class="recommendationCell">${esc(recommendationFor(c,avg)||"—")}</td>`:""}</tr>`}).join("")||`<tr><td colspan="${comps.length+2+(c.usesRecommendations?1:0)}">No students are assigned to this class.</td></tr>`}</tbody></table></div></section>`;
+  <tbody>${students.map(s=>{const avg=currentAverage(c,s.id);return `<tr><td>${esc(s.name)}</td>${comps.map(x=>{const linked=classroomGradeIsLinked(c,x.id),over=classroomGradeIsOverridden(c,s.id,x.id);return `<td><div class="gradeCellWrap">${(()=>{const raw=c.grades?.[s.id]?.[x.id]??"",shown=gradeDisplayValue(raw),lock=linked&&classroomGradeIsLocked(c,s.id,x.id);return `<input class="grade" type="number" min="0" max="100" step="0.01" value="${esc(shown)}" data-full="${esc(raw)}" title="${raw!==""&&String(raw)!==shown?`Exact grade: ${esc(raw)}`:""}" onfocus="if(this.dataset.full!==undefined&&this.dataset.full!==this.value){this.value=this.dataset.full;try{this.select()}catch(e){}}" onblur="this.dataset.full=this.value;this.value=window.gradeDisplayValue(this.value)" oninput="this.dataset.full=this.value;window.setCourseGrade('${c.id}','${s.id}','${x.id}',this.value,true)">${linked?`<div class="gradeSourceBadge ${over||lock?'override':''}">${lock?'Kept':over?'Typed':'Classroom'}${over||lock?` <button type="button" class="gradeLockBtn${lock?' locked':''}" title="${lock?"Locked: Classroom sync keeps your value. Tap to unlock.":"Tap to keep this value when Classroom syncs."}" aria-pressed="${lock}" onclick="window.toggleClassroomGradeLock('${c.id}','${s.id}','${x.id}')">${lock?'🔒':'🔓'}</button>`:""}${over&&!lock?` <button type="button" class="gradeResetBtn" title="Restore the latest Classroom grade" onclick="window.resetClassroomGradeOverride('${c.id}','${s.id}','${x.id}')">↩</button>`:""}</div>`:""}`;})()}</div></td>`}).join("")}<td class="currentAvg ${formatCurrentAverage(avg,c).isF?'failing':''}"><b>${esc(formatCurrentAverage(avg,c).text)}</b></td>${c.usesRecommendations?`<td class="recommendationCell">${esc(recommendationFor(c,avg)||"—")}</td>`:""}</tr>`}).join("")||`<tr><td colspan="${comps.length+2+(c.usesRecommendations?1:0)}">No students are assigned to this class.</td></tr>`}</tbody></table></div></section>`;
 }
 
 function reports(){
@@ -6276,6 +6293,10 @@ let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+// V4.10.0: Grade Calculator buckets show whole numbers (half up) but keep and use the exact grade;
+// "Google Classroom Sync" button at the top of the page (same pull as Grade Settings); a Classroom sync
+// now replaces typed values unless that entry is locked 🔒 (c.classroomGradeLocks). Before this, ANY typed
+// value in a Classroom-linked bucket became an override that sync always skipped.
 // V4.9.0: PVAAS "+ Add student" for a student who was never on a roster (kept in pvaasManualStudents only).
 // V4.9.0: Forms & Records can be archived (kept, just off the main list) and unarchived.
 // V4.8.2: every calculator is a TI-84 Plus; the body uses the student's first name.
@@ -6643,7 +6664,7 @@ function studentCalcHTML(stId){
 @media(max-width:720px){.setupYearGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.setupAssignmentRow{grid-template-columns:1fr}.setupEditableRow{grid-template-columns:1fr auto}.setupExceptionRow select,.setupExceptionRow input:nth-child(3){grid-column:1/-1}}
 @media(max-width:480px){.setupYearGrid{grid-template-columns:1fr}.setupViewToggle{width:100%}.setupViewToggle button{flex:1}}
 
-.gradeCellWrap{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:86px}.gradeCellWrap .grade{width:78px;box-sizing:border-box}.gradeSourceBadge{font-size:10px;line-height:1.1;color:#356b4a;white-space:nowrap}.gradeSourceBadge.override{color:#9a5b00;font-weight:700}.gradeResetBtn{border:0;background:transparent;padding:0 2px;font-size:12px;cursor:pointer}.classroomGradeBucket{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.classroomGradeBucketHead{display:grid;grid-template-columns:minmax(100px,1fr) minmax(220px,1.5fr);gap:10px;align-items:center}.classroomGradeBucketHead select{width:100%;box-sizing:border-box}.classroomSourceConfig{margin-top:9px}.classroomSourceConfig select,.classroomSourceConfig input{width:100%;box-sizing:border-box}.classroomCombinationList{display:flex;flex-direction:column;gap:7px}.classroomCombinationRow{display:grid;grid-template-columns:minmax(150px,1fr) 110px auto;gap:7px;align-items:center}.classroomGradeActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.classroomGradeSourcesEmpty{padding:8px 0}.classroomGradeSources{margin-top:6px}@media(max-width:650px){.classroomGradeBucketHead{grid-template-columns:1fr}.classroomCombinationRow{grid-template-columns:1fr 100px auto}}
+.gradeLockBtn{border:0;background:none;padding:0 4px;font-size:15px;cursor:pointer;min-height:0}.gradeCellWrap{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:86px}.gradeCellWrap .grade{width:78px;box-sizing:border-box}.gradeSourceBadge{font-size:10px;line-height:1.1;color:#356b4a;white-space:nowrap}.gradeSourceBadge.override{color:#9a5b00;font-weight:700}.gradeResetBtn{border:0;background:transparent;padding:0 2px;font-size:12px;cursor:pointer}.classroomGradeBucket{border:1px solid var(--line,#d8dee8);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.classroomGradeBucketHead{display:grid;grid-template-columns:minmax(100px,1fr) minmax(220px,1.5fr);gap:10px;align-items:center}.classroomGradeBucketHead select{width:100%;box-sizing:border-box}.classroomSourceConfig{margin-top:9px}.classroomSourceConfig select,.classroomSourceConfig input{width:100%;box-sizing:border-box}.classroomCombinationList{display:flex;flex-direction:column;gap:7px}.classroomCombinationRow{display:grid;grid-template-columns:minmax(150px,1fr) 110px auto;gap:7px;align-items:center}.classroomGradeActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.classroomGradeSourcesEmpty{padding:8px 0}.classroomGradeSources{margin-top:6px}@media(max-width:650px){.classroomGradeBucketHead{grid-template-columns:1fr}.classroomCombinationRow{grid-template-columns:1fr 100px auto}}
 
 /* Version 3.1.13 — cleaner Google Classroom setup + iPad-safe OAuth */
 .setupGcPanel{margin-top:14px;padding:0;border-top:0}.setupGcHero{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 15px;border:1px solid #dce3ee;border-radius:12px;background:#f8fafc}.setupGcBrand{display:flex;align-items:center;gap:11px;min-width:0}.setupGcBrand>b,.setupGcBrand span{display:block}.setupGcBrand>b{font-size:16px}.setupGcLogo,.setupGcEmptyIcon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#fff;border:1px solid #d7dee9;font-weight:800;font-size:21px;color:#4285f4;flex:0 0 auto}.setupGcConnection{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#697386;white-space:nowrap}.setupGcStatusDot{width:8px;height:8px;border-radius:50%;background:#aab3c2}.setupGcStatusDot.connected{background:#34a853}.setupGcIntro{margin:11px 2px}.setupGcConnectRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}.setupGcStatus{padding:8px 10px;border-radius:8px;background:#f4f6fa;color:#596579;min-height:34px}.setupGcSection{margin-top:12px;padding-top:4px;border-top:1px solid #e5e8ee}.setupGcEmpty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px 10px;border:1px dashed #cfd7e3;border-radius:10px;background:#fbfcfe;margin-top:12px}.setupGcEmptyIcon{margin-bottom:8px}.setupGcEmpty b{font-size:14px}.setupGcCourseList{max-height:300px;overflow:auto}.setupGcCourseRow{background:#fbfcfe}.setupGcCourseRow span{display:flex;flex-direction:column;gap:2px}.setupGcActions{margin-top:10px}.setupGcRosterCard{background:#fff}.setupGcMatchReview{background:#fff}@media(max-width:650px){.setupGcHero{align-items:flex-start;flex-direction:column}.setupGcConnection{padding-left:49px;margin-top:-5px}.setupGcConnectRow{align-items:flex-start;flex-direction:column}.setupGcConnectRow button{width:100%}}
