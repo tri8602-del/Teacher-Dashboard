@@ -2177,6 +2177,10 @@ function classCalDefaults(c){const n=String(c?.name||"").toLowerCase();let code=
   return {code,color};}
 function classCalColor(c){if(/^#[0-9a-f]{6}$/i.test(c?.calColor||""))return c.calColor;const d=classCalDefaults(c).color;if(d)return d;const i=Math.max(0,(data.classes||[]).indexOf(c));return SC_COLORS[i%SC_COLORS.length];}
 function classCalCode(c){return String(c?.calCode||"").trim()||classCalDefaults(c).code;}
+function scDayEvents(date,lab){const out=[],seen=new Set(),add=t=>{t=String(t||"").trim();const k=t.toLowerCase().replace(/\s+/g," ");if(!t||seen.has(k)||k===String(lab?.text||"").toLowerCase().trim())return;seen.add(k);out.push(t);};
+  calendarNotesFor(date).forEach(add);
+  try{const y=msYear(msYearKeyFor(date));if(y?.dayLabels?.[date])add(y.dayLabels[date]);}catch(e){}
+  return out;}
 function scRowDefaults(r){const c=(data.classes||[]).find(x=>(r.classIds||[]).includes(x.id));
   const byName=classCalDefaults({name:r.fullName||r.name}),byClass=c?classCalDefaults(c):{};
   const code=(r.type==="class"?(byClass.code||byName.code):(byName.code||byClass.code))||"";
@@ -2220,28 +2224,36 @@ function studentCalendarHTML(month,rowIds,teacher){
     const date=`${y}-${String(m).padStart(2,"0")}-${String(n).padStart(2,"0")}`,wk=dow===0||dow===6,lab=wk?{kind:"wk",text:""}:scDayLabel(date);
     let inner="";
     if(lab.kind==="off")inner=`<div class="ns">NO SCHOOL</div>${lab.text&&!/^no school$/i.test(lab.text)?`<div class="nsl">${esc(lab.text)}</div>`:""}`;
-    else if(!wk){inner=rows.map(r=>{let ok=true;try{ok=lessonRowAvailableOnDate(r,date,dow)}catch(e){}if(!ok)return "";const t=String(lessonPlanEntry(r.id,date).text||"").trim();if(!t)return "";
-      used.add(r.id);return multi?`<div class="ent" style="color:${sty[r.id].color}"><b>${esc(sty[r.id].code)}:</b> ${esc(t).replace(/\n+/g," ")}</div>`:`<div class="ent">${esc(t).replace(/\n+/g,"<br>")}</div>`;}).join("");}
+    else if(!wk){
+      // V4.12.1: school-wide all-day events (Calendar day notes, Master Schedule day labels) show once, no class code.
+      const norm=x=>String(x||"").toLowerCase().replace(/\s+/g," ").trim();
+      const evts=scDayEvents(date,lab);
+      const ents=rows.map(r=>{let ok=true;try{ok=lessonRowAvailableOnDate(r,date,dow)}catch(e){}if(!ok)return null;const t=String(lessonPlanEntry(r.id,date).text||"").trim();return t?{r,t}:null;}).filter(Boolean);
+      // The same text typed on several rows (e.g. "Volleybrawl" on every class) is one all-day event.
+      if(multi){const cnt={};ents.forEach(e=>{const k=norm(e.t);cnt[k]=(cnt[k]||0)+1;});ents.forEach(e=>{if(cnt[norm(e.t)]>1&&!evts.some(v=>norm(v)===norm(e.t)))evts.push(e.t);});}
+      const ev=new Set(evts.map(norm));
+      const lines=ents.map(e=>({r:e.r,t:e.t.split(/\n+/).filter(l=>!ev.has(norm(l))).join("\n").trim()})).filter(e=>e.t&&!ev.has(norm(e.t)));
+      inner=evts.map(v=>`<div class="ent evt">${esc(v).replace(/\n+/g," ")}</div>`).join("")+lines.map(({r,t})=>{used.add(r.id);return multi?`<div class="ent" style="color:${sty[r.id].color}"><b>${esc(sty[r.id].code)}:</b> ${esc(t).replace(/\n+/g," ")}</div>`:`<div class="ent">${esc(t).replace(/\n+/g,"<br>")}</div>`;}).join("");}
     cells+=`<td class="${wk?"wk":""} ${lab.kind==="off"?"off":""}"><div class="dn">${n}${lab.kind==="early"?` - <b>${esc(lab.text.toUpperCase())}</b>`:lab.kind==="off"&&lab.text&&!/^no school$/i.test(lab.text)?" -":""}</div><div class="body${lab.kind==="off"?"":" lessons"}">${inner}</div></td>`;}
     cells+="</tr>";}
   const legend=multi?`<div class="legend">${rows.filter(r=>used.has(r.id)).map(r=>`<span style="color:${sty[r.id].color}"><b>${esc(sty[r.id].code)}</b> = ${esc(r.fullName||r.name)}</span>`).join("")}</div>`:"";
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)} ${esc(names.join(", "))}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet"><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)} ${esc(names.join(", "))}</title><style>
   @page{size:landscape;margin:.35in}*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#1c1c1c;font-family:'Quicksand','Nunito','Varela Round','Comfortaa','Century Gothic','Avenir Next',Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .bar{padding:10px;background:#eef2f7;display:flex;gap:10px;align-items:center;font:14px system-ui}.bar button{font:inherit;padding:6px 14px}
   .sheet{width:10.3in;height:7.6in;margin:12px auto;display:flex;flex-direction:column;background:#fff}
   h1{font-weight:700;letter-spacing:.01em;text-align:center;margin:0;font-size:24pt}.sub{text-align:center;font-size:11.5pt;font-weight:700;margin:2px 0 10px}
   table{width:100%;flex:1;border-collapse:collapse;table-layout:fixed}th{background:#f6c89a;color:#1c1c1c;font-weight:600;font-size:13pt;padding:6px 4px;border:1px solid #3a3a3a}
-  td{border:1px solid #3a3a3a;vertical-align:top;padding:0}td>.body{overflow:hidden}.body.lessons{display:flex;flex-direction:column;justify-content:safe center}td.wk,td.out{background:#efefef}
-  .dn{font-size:9.5pt;padding:3px 5px;font-weight:500}.dn b{font-weight:700}.body{padding:0 5px 3px;text-align:center;font-size:10pt;line-height:1.2;font-weight:500}.ent+.ent{margin-top:4px}
+  td{border:1px solid #3a3a3a;vertical-align:top;padding:0}td>.body{overflow:hidden}td{position:relative}.body.lessons{display:flex;flex-direction:column;justify-content:safe center;position:absolute;left:0;right:0;bottom:0;box-sizing:border-box}td.wk,td.out{background:#efefef}
+  .dn{font-size:9.5pt;padding:3px 5px;font-weight:500}.dn b{font-weight:700}.body{padding:0 5px 3px;text-align:center;font-size:10pt;line-height:1.2;font-weight:500}.ent+.ent{margin-top:4px}.ent.evt{font-style:italic;color:#1c1c1c}
   .ns{font-size:14pt;line-height:1.1;font-weight:700;margin-top:6px}.nsl{font-size:11pt;font-weight:700}
   .legend{display:flex;flex-wrap:wrap;gap:2px 14px;justify-content:center;font-size:8.5pt;margin-top:5px;line-height:1.25}
   @media screen{body{background:#f5f7fa}.sheet{box-shadow:0 0 0 .15in #fff,0 2px 18px .15in rgba(0,0,0,.08)}}
-  @media print{.bar{display:none}.sheet{margin:0;box-shadow:none}}
+  @media print{.bar{display:none}.sheet{margin:0;box-shadow:none;overflow:hidden;break-inside:avoid;page-break-inside:avoid}table,tr{break-inside:avoid;page-break-inside:avoid}thead{display:table-row-group}}
   </style></head><body><div class="bar"><button onclick="print()">🖨 Print</button><span>Prints landscape on one page.</span></div><div class="sheet"><h1>${esc(title)}</h1><div class="sub">${esc(sub)}</div>
   <table><thead><tr>${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map(d=>`<th>${d}</th>`).join("")}</tr></thead><tbody>${cells}</tbody></table>${legend}</div>
-  <script>function fit(){var tb=document.querySelector('tbody'),rs=tb.rows.length,th=document.querySelector('thead').offsetHeight,tab=document.querySelector('table'),h=(tab.offsetHeight-th)/rs;
-  document.querySelectorAll('td').forEach(function(td){td.style.height=h+'px';var b=td.querySelector('.body'),dn=td.querySelector('.dn');if(!b)return;var max=h-(dn?dn.offsetHeight:0)-2;b.style.maxHeight=max+'px';if(b.classList.contains('lessons'))b.style.height=max+'px';var fs=10;b.style.fontSize=fs+'pt';while(b.scrollHeight>max+1&&fs>6){fs-=.5;b.style.fontSize=fs+'pt';}});}
-  window.addEventListener('load',fit);if(document.fonts)document.fonts.ready.then(fit);window.addEventListener('beforeprint',fit);window.addEventListener('afterprint',fit);if(window.matchMedia)matchMedia('print').addListener(function(){fit()});<\/script></body></html>`;}
+  <script>function fit(){document.querySelectorAll('td').forEach(function(td){td.style.height='';var b=td.querySelector('.body');if(b){b.style.height='';b.style.maxHeight='0px';}});var tb=document.querySelector('tbody'),rs=tb.rows.length,th=document.querySelector('thead').offsetHeight,tab=document.querySelector('table'),h=(tab.offsetHeight-th)/rs;
+  document.querySelectorAll('td').forEach(function(td){td.style.height=h+'px';var b=td.querySelector('.body'),dn=td.querySelector('.dn');if(!b)return;var max=h-(dn?dn.offsetHeight:0)-2;b.style.maxHeight=max+'px';var L=b.classList.contains('lessons');if(L){b.style.maxHeight='';b.style.top=(dn?dn.offsetTop+dn.offsetHeight:0)+'px';}var fs=10;b.style.fontSize=fs+'pt';while((L?b.scrollHeight>b.clientHeight+1:b.scrollHeight>max+1)&&fs>6){fs-=.5;b.style.fontSize=fs+'pt';}});}
+  fit();setTimeout(fit,50);setTimeout(fit,400);window.addEventListener('resize',fit);window.addEventListener('load',fit);if(document.fonts)document.fonts.ready.then(fit);window.addEventListener('beforeprint',fit);window.addEventListener('afterprint',fit);if(window.matchMedia)matchMedia('print').addListener(function(){fit()});(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap';l.onload=function(){fit();setTimeout(fit,300)};document.head.appendChild(l);})();<\/script></body></html>`;}
 window.makeStudentCalendar=()=>{const month=$("#scMonth")?.value||"",teacher=($("#scTeacher")?.value||"").trim(),ids=[...document.querySelectorAll("#scModal [data-sc-row]:checked")].map(x=>x.dataset.scRow);
   if(!/^\d{4}-\d{2}$/.test(month)){alert("Choose a month.");return;}if(!ids.length){alert("Choose at least one class.");return;}
   const s=scSettings();s.month=month;s.teacher=teacher;s.rows=ids;save();
