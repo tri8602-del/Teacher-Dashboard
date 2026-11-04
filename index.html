@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.12.1</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.12.2</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -731,6 +731,9 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .lessonPushBtn:hover{opacity:1;background:#eef3fb;color:#1e3a5f}
 .lessonDayHead{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
 .lessonPushDay{padding:1px 6px;font-size:10px;line-height:1.2;border-radius:6px;color:#4b5563}
+.lessonDayEvent{background:#fff8e6!important;vertical-align:middle}.lpEvtCell{width:100%;min-height:64px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:1px dashed #d9a400;border-radius:8px;background:transparent;cursor:pointer;font-size:14px;padding:8px}.lpEvtCell small{font-size:11px;color:#6b5a1f}
+.lpEvtWho{margin-top:12px;display:flex;flex-direction:column;gap:6px}.lpEvtRow{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 8px;border:1px solid #e3e7ee;border-radius:8px}.lpEvtRow input{width:22px;height:22px}.lpEvtRows{display:flex;flex-direction:column;gap:6px;margin-left:24px}
+@media (hover:none) and (pointer:coarse){.lpEvtAdd{padding:4px 8px;font-size:12px}}
 .lessonPushDay:hover{background:#eef3fb}
 .lessonStatusLong{display:none!important}
 .lessonStatusShort{display:inline!important;font-size:9px;font-weight:700;letter-spacing:.02em}
@@ -869,7 +872,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.12.1";
+const APP_VERSION="4.12.2";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -2177,8 +2180,13 @@ function classCalDefaults(c){const n=String(c?.name||"").toLowerCase();let code=
   return {code,color};}
 function classCalColor(c){if(/^#[0-9a-f]{6}$/i.test(c?.calColor||""))return c.calColor;const d=classCalDefaults(c).color;if(d)return d;const i=Math.max(0,(data.classes||[]).indexOf(c));return SC_COLORS[i%SC_COLORS.length];}
 function classCalCode(c){return String(c?.calCode||"").trim()||classCalDefaults(c).code;}
-function scDayEvents(date,lab){const out=[],seen=new Set(),add=t=>{t=String(t||"").trim();const k=t.toLowerCase().replace(/\s+/g," ");if(!t||seen.has(k)||k===String(lab?.text||"").toLowerCase().trim())return;seen.add(k);out.push(t);};
-  calendarNotesFor(date).forEach(add);
+function lpDayEventStore(){if(!data.lessonPlanDayEvents||typeof data.lessonPlanDayEvents!=="object"||Array.isArray(data.lessonPlanDayEvents))data.lessonPlanDayEvents={};return data.lessonPlanDayEvents;}
+function lpDayEventsFor(date){const a=lpDayEventStore()[date];return Array.isArray(a)?a.filter(e=>e&&String(e.text||"").trim()):[];}
+function lpDayEventFor(rowId,date){return lpDayEventsFor(date).find(e=>e.all||(e.rows||[]).includes(rowId))||null;}
+function lpDayEventWho(e){if(e.all)return "All day · every class";const n=(lessonPlanRows()||[]).filter(r=>(e.rows||[]).includes(r.id)).map(r=>r.name);return `Merged · ${n.join(", ")||"no rows"}`;}
+function scDayEvents(date,lab,rowIds){const out=[],seen=new Set(),add=t=>{t=String(t||"").trim();const k=t.toLowerCase().replace(/\s+/g," ");if(!t||seen.has(k)||k===String(lab?.text||"").toLowerCase().trim())return;seen.add(k);out.push(t);};
+  // V4.12.2: Calendar day notes are her private notes, so they are no longer pulled in here.
+  lpDayEventsFor(date).forEach(e=>{if(e.all||(e.rows||[]).some(id=>(rowIds||[]).includes(id)))add(e.text);});
   try{const y=msYear(msYearKeyFor(date));if(y?.dayLabels?.[date])add(y.dayLabels[date]);}catch(e){}
   return out;}
 function scRowDefaults(r){const c=(data.classes||[]).find(x=>(r.classIds||[]).includes(x.id));
@@ -2225,10 +2233,10 @@ function studentCalendarHTML(month,rowIds,teacher){
     let inner="";
     if(lab.kind==="off")inner=`<div class="ns">NO SCHOOL</div>${lab.text&&!/^no school$/i.test(lab.text)?`<div class="nsl">${esc(lab.text)}</div>`:""}`;
     else if(!wk){
-      // V4.12.1: school-wide all-day events (Calendar day notes, Master Schedule day labels) show once, no class code.
+      // V4.12.2: all-day / merged events (Lesson Plans ★ All-day) and Master Schedule day labels show once, no class code.
       const norm=x=>String(x||"").toLowerCase().replace(/\s+/g," ").trim();
-      const evts=scDayEvents(date,lab);
-      const ents=rows.map(r=>{let ok=true;try{ok=lessonRowAvailableOnDate(r,date,dow)}catch(e){}if(!ok)return null;const t=String(lessonPlanEntry(r.id,date).text||"").trim();return t?{r,t}:null;}).filter(Boolean);
+      const evts=scDayEvents(date,lab,rows.map(r=>r.id));
+      const ents=rows.map(r=>{let ok=true;try{ok=lessonRowAvailableOnDate(r,date,dow)}catch(e){}if(!ok||lpDayEventFor(r.id,date))return null;const t=String(lessonPlanEntry(r.id,date).text||"").trim();return t?{r,t}:null;}).filter(Boolean);
       // The same text typed on several rows (e.g. "Volleybrawl" on every class) is one all-day event.
       if(multi){const cnt={};ents.forEach(e=>{const k=norm(e.t);cnt[k]=(cnt[k]||0)+1;});ents.forEach(e=>{if(cnt[norm(e.t)]>1&&!evts.some(v=>norm(v)===norm(e.t)))evts.push(e.t);});}
       const ev=new Set(evts.map(norm));
@@ -2349,7 +2357,7 @@ function lessonplans(){
     const start=dates[0], end=dates[4];
     const range=`${start.toLocaleDateString(undefined,{month:'long',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}`;
 
-    const head=dates.map((d,i)=>`<th><div class="lessonDayHead">${names[i]} <span>· ${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><button type="button" class="lessonPushDay" title="Skip this day: push every row's plans from here forward" onclick="window.pushAllLessonPlansForward('${isoDate(d)}')">Push →</button></div></th>`).join('');
+    const head=dates.map((d,i)=>`<th><div class="lessonDayHead">${names[i]} <span>· ${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><button type="button" class="lessonPushDay" title="Skip this day: push every row's plans from here forward" onclick="window.pushAllLessonPlansForward('${isoDate(d)}')">Push →</button><button type="button" class="lessonPushDay lpEvtAdd" title="Mark an all-day event, or merge periods into one entry, for this day" onclick="window.openLpDayEventModal('${isoDate(d)}')">★ All-day</button></div></th>`).join('');
 
     const rowHTML=rows.map(row=>{
       const title=`<th class="lessonRowName"><div class="lessonRowTitle"><div class="lessonRowLabel"><b title="${esc(row.fullName||row.name)}">${esc(row.name)}</b>${row.type==='sync'?'<span class="lessonLinkedBadge">linked</span>':''}</div><div class="lessonRowActions"><button class="lessonRowMove" title="Move up" onclick="window.moveLessonPlanRow('${row.id}',-1)" ${row===rows[0]?'disabled':''}>↑</button><button class="lessonRowMove" title="Move down" onclick="window.moveLessonPlanRow('${row.id}',1)" ${row===rows[rows.length-1]?'disabled':''}>↓</button>${row.type==='custom'?`<button class="lessonRemoveRow" title="Delete row" onclick="window.deleteLessonPlanRow('${row.id}')">×</button>`:''}</div></div></th>`;
@@ -2361,6 +2369,8 @@ function lessonplans(){
             (row.classIds||[]).some(id=>classMeetsOnWeekday((data.classes||[]).find(c=>c.id===id),weekday));
         }
         if(!available) return `<td class="lessonCell lessonUnavailable"><span>—</span></td>`;
+        const dayEvt=lpDayEventFor(row.id,date);
+        if(dayEvt) return `<td class="lessonCell lessonDayEvent"><button type="button" class="lpEvtCell" title="Tap to edit this all-day / merged entry" onclick="window.openLpDayEventModal('${date}','${dayEvt.id}')"><b>★ ${esc(dayEvt.text)}</b><small>${esc(lpDayEventWho(dayEvt))}</small></button></td>`;
         try{ state=lessonSubState(row,date,weekday); }catch(e){ state='none'; }
         const entry=lessonPlanEntry(row.id,date);
         const multi=findMultiDayLesson(row.id,date);
@@ -2401,6 +2411,7 @@ function lessonEntryHasContent(e){
 // V4.4.0: a pinned plan (📌) never moves and is never written over. Pushing moves every
 // other plan from that day on to the next OPEN meeting day (not a day off, not a pinned
 // day), in the same order, so the moved plans flow around the pinned ones.
+function lessonBlockedDates(rowId){const s=lessonPinnedDates(rowId);Object.keys(lpDayEventStore()).forEach(d=>{if(lpDayEventFor(rowId,d))s.add(d);});return s;}
 function lessonPinnedDates(rowId){const e=data.lessonPlans?.entries?.[rowId]||{};return new Set(Object.keys(e).filter(d=>e[d]&&e[d].pinned));}
 function nextOpenLessonDate(row,date,pinned){let d=date;for(let i=0;i<400;i++){d=nextLessonMeetingDate(row,d);if(!d)return null;if(!pinned.has(d))return d;}return null;}
 // Work out a push for one row without changing anything. "stuck" = plans that would run
@@ -2409,7 +2420,7 @@ function planLessonRowShift(rowId,fromDate){
   const row=(lessonPlanRows()||[]).find(r=>r.id===rowId);
   if(!row)return null;
   ensureLessonPlans();
-  const entries=data.lessonPlans.entries[rowId]||{},pinned=lessonPinnedDates(rowId);
+  const entries=data.lessonPlans.entries[rowId]||{},pinned=lessonBlockedDates(rowId);
   // V4.4.1: the push stops at the first blank open day after fromDate (no text, not pinned, not part
   // of a multi-day lesson). Only plans before it move; the one just before it moves into it.
   // No blank before the end of the year: everything later moves, as before.
@@ -2448,7 +2459,7 @@ function shiftLessonRowForward(rowId,fromDate){
 }
 function lessonShortDay(d){return parseLocalDate(d).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});}
 function lessonPinsNote(plans){
-  const list=[];plans.forEach(p=>{const last=p.moves.length?p.moves[p.moves.length-1].to:'';[...p.pinned].filter(d=>d>=(p.from||'')&&d<=last).sort().forEach(d=>{const t=String(data.lessonPlans.entries[p.row.id][d].text||'').trim();list.push(`${plans.length>1?p.row.name+': ':''}${lessonShortDay(d)}${t?' “'+t.slice(0,40)+'”':''}`);});});
+  const list=[];plans.forEach(p=>{const last=p.moves.length?p.moves[p.moves.length-1].to:'';[...p.pinned].filter(d=>d>=(p.from||'')&&d<=last).sort().forEach(d=>{const ev=lpDayEventFor(p.row.id,d),t=ev?'★ '+String(ev.text||'').trim():String(data.lessonPlans.entries[p.row.id]?.[d]?.text||'').trim();list.push(`${plans.length>1?p.row.name+': ':''}${lessonShortDay(d)}${t?' “'+t.slice(0,40)+'”':''}`);});});
   return list.length?`\n\n📌 Pinned, staying put (plans skip over ${list.length===1?'it':'them'}):\n${list.slice(0,8).join('\n')}${list.length>8?`\n+${list.length-8} more`:''}`:'';
 }
 function lessonStuckMessage(plans){
@@ -2491,6 +2502,7 @@ window.toggleLessonPin=(rowId,date)=>{
 window.pushLessonPlansForward=(rowId,fromDate)=>{
   const row=(lessonPlanRows()||[]).find(r=>r.id===rowId);
   if(!row)return;
+  if(lpDayEventFor(rowId,fromDate)){alert('This day is an all-day / merged event ★ for this row, so there is no plan to push. Push from the next day instead.');return;}
   if(lessonPinnedDates(rowId).has(fromDate)){alert('This day is pinned 📌, so it stays where it is. Unpin it first, or push from the next day.');return;}
   const plan=planLessonRowShift(rowId,fromDate);plan.from=fromDate;
   const next=nextOpenLessonDate(row,fromDate,plan.pinned);
@@ -2515,13 +2527,14 @@ window.pushAllLessonPlansForward=(fromDate)=>{
     let available=false;
     try{available=lessonRowAvailableOnDate(row,fromDate,weekday);}catch(e){}
     if(!available)return;
+    if(lpDayEventFor(row.id,fromDate)){pinnedRows.push(row.name+' (★ all-day)');return;}
     if(lessonPinnedDates(row.id).has(fromDate)){pinnedRows.push(row.name);return;}   // that row's plan for this day is pinned: leave the row alone
     const p=planLessonRowShift(row.id,fromDate);if(p){p.from=fromDate;plans.push(p);}
   });
   const stuck=lessonStuckMessage(plans);
   if(stuck){alert(`Nothing was pushed: there aren't enough school days left after these plans:\n${stuck}\n\nMove or delete a plan near the end of the year first (or add school days on the Calendar), then push again.`);return;}
   const stops=plans.filter(p=>p.stop&&(p.moves.length||p.multis.length)).map(p=>`${p.row.name}: ${lessonShortDay(p.stop)}`);
-  if(!confirm(`Skip ${fromLabel} on every planning row?\n\nEach row's plan from that day forward will move to that row's next meeting day.${stops.length?`\n\nEach row stops at its first blank day (the plan before it moves into it; nothing after it moves):\n${stops.join('\n')}`:''}${pinnedRows.length?`\n\n📌 Not pushed, because their plan for ${fromLabel} is pinned: ${pinnedRows.join(', ')}`:''}${lessonPinsNote(plans)}`))return;
+  if(!confirm(`Skip ${fromLabel} on every planning row?\n\nEach row's plan from that day forward will move to that row's next meeting day.${stops.length?`\n\nEach row stops at its first blank day (the plan before it moves into it; nothing after it moves):\n${stops.join('\n')}`:''}${pinnedRows.length?`\n\n📌 Not pushed, because their ${fromLabel} is pinned or an all-day event: ${pinnedRows.join(', ')}`:''}${lessonPinsNote(plans)}`))return;
   const u=lpUndoStart(`Pushed lesson plans forward from ${lessonShortDay(fromDate)}`,plans);
   let moved=0;
   plans.forEach(p=>{moved+=applyLessonRowShift(p).moved;});
@@ -2572,6 +2585,37 @@ window.moveLessonPlanRow=(rowId,direction)=>{
 
 function multiDayRowOptions(){return lessonPlanRows().map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');}
 window.multiDayLessonListHTML=()=>{ensureLessonPlans();const list=data.lessonPlanMultiDayLessons||[];if(!list.length)return '<p class="small">No multi-day lessons yet.</p>';return list.map(m=>{const row=lessonPlanRows().find(r=>r.id===m.rowId);return `<div class="multiDayExisting"><div><b>${esc(row?.name||'Unknown row')}</b><div class="small">${esc(lessonDateRangeLabel(m.startDate,m.endDate))} · ${esc(m.text||'(no text)')}</div><div class="small">${m.planned&&m.created&&m.posted?'✓ Complete':'Still in progress'}</div></div><button type="button" class="danger" onclick="window.deleteMultiDayLesson('${m.id}')">Unlink</button></div>`;}).join('');};
+window.openLpDayEventModal=(date,id)=>{
+  ensureLessonPlans();document.querySelector('#lpDayEventModal')?.remove();const rows=lessonPlanRows()||[];
+  const ev=id?lpDayEventsFor(date).find(e=>e.id===id):null,wd=parseLocalDate(date).getDay();
+  const avail=r=>{try{return lessonRowAvailableOnDate(r,date,wd)}catch(e){return true}};
+  const checks=rows.filter(avail).map(r=>{const other=lpDayEventsFor(date).find(e=>e!==ev&&(e.all||(e.rows||[]).includes(r.id)));return `<label class="lpEvtRow"><input type="checkbox" data-lpevt-row="${r.id}" ${ev&&(ev.rows||[]).includes(r.id)?'checked':''} ${other?'disabled':''}> ${esc(r.name)}${other?` <span class="small">(already ★ ${esc(other.text)})</span>`:''}</label>`;}).join('');
+  const label=parseLocalDate(date).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  document.body.insertAdjacentHTML('beforeend',`<div id="lpDayEventModal" class="modalbg"><div class="modal lessonPlanModal"><h3>★ All-day / Merged Entry · ${esc(label)}</h3><p class="small">One entry for this day instead of separate plans, e.g. Volleybrawl. It shows once on the Student Calendar with no class code. Pushing skips this day for the covered rows, like a pin.</p><label style="display:block"><b>What's happening</b><input id="lpEvtText" type="text" value="${esc(ev?.text||'')}" placeholder="e.g., Volleybrawl" style="width:100%;margin-top:5px;font-size:16px"></label><div class="lpEvtWho"><label class="lpEvtRow"><input type="radio" name="lpEvtWho" value="all" ${!ev||ev.all?'checked':''} onchange="window.lpEvtWhoChange()"> <span><b>All day</b>: every class (shows on every class's calendar)</span></label><label class="lpEvtRow"><input type="radio" name="lpEvtWho" value="rows" ${ev&&!ev.all?'checked':''} onchange="window.lpEvtWhoChange()"> <span><b>Merge periods</b>: only these rows</span></label><div id="lpEvtRows" class="lpEvtRows">${checks||'<p class="small">No rows meet this day.</p>'}</div></div><div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" type="button" onclick="window.saveLpDayEvent('${date}','${ev?.id||''}')">Save</button>${ev?`<button type="button" class="danger" onclick="window.deleteLpDayEvent('${date}','${ev.id}')">Remove</button>`:''}<button type="button" onclick="document.querySelector('#lpDayEventModal').remove()">Cancel</button></div></div></div>`);
+  window.lpEvtWhoChange();setTimeout(()=>document.querySelector('#lpEvtText')?.focus(),50);
+};
+window.lpEvtWhoChange=()=>{const all=document.querySelector('input[name=lpEvtWho][value=all]')?.checked,box=document.querySelector('#lpEvtRows');if(box){box.style.opacity=all?.45:1;box.querySelectorAll('input').forEach(i=>{if(!i.hasAttribute('data-locked'))i.style.pointerEvents=all?'none':'';});}};
+window.saveLpDayEvent=(date,id)=>{
+  ensureLessonPlans();const text=String(document.querySelector('#lpEvtText')?.value||'').trim();if(!text){alert('Type what is happening (e.g., Volleybrawl).');return;}
+  const all=!!document.querySelector('input[name=lpEvtWho][value=all]')?.checked,rowsSel=[...document.querySelectorAll('#lpDayEventModal [data-lpevt-row]:checked:not(:disabled)')].map(i=>i.dataset.lpevtRow);
+  if(!all&&rowsSel.length<1){alert('Choose at least one row to merge, or pick All day.');return;}
+  const st=lpDayEventStore(),list=st[date]=Array.isArray(st[date])?st[date]:[];
+  if(all&&list.some(e=>e.id!==id)){alert('This day already has another ★ entry. Edit or remove it first, then make this one All day.');return;}
+  const old=id?list.find(e=>e.id===id):null,ev=old||{id:'de'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)};
+  const wd=parseLocalDate(date).getDay(),covered=(lessonPlanRows()||[]).filter(r=>{let ok=true;try{ok=lessonRowAvailableOnDate(r,date,wd)}catch(e){}return ok&&(all||rowsSel.includes(r.id));});
+  const wasCovered=new Set(old?(old.all?(lessonPlanRows()||[]).map(r=>r.id):old.rows||[]):[]);
+  // Plans already typed on this day for newly covered rows: offer to push them forward (nothing is deleted either way).
+  const withPlans=covered.filter(r=>!wasCovered.has(r.id)&&!lessonPinnedDates(r.id).has(date)&&lessonEntryHasContent(data.lessonPlans.entries?.[r.id]?.[date]||{}));
+  let plans=[];
+  if(withPlans.length&&confirm(`These rows already have a plan on this day:\n${withPlans.map(r=>r.name).join(', ')}\n\nPush those plans forward to the next meeting day? (Cancel keeps them saved on this day, hidden under ★ ${text} until you remove it.)`)){
+    plans=withPlans.map(r=>{const p=planLessonRowShift(r.id,date);if(p)p.from=date;return p;}).filter(Boolean);
+    const stuck=lessonStuckMessage(plans);if(stuck){alert(`Not enough school days left to push:\n${stuck}\n\nNothing was changed.`);return;}}
+  const u=plans.length?lpUndoStart(`★ ${text}: pushed plans forward from ${lessonShortDay(date)}`,plans):null;
+  let moved=0;plans.forEach(p=>{moved+=applyLessonRowShift(p).moved;});if(u&&moved)lpUndoSeal(u);
+  ev.text=text;ev.all=all;ev.rows=all?[]:rowsSel;if(!old)list.push(ev);
+  save();document.querySelector('#lpDayEventModal')?.remove();toast=`★ ${text} saved for ${lessonShortDay(date)}.${moved?' Plans pushed forward.':''}`;render();
+};
+window.deleteLpDayEvent=(date,id)=>{const st=lpDayEventStore(),list=st[date]||[],e=list.find(x=>x.id===id);if(!e||!confirm(`Remove ★ ${e.text} from ${lessonShortDay(date)}? Any plans saved under it show again.`))return;st[date]=list.filter(x=>x.id!==id);if(!st[date].length)delete st[date];save();document.querySelector('#lpDayEventModal')?.remove();toast='Removed.';render();};
 window.openMultiDayLessonModal=()=>{
   ensureLessonPlans();ensureClassFields();document.querySelector('#multiDayLessonModal')?.remove();const dates=lessonWeekDates(),start=isoDate(dates[0]),end=isoDate(dates[2]),rows=lessonPlanRows();
   if(!rows.length){alert('Add at least one Lesson Plans row first.');return;}
@@ -6414,6 +6458,9 @@ let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+// V4.12.2: Calendar day notes are private again (not on the Student Calendar). Lesson Plans → "★ All-day" on a day
+// marks an all-day event (every class) or merges chosen rows into one entry: data.lessonPlanDayEvents {date:[{id,text,all,rows}]}.
+// Covered cells show the event; pushes skip those days like pins. Student Calendar shows it once, centered, no class code.
 // V4.12.1: Calendar Code + Color live on the lesson plan rows (Customize Lesson Planning), stored in
 // data.lessonPlanRowCal {rowId:{code,color}}; old per-class values are copied over once. Lesson notes are
 // vertically centered in each calendar day; NO SCHOOL / early dismissal labels unchanged.
