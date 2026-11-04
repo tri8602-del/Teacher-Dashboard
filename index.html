@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.12.2</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.13.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -730,6 +730,10 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .lessonPushBtn{position:absolute;right:4px;bottom:4px;z-index:3;padding:0 5px;min-width:22px;height:18px;line-height:16px;font-size:12px;border-radius:6px;background:#fff;border:1px solid #d5dbe6;color:#4b5563;opacity:.55}
 .lessonPushBtn:hover{opacity:1;background:#eef3fb;color:#1e3a5f}
 .lessonDayHead{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.welcomeWizardModal{max-width:760px;width:min(760px,94vw)}.wzSteps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.wzDot{padding:6px 10px;border-radius:999px;background:#eef1f6;font-size:13px;color:#4b5563}.wzDot.on{background:#2d3b59;color:#fff}.wzDot.done{background:#dbe7d8}
+.wzField{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px;margin:10px 0}.wzField input,.wzField select{font-size:16px;min-height:44px;padding:6px 10px;border:1px solid #cfd6e2;border-radius:8px}.wzField input[type=color]{padding:2px;width:56px}
+.wzTwo{display:flex;gap:12px;flex-wrap:wrap}.wzTwo .wzField{flex:1;min-width:200px}.wzClassRow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;border:1px solid #e3e7ee;border-radius:10px;padding:4px 10px;margin:8px 0}.wzGrow{flex:1;min-width:180px}.wzNarrow{width:auto}.wzNarrow input:not([type=color]),.wzNarrow select{width:110px}
+.wzRemove{min-height:44px;min-width:44px;margin:10px 0;font-size:20px}.wzAdd{min-height:44px;margin-top:6px}.wzImport{display:flex;flex-direction:column;gap:10px}.wzImport button{min-height:48px;text-align:left;padding:8px 14px}.wzActions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}.wzActions button{min-height:44px;min-width:96px}
 .lessonPushDay{padding:1px 6px;font-size:10px;line-height:1.2;border-radius:6px;color:#4b5563}
 .lessonDayEvent{background:#fff8e6!important;vertical-align:middle}.lpEvtCell{width:100%;min-height:64px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:1px dashed #d9a400;border-radius:8px;background:transparent;cursor:pointer;font-size:14px;padding:8px}.lpEvtCell small{font-size:11px;color:#6b5a1f}
 .lpEvtWho{margin-top:12px;display:flex;flex-direction:column;gap:6px}.lpEvtRow{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 8px;border:1px solid #e3e7ee;border-radius:8px}.lpEvtRow input{width:22px;height:22px}.lpEvtRows{display:flex;flex-direction:column;gap:6px;margin-left:24px}
@@ -872,7 +876,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.12.2";
+const APP_VERSION="4.13.0";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -881,12 +885,28 @@ const PROFILES={
   lindsay:{name:"lindsay",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:true,accommodations:true,calculators:true}},
   product:{name:"product",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:false,accommodations:false,calculators:false}}
 };
-const PROFILE=(()=>{try{const q=new URLSearchParams(location.search).get("profile");if(q&&PROFILES[q]&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return PROFILES[q];}catch(e){}return PROFILES.lindsay})();
+// V4.13.0: the Lindsay profile split. A dashboard saved with data.profile==="teacher" is a new teacher's: it starts
+// empty (setup wizard) and never sees anything below. Every dashboard WITHOUT a profile key is Lindsay's existing
+// data, so nothing is written to her dashboard and everything she sees stays exactly as it was.
+PROFILES.teacher={name:"teacher",modules:{...PROFILES.product.modules}};
+const LINDSAY_PROFILE={
+  studentCalendarTeacher:"Mrs. Shay",            // Student Calendar subtitle default
+  calcTeacher:"Lindsay Shay",calcClosingName:"Mrs. Lindsay Shay",calcClosingTitle:"Mathematics Teacher",calcCost:150,
+  footer:"© 2026 Lindsay Shay",
+  pltRowPeriod:6,                                 // her PLT lesson row belongs in 6th period
+  // Also hers (further down, gated by isLindsayDashboard()): seed.bellSchedules (her school's bells),
+  // MS_SEED_2025_26 + MS_SEED_UPGRADES (2025-26 sheets + AP Calc/Precalc corrections), MS_PLAN_2026_27,
+  // and the class name → Calendar Code/Color defaults (ALG/A1 pink, APC purple, AB blue) in classCalDefaults.
+};
+const PROFILE_OVERRIDE=(()=>{try{const q=new URLSearchParams(location.search).get("profile");if(q&&PROFILES[q]&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return PROFILES[q];}catch(e){}return null})();
+function isLindsayDashboard(x){try{x=x||data;}catch(e){return true}return !(x&&x.profile==="teacher");}
+function currentProfile(){return PROFILE_OVERRIDE||(isLindsayDashboard()?PROFILES.lindsay:PROFILES.teacher);}
+function teacherProfile(){const t=(()=>{try{return data.teacherProfile}catch(e){return null}})();return t&&typeof t==="object"?t:{};}
 // Core pages (always on): Live Class, Students & Classes, Calendar, Reminders & Announcements, Settings.
 const PAGE_MODULE={lessonplans:"lessonPlans",masterschedule:"masterSchedule",forms:"forms",accommodations:"accommodations",buttons:"quickButtons",grades:"gradeCalc",reports:"reports",pvaas:"pvaas",calculators:"calculators"};
-function moduleOn(id){return PROFILE.modules[id]!==false}
+function moduleOn(id){return currentProfile().modules[id]!==false}
 function pageOn(id){const m=PAGE_MODULE[id];return !m||moduleOn(m)}
-window.TD_PROFILE=PROFILE.name;
+Object.defineProperty(window,"TD_PROFILE",{get:()=>currentProfile().name,configurable:true});
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -967,6 +987,11 @@ const seed={
  ]
 };
 
+// V4.13.0: a new teacher's dashboard: no sample class or students, no school's bell schedule, nothing of Lindsay's.
+function teacherSeed(){const x=structuredClone(seed);x.profile="teacher";x.teacherProfile={name:"",displayName:"",title:"",school:""};
+  x.classes=[];x.students=[];x.bellSchedules=[{id:"regular",name:"Regular Bell Schedule",kind:"regular",periods:[]}];
+  x.masterSchedules={years:{},seeded:{}};x.lessonPlanRowCal={};x.lessonPlanRowCalMigrated=true;return x;}
+function seedFor(x){return isLindsayDashboard(x)?seed:teacherSeed();}
 let data=structuredClone(seed);
 let page="live",selected=null;
 let liveView=localStorage.teacherDashboardLiveView||"cards";
@@ -976,7 +1001,7 @@ let authBusy=false,loginError="",initializedUserData=false,toast="";
 
 function localKey(){return currentUser?LOCAL_PREFIX+currentUser.uid:null}
 function defaultBellSchedules(){
-  return structuredClone(seed.bellSchedules||[]);
+  return structuredClone(seedFor(data).bellSchedules||[]);
 }
 function ensureBellSchedules(){
   if(!Array.isArray(data.bellSchedules)||!data.bellSchedules.length)data.bellSchedules=defaultBellSchedules();
@@ -1035,7 +1060,7 @@ function ensureLessonPlans(){
     const name=String(r.name||`Row ${i+1}`);
     let period=Number(r.period)||0;
     // Migration for Lindsay's existing PLT row: it belongs in 6th period.
-    if(!period && name.trim().toUpperCase()==='PLT') period=6;
+    if(!period && isLindsayDashboard() && name.trim().toUpperCase()==='PLT') period=LINDSAY_PROFILE.pltRowPeriod;
     const classIds=Array.isArray(r.classIds)?r.classIds.filter(Boolean):[];
     return {id:r.id||`lp_${Date.now()}_${i}`,name,days:Array.isArray(r.days)&&r.days.length?r.days.map(Number):[1,2,3,4,5],period,classIds};
   });
@@ -1444,17 +1469,17 @@ function bellScheduleOptions(selectedId){
 // later. Fill those in with defaults; never drop anything that is already there.
 function normalizeLoadedDashboard(raw){
   const x=(raw&&typeof raw==="object"&&!Array.isArray(raw))?raw:{};
-  const out={...structuredClone(seed),...x};
+  const base=seedFor(x),out={...structuredClone(base),...x};
   ["classes","students","groups","forms","accommodations","accommodationSources","events","notes","schoolDays","gradeCourses","lessonPlanSyncGroups","calculators"].forEach(k=>{if(!Array.isArray(out[k]))out[k]=[];});
-  if(!Array.isArray(out.buttons)||!out.buttons.length)out.buttons=structuredClone(seed.buttons);
-  if(!Array.isArray(out.bellSchedules)||!out.bellSchedules.length)out.bellSchedules=defaultBellSchedules();
-  ["calendarSettings","pvaasSettings","googleClassroom","calendarColors"].forEach(k=>{const v=x[k];out[k]={...structuredClone(seed[k]),...((v&&typeof v==="object"&&!Array.isArray(v))?v:{})};});
-  ["calendarOverrides","accommodationAI"].forEach(k=>{if(!out[k]||typeof out[k]!=="object"||Array.isArray(out[k]))out[k]=structuredClone(seed[k]);});
+  if(!Array.isArray(out.buttons)||!out.buttons.length)out.buttons=structuredClone(base.buttons);
+  if(!Array.isArray(out.bellSchedules)||!out.bellSchedules.length)out.bellSchedules=structuredClone(base.bellSchedules);
+  ["calendarSettings","pvaasSettings","googleClassroom","calendarColors"].forEach(k=>{const v=x[k];out[k]={...structuredClone(base[k]),...((v&&typeof v==="object"&&!Array.isArray(v))?v:{})};});
+  ["calendarOverrides","accommodationAI"].forEach(k=>{if(!out[k]||typeof out[k]!=="object"||Array.isArray(out[k]))out[k]=structuredClone(base[k]);});
   // Master Schedule (V4.3.0). Older backups and devices don't have it yet.
   {const ms=out.masterSchedules,ok=v=>v&&typeof v==="object"&&!Array.isArray(v);out.masterSchedules=ok(ms)?{...ms,years:ok(ms.years)?ms.years:{},seeded:ok(ms.seeded)?ms.seeded:{}}:{years:{},seeded:{}};}
   if(!out.lessonPlans||typeof out.lessonPlans!=="object"||Array.isArray(out.lessonPlans))out.lessonPlans={entries:{}};
   if(!out.lessonPlans.entries||typeof out.lessonPlans.entries!=="object")out.lessonPlans.entries={};
-  if(!out.subPlans||typeof out.subPlans!=="object"||Array.isArray(out.subPlans))out.subPlans=structuredClone(seed.subPlans);
+  if(!out.subPlans||typeof out.subPlans!=="object"||Array.isArray(out.subPlans))out.subPlans=structuredClone(base.subPlans);
   // Versions before the setup wizard never stored setupComplete. A dashboard that
   // already has its own classes is set up, so don't pop the wizard open for it.
   if(!("setupComplete" in x)&&Array.isArray(x.classes)&&x.classes.some(c=>c&&c.id!=="c1"))out.setupComplete=true;
@@ -1658,6 +1683,8 @@ render();
       cloudStatus=sync.localDirty?"Saving to Firebase...":"Firebase synced";
     }else{
       // No cloud copy yet: this device's dashboard becomes the cloud copy.
+      // V4.13.0: a brand-new account (nothing on this device either) starts as a new teacher's empty dashboard.
+      if(!localStorage.getItem(localKey()))data=teacherSeed();
       sync.localDirty=true;saveSyncState();
     }
   }catch(err){
@@ -1670,7 +1697,7 @@ render();
   if(sync.localDirty)scheduleCloudSave(200);
   if(!data.setupComplete && !data.setupSkipped && !window.setupPrompted){
     window.setupPrompted=true;
-    setTimeout(()=>window.openSetupWizard(),250);
+    setTimeout(()=>isLindsayDashboard()?window.openSetupWizard():window.openWelcomeWizard(),250);
   }
 }
 
@@ -1927,7 +1954,7 @@ function render(){
     <nav class="sidebarNav">${nav()}</nav>
     <div class="status">☁️ ${esc(cloudStatus)}</div>
     <div class="userCard"><div class="sidebarUser">${avatarHTML("sidebarAvatar")}<div><b>Signed in as</b><span class="userName">${esc(userLabel)}</span></div></div><button onclick="window.signOut()">Sign out</button></div>
-  </aside><main>${toastHTML()}${pageHTML()}<footer class="appFooter">© 2026 Lindsay Shay &nbsp;•&nbsp; Version ${APP_VERSION}</footer></main></div>${selected?modalHTML():""}`;
+  </aside><main>${toastHTML()}${pageHTML()}<footer class="appFooter">${isLindsayDashboard()?LINDSAY_PROFILE.footer:"Teacher Dashboard"} &nbsp;•&nbsp; Version ${APP_VERSION}</footer></main></div>${selected?modalHTML():""}`;
   document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;render()});
   bind();
   restoreRootFocus(focusKeep);
@@ -2172,7 +2199,7 @@ function lessonPlanRows(){
 const SC_COLORS=["#2f7d3b","#b5402a","#0f7c86","#b07a00","#5b5b5b","#9c2f63"];
 // Defaults she uses: Precalculus purple, Calculus blue, Algebra pink. Both can be changed per class in class settings.
 function classCalDefaults(c){const n=String(c?.name||"").toLowerCase();let code="",color="";
-  if(/precalc/.test(n)){code=/\bap\b/.test(n)?"APC":"PC";color="#7b3fa6";}
+  if(!isLindsayDashboard()){}else if(/precalc/.test(n)){code=/\bap\b/.test(n)?"APC":"PC";color="#7b3fa6";}
   else if(/calc/.test(n)){code=/\bap\b/.test(n)?(/\bbc\b/.test(n)?"BC":"AB"):"CALC";color="#1f5fae";}
   else if(/algebra/.test(n)){code=/\b(2|ii)\b/.test(n)?"A2":"A1";color="#d6336c";}
   else if(/geometry/.test(n))code="GEO";
@@ -2207,7 +2234,7 @@ function lessonRowCalEditorHTML(){migrateLessonRowCal();const rows=lessonPlanRow
 window.lpCalPreview=el=>{const c=el.querySelector(".lpCalCode"),p=el.querySelector(".lpCalPreview");p.style.color=el.querySelector(".lpCalColor").value;p.querySelector("b").textContent=(c.value.trim()||c.placeholder||"?")+":";};
 function saveLessonRowCalFromModal(){const st=lessonRowCalStore();document.querySelectorAll('#lessonPlanModal .lpCalRow').forEach(el=>{const id=el.dataset.calRow,r=lessonPlanRows().find(x=>x.id===id);if(!r)return;const d=scRowDefaults(r),code=el.querySelector('.lpCalCode').value.trim(),color=el.querySelector('.lpCalColor').value;
   const v={code,color:color.toLowerCase()===String(d.color).toLowerCase()&&!st[id]?.color?"":color};if(!v.code&&!v.color)delete st[id];else st[id]=v;});}
-function scSettings(){const s=data.studentCalendar=data.studentCalendar&&typeof data.studentCalendar==="object"?data.studentCalendar:{};if(!s.teacher)s.teacher="Mrs. Shay";s.rows=Array.isArray(s.rows)?s.rows:[];return s;}
+function scSettings(){const s=data.studentCalendar=data.studentCalendar&&typeof data.studentCalendar==="object"?data.studentCalendar:{};if(!s.teacher)s.teacher=isLindsayDashboard()?LINDSAY_PROFILE.studentCalendarTeacher:(teacherProfile().displayName||teacherProfile().name||"");s.rows=Array.isArray(s.rows)?s.rows:[];return s;}
 function scDayLabel(date){const info=getDateInfo(date),o=(data.calendarOverrides||{})[date]||{};const lab=String(o.label||o.name||"").trim();
   if(info.type==="earlydismissal"){const sch=(data.bellSchedules||[]).find(x=>x.id===info.schedule);return {kind:"early",text:lab||(sch&&sch.id!=="regular"?sch.name:"Early Dismissal")};}
   if(!lessonClassDayType(info.type))return {kind:"off",text:lab};
@@ -2664,6 +2691,8 @@ const MS_FROM_CALENDAR={noschool:"noschool",inservice:"inservice",earlydismissal
 const MS_CALENDAR_LABEL={noschool:"No School",inservice:"In-Service",earlydismissal:"Early Dismissal"};
 const MS_NO_CLASS=/^(~+|[—–-]+|[x×✕]+)$/i;
 const MS_MONTHS=["JAN","FEB","MAR","APR","MAY","JUNE","JULY","AUG","SEPT","OCT","NOV","DEC"];
+// ===== LINDSAY PROFILE: her 2025-26 Master Schedule seed, its corrections and her 2026-27 course plan. =====
+// Used only for her dashboard (isLindsayDashboard()); a new teacher never gets these.
 const MS_SEED_YEAR="2025-26";
 // Transcribed from the 2025-26 Notability sheets (Algebra, AP Calc, Precalc, MS Electives).
 const MS_SEED_2025_26={"start":"2025-09-01","end":"2026-05-29","dayTypes":{"2025-09-01":"noschool","2025-09-12":"coaches","2025-09-15":"personal","2025-09-23":"debate","2025-10-08":"acad","2025-10-14":"debate","2025-10-22":"acad","2025-11-03":"conf","2025-11-05":"acad","2025-11-10":"early","2025-11-11":"noschool","2025-11-19":"acad","2025-11-25":"early","2025-11-26":"noschool","2025-11-27":"noschool","2025-11-28":"noschool","2025-12-01":"noschool","2025-12-02":"inservice","2025-12-04":"debate","2025-12-19":"early","2026-01-14":"acad","2026-01-16":"inservice","2026-01-19":"noschool","2026-01-23":"coaches","2026-01-29":"debate","2026-01-30":"personal","2026-02-16":"noschool","2026-02-19":"debate","2026-03-20":"inservice","2026-04-02":"noschool","2026-04-03":"noschool","2026-04-06":"noschool","2026-04-07":"noschool","2026-05-15":"coaches","2026-05-22":"early","2026-05-25":"noschool","2026-05-28":"early","2026-05-29":"noschool","2025-12-22":"noschool","2025-12-23":"noschool","2025-12-24":"noschool","2025-12-25":"noschool","2025-12-26":"noschool","2025-12-29":"noschool","2025-12-30":"noschool","2025-12-31":"noschool","2026-01-01":"noschool","2026-01-02":"noschool"},"dayLabels":{"2025-12-22":"Winter Break","2025-12-23":"Winter Break","2025-12-24":"Winter Break","2025-12-25":"Winter Break","2025-12-26":"Winter Break","2025-12-29":"Winter Break","2025-12-30":"Winter Break","2025-12-31":"Winter Break","2026-01-01":"Winter Break","2026-01-02":"Winter Break"},"courses":[{"id":"algebra","name":"Algebra","cells":{"2025-09-02":{"text":"Review"},"2025-09-03":{"text":"Review"},"2025-09-04":{"text":"Quiz"},"2025-09-05":{"text":"Corrections"},"2025-09-08":{"text":"1.4"},"2025-09-09":{"text":"1.5"},"2025-09-10":{"text":"1.6"},"2025-09-11":{"text":"1.7"},"2025-09-12":{"text":"Delta"},"2025-09-23":{"text":"Quiz"},"2025-10-02":{"text":"Quiz"},"2025-10-14":{"text":"Test-2"},"2025-10-27":{"text":"Quiz"},"2025-11-07":{"text":"Test-3"},"2025-11-21":{"text":"Quiz"},"2025-11-24":{"text":"MT Review"},"2025-12-03":{"text":"MT Review"},"2025-12-04":{"text":"MIDTERM"},"2025-12-15":{"text":"Test-4"},"2025-12-16":{"text":"Extra"},"2025-12-17":{"text":"Extra"},"2025-12-18":{"text":"Extra"},"2025-12-19":{"text":"Extra"},"2026-01-14":{"text":"Quiz"},"2026-01-29":{"text":"Test-5"},"2026-02-09":{"text":"Quiz"},"2026-02-27":{"text":"Test-6"},"2026-03-11":{"text":"Quiz"},"2026-03-27":{"text":"Test-7"},"2026-04-13":{"text":"Quiz"},"2026-04-24":{"text":"Test-8"},"2026-04-27":{"text":"Keys Review"},"2026-04-28":{"text":"Keys Review"},"2026-04-29":{"text":"Keys Review"},"2026-04-30":{"text":"Keys Review"},"2026-05-01":{"text":"Keys Review"},"2026-05-04":{"text":"Keys Review"},"2026-05-05":{"text":"Keys Review"},"2026-05-06":{"text":"Keys Review"},"2026-05-07":{"text":"Keys Review"},"2026-05-08":{"text":"Keys Review"},"2026-05-11":{"text":"Keystone","type":"testing"},"2026-05-12":{"text":"Keystone","type":"testing"},"2026-05-13":{"text":"Final Review"},"2026-05-14":{"text":"Final Review"},"2026-05-15":{"text":"Final Review"},"2026-05-18":{"text":"Final Review"},"2026-05-19":{"text":"Final Review"},"2026-05-20":{"text":"Final Review"},"2026-05-21":{"text":"FINAL","type":"testing"}}},{"id":"apcalc","name":"AP Calc","cells":{"2025-09-02":{"text":"1.6"},"2025-09-03":{"text":"1.7"},"2025-09-04":{"text":"1.8"},"2025-09-05":{"text":"1.9"},"2025-09-08":{"text":"Mid-Unit 1 Review"},"2025-09-09":{"text":"Delta"},"2025-09-10":{"text":"1.10"},"2025-09-11":{"text":"1.11"},"2025-09-12":{"text":"1.12"},"2025-09-15":{"text":"1.13"},"2025-09-16":{"text":"1.12-13"},"2025-09-17":{"text":"1.14"},"2025-09-18":{"text":"U1 PPC'S"},"2025-09-19":{"text":"1.15"},"2025-09-22":{"text":"1.16"},"2025-09-23":{"text":"U1 Review"},"2025-09-24":{"text":"Unit 1 Test"},"2025-09-25":{"text":"2.1"},"2025-09-26":{"text":"2.2"},"2025-09-29":{"text":"2.3"},"2025-09-30":{"text":"2.4"},"2025-10-01":{"text":"2.5"},"2025-10-02":{"text":"2.6"},"2025-10-03":{"text":"2.7"},"2025-10-06":{"text":"2.8"},"2025-10-07":{"text":"2.9"},"2025-10-08":{"text":"Delta"},"2025-10-09":{"text":"U2 PPC'S"},"2025-10-10":{"text":"2.10"},"2025-10-13":{"text":"Review"},"2025-10-14":{"text":"Unit 2 Test"},"2025-10-15":{"text":"3.1"},"2025-10-16":{"text":"3.1"},"2025-10-17":{"text":"3.2"},"2025-10-20":{"text":"3.3"},"2025-10-21":{"text":"3.4"},"2025-10-22":{"text":"Delta"},"2025-10-23":{"text":"U3 PPCS"},"2025-10-24":{"text":"3.5"},"2025-10-27":{"text":"3.6"},"2025-10-28":{"text":"U3 Review"},"2025-10-29":{"text":"Unit 3 Test"},"2025-10-30":{"text":"4.1"},"2025-10-31":{"text":"4.2"},"2025-11-04":{"text":"4.3"},"2025-11-05":{"text":"Delta"},"2025-11-06":{"text":"4.4"},"2025-11-07":{"text":"4.5"},"2025-11-12":{"text":"4.6"},"2025-11-13":{"text":"U4 PPC'S"},"2025-11-14":{"text":"4.7","type":"fieldtrip"},"2025-11-17":{"text":"Delta"},"2025-11-18":{"text":"Review"},"2025-11-19":{"text":"Unit 4 Test"},"2025-11-20":{"text":"5.1"},"2025-11-21":{"text":"5.2"},"2025-11-24":{"text":"5.3"},"2025-12-03":{"text":"5.4"},"2025-12-04":{"text":"Delta"},"2025-12-05":{"text":"5.5"},"2025-12-08":{"text":"5.6"},"2025-12-09":{"text":"5.7"},"2025-12-10":{"text":"5.8"},"2025-12-11":{"text":"5.9 ☺"},"2025-12-12":{"text":"5.10"},"2025-12-15":{"text":"5.11"},"2025-12-16":{"text":"5.12"},"2025-12-17":{"text":"Unit 5 Review"},"2025-12-18":{"text":"Unit 5 Test"},"2026-01-05":{"text":"6.1"},"2026-01-06":{"text":"6.2"},"2026-01-07":{"text":"6.3"},"2026-01-08":{"text":"6.3"},"2026-01-09":{"text":"6.4"},"2026-01-12":{"text":"6.5"},"2026-01-13":{"text":"6.6"},"2026-01-14":{"text":"Delta"},"2026-01-15":{"text":"6.7"},"2026-01-20":{"text":"6.8"},"2026-01-21":{"text":"6.9"},"2026-01-22":{"text":"6.9"},"2026-01-23":{"text":"Long Div / CTS DeltaMath"},"2026-01-26":{"text":"6.10"},"2026-01-27":{"text":"6.10"},"2026-01-28":{"text":"6.14"},"2026-01-29":{"text":"Delta"},"2026-01-30":{"text":"Review"},"2026-02-02":{"text":"Unit 6 PPCs"},"2026-02-03":{"text":"Unit 6 Test"},"2026-02-04":{"text":"7.1"},"2026-02-05":{"text":"7.2"},"2026-02-06":{"text":"7.3"},"2026-02-09":{"text":"7.4"},"2026-02-10":{"text":"7.6"},"2026-02-11":{"text":"7.7"},"2026-02-12":{"text":"U7 PPC'S"},"2026-02-13":{"text":"Delta"},"2026-02-17":{"text":"7.8"},"2026-02-18":{"text":"Review"},"2026-02-19":{"text":"Unit 7 Test"},"2026-02-20":{"text":"8.1"},"2026-02-23":{"text":"8.2"},"2026-02-24":{"text":"8.3"},"2026-02-25":{"text":"Delta"},"2026-02-26":{"text":"8.1-8.3"},"2026-02-27":{"text":"8.4"},"2026-03-02":{"text":"8.5"},"2026-03-03":{"text":"8.6"},"2026-03-04":{"text":"Play Doh"},"2026-03-05":{"text":"8.7"},"2026-03-06":{"text":"8.8"},"2026-03-09":{"text":"8.9"},"2026-03-10":{"text":"Delta"},"2026-03-11":{"text":"3D Demo?"},"2026-03-12":{"text":"8.10"},"2026-03-13":{"text":"8.11"},"2026-03-16":{"text":"8.12"},"2026-03-17":{"text":"8.10-12"},"2026-03-18":{"text":"Delta"},"2026-03-19":{"text":"U8 PPC'S"},"2026-03-26":{"text":"Unit 8 Test"},"2026-04-08":{"text":"Mock Exam"},"2026-04-09":{"text":"Go Over Exam"},"2026-04-10":{"text":"Go Over Exam"},"2026-04-13":{"text":"Go Over Exam"},"2026-04-14":{"text":"Go Over Exam"},"2026-04-15":{"text":"Go Over Exam"},"2026-04-16":{"text":"Go Over Exam"},"2026-04-17":{"text":"Go Over Exam"},"2026-04-20":{"text":"Go Over Exam"},"2026-04-21":{"text":"Go Over Exam"},"2026-04-22":{"text":"Go Over Exam"},"2026-04-23":{"text":"Go Over Exam"},"2026-04-24":{"text":"Go Over Exam"},"2026-04-27":{"text":"Go Over Exam"},"2026-04-28":{"text":"Go Over Exam"},"2026-04-29":{"text":"Go Over Exam"},"2026-04-30":{"text":"Go Over Exam"},"2026-05-01":{"text":"Go Over Exam","type":"fieldtrip"},"2026-05-04":{"text":"Go Over Exam"},"2026-05-05":{"text":"Go Over Exam"},"2026-05-06":{"text":"Go Over Exam"},"2026-05-07":{"text":"Go Over Exam"},"2026-05-08":{"text":"Go Over Exam"},"2026-05-11":{"text":"AP Test","type":"testing"},"2026-05-12":{"text":"Apollo 13"},"2026-05-13":{"text":"Apollo 13"},"2026-05-14":{"text":"Apollo 13"},"2026-05-15":{"text":"Apollo 13"},"2026-05-18":{"text":"Chill ☺"},"2026-05-19":{"text":"Chill ☺"},"2026-05-20":{"text":"Chill ☺"},"2026-05-21":{"text":"Chill ☺"},"2026-05-26":{"text":"Chill ☺"},"2026-05-27":{"text":"Chill ☺"}}},{"id":"precalc","name":"Precalc","cells":{"2025-09-02":{"text":"Review"},"2025-09-03":{"text":"Quiz"},"2025-09-04":{"text":"1.4"},"2025-09-05":{"text":"Go Over Quiz"},"2025-09-08":{"text":"1.5"},"2025-09-09":{"text":"1.6"},"2025-09-10":{"text":"Review"},"2025-09-11":{"text":"Review"},"2025-09-12":{"text":"Delta"},"2025-09-15":{"text":"Unit 1 Test"},"2025-09-25":{"text":"Quiz 2.1-2.4"},"2025-10-08":{"text":"Unit 2 Test"},"2025-10-15":{"text":"PSAT","type":"testing"},"2025-10-17":{"text":"Quiz"},"2025-10-20":{"text":"2.9"},"2025-10-21":{"text":"Review"},"2025-10-22":{"text":"2.9"},"2025-10-23":{"text":"Review"},"2025-10-24":{"text":"Unit 2 Test"},"2025-10-27":{"text":"—","type":"inservice"},"2025-10-28":{"text":"Go Over"},"2025-10-29":{"text":"3.1"},"2025-10-30":{"text":"3.2"},"2025-10-31":{"text":"3.2"},"2025-11-03":{"text":"—"},"2025-11-04":{"text":"3.3"},"2025-11-05":{"text":"Delta"},"2025-11-06":{"text":"Review"},"2025-11-07":{"text":"Delta"},"2025-11-10":{"text":"—"},"2025-11-11":{"text":"—"},"2025-11-12":{"text":"Review"},"2025-11-13":{"text":"Quiz 3.1-3"},"2025-11-14":{"text":"3.4","type":"fieldtrip"},"2025-11-17":{"text":"3.5"},"2025-11-18":{"text":"3.5"},"2025-11-19":{"text":"DM"},"2025-11-20":{"text":"U3 Review"},"2025-11-21":{"text":"U3 Review"},"2025-11-24":{"text":"U3 Review"},"2025-11-25":{"text":"U3 Test"},"2025-12-02":{"text":"—"},"2025-12-03":{"text":"4.1"},"2025-12-04":{"text":"4.2"},"2025-12-05":{"text":"4.3"},"2025-12-08":{"text":"4.4"},"2025-12-09":{"text":"4.5"},"2025-12-10":{"text":"4.6"},"2025-12-11":{"text":"4.7"},"2025-12-12":{"text":"Review"},"2025-12-15":{"text":"Review"},"2025-12-16":{"text":"U4 Test"},"2025-12-17":{"text":"FID- OPEN Midterm"},"2025-12-18":{"text":"✕"},"2025-12-19":{"text":"✕"},"2026-01-27":{"type":"personal"},"2026-05-01":{"type":"fieldtrip"},"2026-05-12":{"text":"AP Test"}}},{"id":"mselect","name":"Middle School Electives","cells":{"2025-09-01":{"text":"~~~"},"2025-09-02":{"text":"Crochet"},"2025-09-03":{"text":"Crochet"},"2025-09-04":{"text":"Crochet"},"2025-09-05":{"text":"Crochet"},"2025-09-08":{"text":"Crochet"},"2025-09-09":{"text":"Crochet"},"2025-09-10":{"text":"Crochet"},"2025-09-11":{"text":"Crochet"},"2025-09-12":{"text":"Crochet"},"2025-09-15":{"text":"Crochet"},"2025-09-16":{"text":"Crochet"},"2025-09-17":{"text":"Crochet"},"2025-09-18":{"text":"Crochet"},"2025-09-19":{"text":"Crochet"},"2025-09-22":{"text":"Crochet"},"2025-09-23":{"text":"Crochet"},"2025-09-24":{"text":"Crochet"},"2025-09-25":{"text":"Crochet"},"2025-09-26":{"text":"Crochet"},"2025-09-29":{"text":"Crochet"},"2025-09-30":{"text":"Crochet"},"2025-10-01":{"text":"Crochet"},"2025-10-02":{"text":"Crochet"},"2025-10-03":{"text":"Crochet"},"2025-10-06":{"text":"Crochet"},"2025-10-07":{"text":"Crochet"},"2025-10-08":{"text":"Crochet"},"2025-10-09":{"text":"Crochet"},"2025-10-10":{"text":"Crochet"},"2025-10-13":{"text":"Crochet"},"2025-10-14":{"text":"Crochet"},"2025-10-15":{"text":"Crochet"},"2025-10-16":{"text":"Crochet"},"2025-10-17":{"text":"Crochet"},"2025-10-20":{"text":"Crochet"},"2025-10-21":{"text":"Crochet"},"2025-10-22":{"text":"Crochet"},"2025-10-23":{"text":"Crochet"},"2025-10-24":{"text":"Crochet"},"2025-10-27":{"text":"Crochet"},"2025-10-28":{"text":"Crochet"},"2025-10-29":{"text":"Crochet"},"2025-10-30":{"text":"Crochet"},"2025-10-31":{"text":"Crochet"},"2025-11-03":{"text":"~~~"},"2025-11-04":{"text":"Crochet"},"2025-11-05":{"text":"Crochet"},"2025-11-06":{"text":"Crochet"},"2025-11-07":{"text":"Crochet"},"2025-11-10":{"text":"~~~"},"2025-11-11":{"text":"~~~"},"2025-11-12":{"text":"Crochet"},"2025-11-13":{"text":"Crochet"},"2025-11-14":{"text":"Crochet"},"2025-11-17":{"text":"Crochet"},"2025-11-18":{"text":"Crochet"},"2025-11-19":{"text":"Crochet"},"2025-11-20":{"text":"Crochet"},"2025-11-21":{"text":"Crochet"},"2025-11-24":{"text":"Crochet"},"2025-11-25":{"text":"~~~"},"2025-11-26":{"text":"~~~"},"2025-11-27":{"text":"~~~"},"2025-11-28":{"text":"~~~"},"2026-04-20":{"type":"testing"},"2026-04-21":{"type":"testing"},"2026-04-22":{"type":"testing"},"2026-04-23":{"type":"testing"},"2026-04-24":{"type":"testing"},"2026-04-27":{"type":"testing"},"2026-04-28":{"type":"testing"},"2026-04-29":{"type":"testing"},"2026-04-30":{"type":"testing"},"2026-05-01":{"type":"testing"},"2026-05-11":{"type":"testing"},"2026-05-12":{"type":"testing"}},"segments":[{"name":"Crochet","start":"2025-09-01","end":"2025-11-28"},{"name":"Engineering","start":"2025-12-01","end":"2026-02-27"},{"name":"Math Puzzles","start":"2026-03-02","end":"2026-05-29"}]}]};
@@ -2708,6 +2737,7 @@ function msStore(){
 // First visit: add the 2025-26 sheets once. Dates the dashboard Calendar already marks
 // with the same day type are linked to the Calendar instead of being stored twice.
 function ensureMasterSchedules(){
+  if(!isLindsayDashboard())return false;   // V4.13.0: the 2025-26 sheets are Lindsay's; a new teacher starts blank
   const m=msStore();
   if(!msObj(m.seedRev))m.seedRev={};
   if(m.seeded[MS_SEED_YEAR]){
@@ -3002,7 +3032,7 @@ function msSourceSequence(fromYk,src){
 function msRollTargets(fromYk,toYk){
   const ty=msYear(toYk);
   if(ty&&ty.courses.length)return ty.courses.map(c=>({id:c.id,name:c.name,from:c.from||"",segments:c.segments?structuredClone(c.segments):null}));
-  if(toYk==="2026-27")return structuredClone(MS_PLAN_2026_27).map(c=>({...c,segments:c.segments||null}));
+  if(toYk==="2026-27"&&isLindsayDashboard())return structuredClone(MS_PLAN_2026_27).map(c=>({...c,segments:c.segments||null}));
   return (msYear(fromYk)?.courses||[]).map(c=>({id:c.id,name:c.name,from:c.segments?.length?"":c.id,segments:c.segments?.length?c.segments.map((s,i,a)=>({name:s.name,code:(a.length===2?"s":"t")+(i+1),from:`${c.id}:${s.name}`})):null}));
 }
 function msRollPlan(fromYk,toYk){
@@ -5579,6 +5609,61 @@ function setupClassesScreenHTML(){
 window.setupOpenManualClass=()=>{window.setupWizardManualClass=true;window.setupClassAfterSave=false;window.openClassModal();};
 window.setupConfigureClass=id=>{window.setupClassAfterSave=true;window.setupWizardManualClass=false;window.openClassModal(id);};
 
+// V4.13.0: first launch for a NEW teacher (data.profile==="teacher"): name, school, school year, classes/periods
+// with Calendar Code + Color, optional import. Nothing of Lindsay's is used. Big touch targets for iPad.
+const WZ_COLORS=["#2f6fd6","#d6336c","#2f9e44","#e8590c","#7b3fa6","#0f7c86","#b07a00","#5b5b5b"];
+function wzOrdinal(n){n=Number(n);const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function wzTime12(v){const m=String(v||"").match(/^(\d{1,2}):(\d{2})/);if(!m)return "";let h=Number(m[1]);const ap=h>=12?"PM":"AM";h=h%12||12;return `${h}:${m[2]} ${ap}`;}
+function wzCode(name){return String(name||"").replace(/\(.*?\)/g," ").split(/[^A-Za-z0-9&]+/).filter(w=>w&&!/^(to|the|of|and|&|intro)$/i.test(w)).map(w=>w[0].toUpperCase()).join("").slice(0,4);}
+function wzDraft(){const tp=teacherProfile(),cal=data.calendarSettings||{};return window.wzDraftState=window.wzDraftState||{step:1,name:tp.name||"",displayName:tp.displayName||"",title:tp.title||"",school:tp.school||"",first:cal.firstStudentDay||"",last:cal.lastStudentDay||"",classes:[{name:"",period:"1",start:"",end:"",code:"",color:WZ_COLORS[0]}]};}
+function wzReadForm(){const d=wzDraft(),v=id=>document.getElementById(id)?.value??null;
+  [["wzName","name"],["wzDisplay","displayName"],["wzTitle","title"],["wzSchool","school"],["wzFirst","first"],["wzLast","last"]].forEach(([id,k])=>{const x=v(id);if(x!==null)d[k]=x.trim();});
+  const rows=[...document.querySelectorAll("#welcomeWizard .wzClassRow")];if(rows.length)d.classes=rows.map(r=>({name:r.querySelector(".wzCName").value.trim(),period:r.querySelector(".wzCPeriod").value,start:r.querySelector(".wzCStart").value,end:r.querySelector(".wzCEnd").value,code:r.querySelector(".wzCCode").value.trim(),color:r.querySelector(".wzCColor").value}));return d;}
+function wzStepHTML(d){
+  const dots=["You","School year","Classes","Import"].map((t,i)=>`<span class="wzDot${d.step===i+1?" on":""}${d.step>i+1?" done":""}">${i+1}. ${t}</span>`).join("");
+  let b="";
+  if(d.step===1)b=`<h4>Welcome to Teacher Dashboard</h4><p class="small">A few quick questions to set up your dashboard. You can change all of this later in Settings.</p>
+    <label class="wzField">Your name<input id="wzName" value="${esc(d.name)}" placeholder="e.g., Jordan Lee" autocomplete="name"></label>
+    <label class="wzField">Name students see<input id="wzDisplay" value="${esc(d.displayName)}" placeholder="e.g., Mr. Lee"></label>
+    <label class="wzField">Title <span class="small">(optional)</span><input id="wzTitle" value="${esc(d.title)}" placeholder="e.g., Science Teacher"></label>
+    <label class="wzField">School<input id="wzSchool" value="${esc(d.school)}" placeholder="e.g., Lincoln High School"></label>`;
+  else if(d.step===2)b=`<h4>School year</h4><p class="small">Your first and last student days. Add no-school days and your district calendar later on the Calendar page.</p>
+    <div class="wzTwo"><label class="wzField">First student day<input id="wzFirst" type="date" value="${esc(d.first)}"></label><label class="wzField">Last student day<input id="wzLast" type="date" value="${esc(d.last)}"></label></div>`;
+  else if(d.step===3)b=`<h4>Your classes</h4><p class="small">One line per class. The code and color are used on the printable Student Calendar. Times are optional; they build your regular bell schedule.</p>
+    <div id="wzClasses">${d.classes.map((c,i)=>`<div class="wzClassRow"><label class="wzField wzGrow">Class<input class="wzCName" value="${esc(c.name)}" placeholder="e.g., Biology" oninput="const r=this.closest('.wzClassRow').querySelector('.wzCCode');if(!r.dataset.edited)r.placeholder=window.wzCode(this.value)||'Code'"></label>
+      <label class="wzField wzNarrow">Period<select class="wzCPeriod">${Array.from({length:12},(_,k)=>`<option value="${k+1}" ${String(c.period)===String(k+1)?"selected":""}>${wzOrdinal(k+1)}</option>`).join("")}</select></label>
+      <label class="wzField wzNarrow">Starts<input class="wzCStart" type="time" value="${esc(c.start)}"></label><label class="wzField wzNarrow">Ends<input class="wzCEnd" type="time" value="${esc(c.end)}"></label>
+      <label class="wzField wzNarrow">Code<input class="wzCCode" maxlength="6" value="${esc(c.code)}" placeholder="${esc(wzCode(c.name)||"Code")}" oninput="this.dataset.edited=1"></label>
+      <label class="wzField wzNarrow">Color<input class="wzCColor" type="color" value="${esc(c.color)}"></label>
+      <button type="button" class="wzRemove" aria-label="Remove class" onclick="window.wzRemoveClass(${i})">×</button></div>`).join("")}</div>
+    <button type="button" class="wzAdd" onclick="window.wzAddClass()">＋ Add a class</button>`;
+  else b=`<h4>Bring in what you have <span class="small">(optional)</span></h4><p class="small">You can start with an empty dashboard and add students later.</p>
+    <div class="wzImport"><button type="button" onclick="document.getElementById('wzImportFile').click()">📂 Import a Teacher Dashboard backup</button><input id="wzImportFile" type="file" accept=".json,application/json" style="display:none" onchange="document.querySelector('#welcomeWizard')?.remove();window.importData(this)"><button type="button" onclick="window.finishWelcomeWizard(true)">🏫 Finish, then import a district calendar, bell schedule or Google Classroom rosters</button></div>
+    <p class="small">${d.classes.filter(c=>c.name).length} class${d.classes.filter(c=>c.name).length===1?"":"es"} ready · ${esc(d.school||"No school yet")} · ${d.first&&d.last?esc(d.first+" to "+d.last):"School year not set"}</p>`;
+  return `<div class="wzSteps">${dots}</div><div class="wzBody">${b}</div>`;}
+window.wzCode=wzCode;
+window.openWelcomeWizard=()=>{document.querySelector('#welcomeWizard')?.remove();const d=wzDraft();
+  document.body.insertAdjacentHTML('beforeend',`<div id="welcomeWizard" class="modalbg"><div class="modal welcomeWizardModal"><div id="wzContent"></div><div class="wzActions"><button type="button" id="wzBack" onclick="window.wzGo(-1)">← Back</button><button type="button" class="setupSkipButton" onclick="window.wzSkip()">Skip for now</button><button type="button" class="primary" id="wzNext" onclick="window.wzGo(1)">Next →</button></div></div></div>`);window.wzRender();};
+window.wzRender=()=>{const d=wzDraft(),h=document.getElementById('wzContent');if(!h)return;h.innerHTML=wzStepHTML(d);document.getElementById('wzBack').disabled=d.step===1;document.getElementById('wzNext').textContent=d.step===4?'Finish':'Next →';};
+window.wzAddClass=()=>{const d=wzReadForm();const last=d.classes[d.classes.length-1];d.classes.push({name:"",period:String(Math.min(12,(Number(last?.period)||0)+1)),start:"",end:"",code:"",color:WZ_COLORS[d.classes.length%WZ_COLORS.length]});window.wzRender();};
+window.wzRemoveClass=i=>{const d=wzReadForm();d.classes.splice(i,1);if(!d.classes.length)d.classes.push({name:"",period:"1",start:"",end:"",code:"",color:WZ_COLORS[0]});window.wzRender();};
+window.wzGo=dir=>{const d=wzReadForm();
+  if(dir>0&&d.step===1&&!d.name){alert('Please type your name.');return;}
+  if(dir>0&&d.step===2&&d.first&&d.last&&d.first>d.last){alert('The last student day is before the first one.');return;}
+  if(dir>0&&d.step===4){window.finishWelcomeWizard(false);return;}
+  d.step=Math.max(1,Math.min(4,d.step+dir));window.wzRender();};
+window.wzSkip=()=>{wzReadForm();data.setupSkipped=true;save();document.querySelector('#welcomeWizard')?.remove();toast="Setup skipped. You can start it any time from Settings.";render();};
+window.finishWelcomeWizard=openSchoolSetup=>{const d=wzReadForm();
+  data.profile="teacher";data.teacherProfile={name:d.name,displayName:d.displayName||d.name,title:d.title,school:d.school};
+  data.calendarSettings=data.calendarSettings||{};if(d.first)data.calendarSettings.firstStudentDay=d.first;if(d.last)data.calendarSettings.lastStudentDay=d.last;
+  data.lessonPlanRowCal=data.lessonPlanRowCal&&typeof data.lessonPlanRowCal==="object"?data.lessonPlanRowCal:{};data.lessonPlanRowCalMigrated=true;
+  const made=[];d.classes.filter(c=>c.name).forEach(c=>{const p=Number(c.period)||1,id="cls_"+uid().replace(/-/g,"").slice(0,10),code=(c.code||wzCode(c.name)).toUpperCase();
+    data.classes.push({id,name:c.name,studentIds:[],periods:[p],days:[1,2,3,4,5],terms:["fullYear"],rules:[{id:"rule-0",periods:[p],days:[1,2,3,4,5]}],calCode:code,calColor:c.color});
+    data.lessonPlanRowCal["class:"+id]={code,color:c.color};made.push({p,start:c.start,end:c.end});});
+  const reg=(data.bellSchedules||[]).find(x=>x.id==="regular");
+  if(reg&&!(reg.periods||[]).length){const timed=made.filter(m=>m.start&&m.end).sort((a,b)=>a.start<b.start?-1:1);const seen=new Set();reg.periods=timed.filter(m=>!seen.has(m.p)&&seen.add(m.p)).map(m=>[`${wzOrdinal(m.p)} Period`,wzTime12(m.start),wzTime12(m.end)]);}
+  ensureClassFields();data.setupComplete=true;window.wzDraftState=null;save();document.querySelector('#welcomeWizard')?.remove();
+  toast=`Welcome${d.name?", "+d.name.split(/\s+/)[0]:""}! Your dashboard is ready.`;render();if(openSchoolSetup)setTimeout(()=>window.openSetupWizard(),100);};
 window.openSetupWizard=()=>{
   document.querySelector('#setupWizardModal')?.remove();
   window.setupStep=1;
@@ -5677,7 +5762,7 @@ function settings(){
   const userLabel=currentUser?.displayName||currentUser?.email||"Google user";
   const cal=data.calendarSettings||{};
   return `<header><h2>Settings</h2><p class="small">Set up the parts of Teacher Dashboard that vary by school or district.</p></header>
-  <section class="card setupCard"><div><h3>🏫 School Setup</h3><p class="small">Import your district calendar and bell schedules, then set up classes and rosters — all with review before anything becomes official.</p></div><button class="primary" onclick="window.openSetupWizard()">${data.setupComplete?"Review School Setup":"Start School Setup"}</button></section>
+  <section class="card setupCard"><div><h3>🏫 School Setup</h3><p class="small">Import your district calendar and bell schedules, then set up classes and rosters — all with review before anything becomes official.</p></div>${isLindsayDashboard()?"":`<button onclick="window.openWelcomeWizard()">👋 Name, school &amp; classes</button> `}<button class="primary" onclick="window.openSetupWizard()">${data.setupComplete?"Review School Setup":"Start School Setup"}</button></section>
   <section class="card"><h3>Account</h3><div class="accountRow">${avatarHTML()}<div><b>${esc(userLabel)}</b><div class="small">${esc(currentUser?.email||"")}</div></div></div>
   <div class="avatarActions"><button type="button" onclick="document.getElementById('avatarFile').click()">📷 Upload a picture</button>${data.profileAvatar?`<button type="button" onclick="window.useGooglePhoto()">Use Google picture</button>`:""}</div>
   <input id="avatarFile" type="file" accept="image/*" style="display:none" onchange="window.uploadAvatar(this)"><button style="margin-top:12px" onclick="window.signOut()">Sign out</button></section>
@@ -6250,8 +6335,8 @@ window.importData=input=>{
   };
   reader.readAsText(file);
 }
-window.resetData=()=>openDataReplaceModal({title:"Reset to demo data",intro:"Reset this dashboard to the demo data? All of your classes, students, accommodations, lesson plans, notes and records will be removed.",incomingSummary:dashboardSummary(seed)+" (demo data)",confirmLabel:"Erase everything and reset",requireWord:"RESET",onConfirm:()=>{
-  data={...structuredClone(seed),profileAvatar:data.profileAvatar||""};sync.forceReplace=true;save();toast="Dashboard reset to demo data.";render();
+window.resetData=()=>openDataReplaceModal({title:"Reset to demo data",intro:"Reset this dashboard to the demo data? All of your classes, students, accommodations, lesson plans, notes and records will be removed.",incomingSummary:dashboardSummary(seedFor(data))+(isLindsayDashboard()?" (demo data)":" (empty dashboard)"),confirmLabel:"Erase everything and reset",requireWord:"RESET",onConfirm:()=>{
+  data={...structuredClone(seedFor(data)),profileAvatar:data.profileAvatar||""};sync.forceReplace=true;save();toast="Dashboard reset to demo data.";render();
 }});
 window.downloadBeforeSyncCopy=()=>{try{const x=localStorage.getItem("teacherDashboardV1:beforeSync:"+currentUser.uid);if(!x){alert("There is no earlier copy on this device.");return;}const saved=JSON.parse(x);const blob=new Blob([JSON.stringify(saved.data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`teacher-dashboard-device-copy-before-sync-${localDateKey(saved.savedAt?new Date(saved.savedAt):new Date())}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){alert("That earlier copy could not be read.");}};
 
@@ -6449,15 +6534,18 @@ function calcStatus(c){if(!c.out)return ["available","Available"];if(calcIsTeach
 // Signatures live in the top-level collection calcAcks/{token} (proposed rules: rules/calcAcks.rules).
 let calcOpenId=null;const calcSelected=new Set();let calcAckCheckedAt=0;
 function calcSettings(){data.calcSettings=data.calcSettings&&typeof data.calcSettings==="object"?data.calcSettings:{};const s=data.calcSettings;const d=new Date(),y=d.getMonth()>=6?d.getFullYear():d.getFullYear()-1;
-  const teacher=s.teacher||"Lindsay Shay";
-  return {cost:Number.isFinite(Number(s.cost))&&s.cost!==""?Number(s.cost):150,schoolYear:s.schoolYear||`${y}-${String((y+1)%100).padStart(2,"0")}`,teacher,
-    closingName:s.closingName||(teacher==="Lindsay Shay"?"Mrs. Lindsay Shay":teacher),closingTitle:s.closingTitle??"Mathematics Teacher",
+  const L=isLindsayDashboard(),tp=teacherProfile(),teacher=s.teacher||(L?LINDSAY_PROFILE.calcTeacher:(tp.name||""));
+  return {cost:Number.isFinite(Number(s.cost))&&s.cost!==""?Number(s.cost):(L?LINDSAY_PROFILE.calcCost:0),schoolYear:s.schoolYear||`${y}-${String((y+1)%100).padStart(2,"0")}`,teacher,
+    closingName:s.closingName||(L&&teacher===LINDSAY_PROFILE.calcTeacher?LINDSAY_PROFILE.calcClosingName:(L?teacher:(tp.displayName||teacher))),closingTitle:s.closingTitle??(L?LINDSAY_PROFILE.calcClosingTitle:(tp.title||"")),
     sigMode:s.sigMode==="none"?"none":"custom",signature:s.signature||""};}
 // V4.8.1: signature shown under "Sincerely," — her own uploaded/drawn image (kept only in her account data).
 let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+// V4.13.0: Lindsay profile split. Dashboards without data.profile are Lindsay's and behave exactly as before. New accounts
+// get data.profile="teacher": an empty dashboard, a short welcome wizard (name, school, year, classes with code/color, import),
+// no sample data, no school bell schedule, no Master Schedule seed, no name-based class colors.
 // V4.12.2: Calendar day notes are private again (not on the Student Calendar). Lesson Plans → "★ All-day" on a day
 // marks an all-day event (every class) or merges chosen rows into one entry: data.lessonPlanDayEvents {date:[{id,text,all,rows}]}.
 // Covered cells show the event; pushes skip those days like pins. Student Calendar shows it once, centered, no class code.
