@@ -570,6 +570,11 @@ aside{
 .lpSplitLessons header{flex-wrap:wrap;gap:8px}.lpSplitLessons header>*{min-width:0}.lpSplitLessons header button{white-space:nowrap}
 @media(min-width:761px) and (max-width:1000px){.lpSplit{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}.lpSplitMs{border-left:0;padding-left:0;border-top:2px solid #d7deea;padding-top:8px}}
 @media(max-width:760px){.lpSplit{display:block;height:auto}.lpSplitPane{overflow:visible}.lpSplitMs{display:none}.lpSplitPhoneNote{display:block;margin:10px 0}}
+.lpMonthBar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 10px}.lpMonthBar select{min-height:40px;max-width:100%}
+.lpViewToggle{display:inline-flex;border:1px solid #c9d2e3;border-radius:10px;overflow:hidden}.lpViewToggle button{border:0;border-radius:0;min-height:40px;margin:0;background:#fff}.lpViewToggle button.active{background:#2d3b59;color:#fff}
+.lpMonthCard{border-top:6px solid var(--lp-row-color)}.lpMonthTitle{display:flex;gap:10px;align-items:center;margin:2px 0 8px}.lpMonthCode{background:var(--lp-row-color);color:#fff;border-radius:6px;padding:2px 8px;font-weight:700}
+.lpMonthTable{table-layout:fixed;width:100%;min-width:0!important}.lpMonthTable th{background:var(--lp-row-color);color:#fff}.lpMonthCell{position:relative;vertical-align:top}.lpMonthDate{font-weight:700;font-size:13px;color:var(--lp-row-color)}.lpMonthToday{outline:3px solid var(--lp-row-color);outline-offset:-3px}.lpMonthOut{background:#f3f4f7}.lpMonthWd{display:none}
+@media(max-width:760px){.lpMonthTable,.lpMonthTable tbody,.lpMonthTable tr,.lpMonthTable td{display:block;width:auto}.lpMonthTable thead,.lpMonthOut{display:none}.lpMonthTable td{margin-bottom:6px;border-radius:8px}.lpMonthWd{display:inline}}
 </style>
 
 <style>
@@ -2361,22 +2366,8 @@ function maybeAutoAdvanceLessonWeek(){
   }
 }
 
-function lessonplans(){
-  try{
-    ensureLessonPlans();
-    ensureClassFields();
-    maybeAutoAdvanceLessonWeek();
-    const dates=lessonWeekDates();
-    const rows=lessonPlanRows();
-    const names=['Monday','Tuesday','Wednesday','Thursday','Friday'];
-    const start=dates[0], end=dates[4];
-    const range=`${start.toLocaleDateString(undefined,{month:'long',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}`;
-
-    const head=dates.map((d,i)=>`<th><div class="lessonDayHead">${names[i]} <span>· ${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><button type="button" class="lessonPushDay" title="Skip this day: push every row's plans from here forward" onclick="window.pushAllLessonPlansForward('${isoDate(d)}')">Push →</button><button type="button" class="lessonPushDay lpEvtAdd" title="Mark an all-day event, or merge periods into one entry, for this day" onclick="window.openLpDayEventModal('${isoDate(d)}')">★ All-day</button></div></th>`).join('');
-
-    const rowHTML=rows.map(row=>{
-      const title=`<th class="lessonRowName"><div class="lessonRowTitle"><div class="lessonRowLabel"><b title="${esc(row.fullName||row.name)}">${esc(row.name)}</b>${row.type==='sync'?'<span class="lessonLinkedBadge">linked</span>':''}</div><div class="lessonRowActions"><button class="lessonRowMove" title="Move up" onclick="window.moveLessonPlanRow('${row.id}',-1)" ${row===rows[0]?'disabled':''}>↑</button><button class="lessonRowMove" title="Move down" onclick="window.moveLessonPlanRow('${row.id}',1)" ${row===rows[rows.length-1]?'disabled':''}>↓</button>${row.type==='custom'?`<button class="lessonRemoveRow" title="Delete row" onclick="window.deleteLessonPlanRow('${row.id}')">×</button>`:''}</div></div></th>`;
-      const cells=dates.map((d,i)=>{
+// V4.12.4: one lesson-plan cell (shared by the week view and the one-class month view).
+function lessonCellHTML(row,d,i){
         const date=isoDate(d), weekday=i+1;
         let available=false, state='none';
         try{ available=lessonRowAvailableOnDate(row,date,weekday); }catch(e){
@@ -2397,12 +2388,61 @@ function lessonplans(){
         const multiClass=multi?' lessonMultiDay':'';
         const multiTitle=multi?` title="Linked multi-day lesson: ${esc(lessonDateRangeLabel(multi.startDate,multi.endDate))}"`:pinned?` title="📌 Pinned to this day: pushing moves the other plans around it"`:'';
         return `<td class="lessonCell${cls}${completionClass}${multiClass}${pinned?' lessonPinned':''}"${multiTitle}><textarea placeholder="Type lesson plan..." onfocus="window.lessonPlanTextareaFocus(this)" oninput="window.lessonPlanTextareaInput(this,'${row.id}','${date}')" onblur="window.lessonPlanTextareaBlur(this)">${esc(entry.text)}</textarea>${multi?`<span class="lessonMultiBadge">🔗</span>`:''}${multi?'':spLessonSharedHTML(row,date,entry)}${multi?'':`<button type="button" class="lessonPinBtn${pinned?' on':''}" aria-pressed="${pinned}" aria-label="${pinned?'Unpin':'Pin'} this plan" title="${pinned?'Pinned: stays on this day when you push. Tap to unpin.':'Pin this plan to this day (pushing will move other plans around it)'}" onclick="window.toggleLessonPin('${row.id}','${date}')">📌</button>`}<div class="lessonStatusBar"><label class="lessonStatus lessonStatusAll"><input type="checkbox" ${all?'checked':''} onchange="window.updateLessonStatusAll('${row.id}','${date}',this.checked)"><span class="lessonStatusLong">All</span><span class="lessonStatusShort">A</span></label><label class="lessonStatus"><input type="checkbox" ${entry.planned?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','planned',this.checked)"><span class="lessonStatusLong">Planned</span><span class="lessonStatusShort">P</span></label><label class="lessonStatus"><input type="checkbox" ${entry.created?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','created',this.checked)"><span class="lessonStatusLong">Created</span><span class="lessonStatusShort">C</span></label><label class="lessonStatus"><input type="checkbox" ${entry.posted?'checked':''} onchange="window.updateLessonStatus('${row.id}','${date}','posted',this.checked)"><span class="lessonStatusLong">Posted</span><span class="lessonStatusShort">P</span></label>${pinned?'':`<button type="button" class="lessonPushBtn" title="Skip this day for ${esc(row.name)}: move this plan and later plans to the next meeting day" onclick="window.pushLessonPlansForward('${row.id}','${date}')">→</button>`}</div></td>`;
-      }).join('');
+}
+// V4.12.4: "Month" view = one class at a time, a month of school days (Mon–Fri), same cells and saving as the week view.
+// Week/Month choice and the class picked are remembered on this device. Colors come from scRowStyle (her class colors).
+function lpViewMode(){try{return localStorage.getItem("teacherDashboardLpView")==="month"?"month":"week"}catch(e){return "week"}}
+window.setLpViewMode=m=>{try{localStorage.setItem("teacherDashboardLpView",m==="month"?"month":"week")}catch(e){}if(m==="month"&&!window.lessonPlanMonth)window.lessonPlanMonth=String(window.lessonPlanWeekStart||todayISO()).slice(0,7);render();};
+function lpMonthRow(rows){let id="";try{id=localStorage.getItem("teacherDashboardLpMonthRow")||""}catch(e){}return rows.find(r=>r.id===id)||rows[0]||null;}
+window.setLpMonthRow=id=>{try{localStorage.setItem("teacherDashboardLpMonthRow",id)}catch(e){}render();};
+window.changeLessonMonth=delta=>{const [y,m]=String(window.lessonPlanMonth||todayISO().slice(0,7)).split("-").map(Number);const d=new Date(y,m-1+delta,1);window.lessonPlanMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;render();};
+window.goToLessonMonthToday=()=>{window.lessonPlanMonth=todayISO().slice(0,7);render();};
+function lpViewToggleHTML(){const m=lpViewMode();return `<div class="lpViewToggle" role="group" aria-label="Lesson plan view"><button type="button" class="${m==="week"?"active":""}" aria-pressed="${m==="week"}" onclick="window.setLpViewMode('week')">Week · all classes</button><button type="button" class="${m==="month"?"active":""}" aria-pressed="${m==="month"}" onclick="window.setLpViewMode('month')">Month · one class</button></div>`;}
+function lessonPlansMonth(actions){
+  const rows=lessonPlanRows(),row=lpMonthRow(rows);
+  const mk=window.lessonPlanMonth||(window.lessonPlanMonth=String(window.lessonPlanWeekStart||todayISO()).slice(0,7));
+  const [y,mo]=mk.split("-").map(Number),first=new Date(y,mo-1,1),last=new Date(y,mo,0);
+  const label=first.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  const opts=rows.map(r=>`<option value="${esc(r.id)}" ${r===row?"selected":""}>${esc(r.fullName||r.name)}</option>`).join("");
+  const st=row?scRowStyle(row):{code:"",color:"#2d3b59"};
+  const nav=`<div class="lessonPlanControls"><button onclick="window.changeLessonMonth(-1)">← Previous</button><div><b>${esc(label)}</b></div><button onclick="window.changeLessonMonth(1)">Next →</button><button onclick="window.goToLessonMonthToday()">Today</button></div>`;
+  let grid="";
+  if(row){
+    const start=new Date(first);start.setDate(start.getDate()-((start.getDay()+6)%7));
+    const weeks=[],monthDates=[];
+    for(let w=new Date(start);w<=last;w.setDate(w.getDate()+7)){const tds=[];for(let i=0;i<5;i++){const d=new Date(w);d.setDate(w.getDate()+i);
+      if(d.getMonth()!==mo-1){tds.push(`<td class="lessonCell lpMonthOut"></td>`);continue;}
+      monthDates.push(new Date(d));const date=isoDate(d);
+      const cell=lessonCellHTML(row,d,i).replace(/^<td class="([^"]*)"/,(x,c)=>`<td class="${c} lpMonthCell${date===todayISO()?" lpMonthToday":""}" data-date="${date}"`);
+      tds.push(cell.replace(/^(<td[^>]*>)/,`$1<div class="lpMonthDate"><span class="lpMonthWd">${["Mon","Tue","Wed","Thu","Fri"][i]} </span>${d.getDate()}</div>`));}
+      weeks.push(`<tr>${tds.join("")}</tr>`);}
+    grid=`<section class="card lessonPlanCard lpMonthCard" style="--lp-row-color:${esc(st.color)}"><div class="lpMonthTitle"><span class="lpMonthCode">${esc(st.code)}</span><b>${esc(row.fullName||row.name)}</b><span class="small">${esc(label)}</span></div><div class="lessonTableWrap"><table class="lessonTable lpMonthTable"><thead><tr>${["Monday","Tuesday","Wednesday","Thursday","Friday"].map(n=>`<th>${n}</th>`).join("")}</tr></thead><tbody>${weeks.join("")}</tbody></table></div></section>`;
+  }else grid=`<section class="card"><p>Add a class in Students &amp; Classes to plan by month.</p></section>`;
+  return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2>${nav}<div class="lessonHeaderActions">${actions}</div></header><div class="lpMonthBar">${lpViewToggleHTML()}${rows.length?`<label>Class <select id="lpMonthRow" onchange="window.setLpMonthRow(this.value)">${opts}</select></label>`:""}</div>${grid}`;
+}
+function lessonplans(){
+  try{
+    ensureLessonPlans();
+    ensureClassFields();
+    maybeAutoAdvanceLessonWeek();
+    const lpActions=`${moduleOn("subPlans")?`<button onclick="window.openDailySubPlanModal(window.lessonPlanWeekStart || window.localDateKey())">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button>`:""}<button onclick="window.openStudentCalendarModal()">🗓 Student Calendar</button>${pageOn("masterschedule")?`<button type="button" class="lpSideToggle${lpSideBySideOn()?" active":""}" aria-pressed="${lpSideBySideOn()?"true":"false"}" onclick="window.toggleLpSideBySide()" title="Show your Master Schedule next to your lesson plans">${lpSideBySideOn()?"✕ Close Master Schedule":"🗂 Side by side"}</button>`:""}<button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button>`;
+    if(lpViewMode()==="month")return lessonPlansMonth(lpActions)+lpUndoToastHTML();
+    const dates=lessonWeekDates();
+    const rows=lessonPlanRows();
+    const names=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+    const start=dates[0], end=dates[4];
+    const range=`${start.toLocaleDateString(undefined,{month:'long',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}`;
+
+    const head=dates.map((d,i)=>`<th><div class="lessonDayHead">${names[i]} <span>· ${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><button type="button" class="lessonPushDay" title="Skip this day: push every row's plans from here forward" onclick="window.pushAllLessonPlansForward('${isoDate(d)}')">Push →</button><button type="button" class="lessonPushDay lpEvtAdd" title="Mark an all-day event, or merge periods into one entry, for this day" onclick="window.openLpDayEventModal('${isoDate(d)}')">★ All-day</button></div></th>`).join('');
+
+    const rowHTML=rows.map(row=>{
+      const title=`<th class="lessonRowName"><div class="lessonRowTitle"><div class="lessonRowLabel"><b title="${esc(row.fullName||row.name)}">${esc(row.name)}</b>${row.type==='sync'?'<span class="lessonLinkedBadge">linked</span>':''}</div><div class="lessonRowActions"><button class="lessonRowMove" title="Move up" onclick="window.moveLessonPlanRow('${row.id}',-1)" ${row===rows[0]?'disabled':''}>↑</button><button class="lessonRowMove" title="Move down" onclick="window.moveLessonPlanRow('${row.id}',1)" ${row===rows[rows.length-1]?'disabled':''}>↓</button>${row.type==='custom'?`<button class="lessonRemoveRow" title="Delete row" onclick="window.deleteLessonPlanRow('${row.id}')">×</button>`:''}</div></div></th>`;
+      const cells=dates.map((d,i)=>lessonCellHTML(row,d,i)).join('');
       return `<tr>${title}${cells}</tr>`;
     }).join('');
 
     const todoCard=lessonPlanTodoHTML(rows,dates);
-    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions">${moduleOn("subPlans")?`<button onclick="window.openDailySubPlanModal(window.lessonPlanWeekStart || window.localDateKey())">🖨 Generate Daily Plan</button><button onclick="window.openSubPlanTemplateModal()">📝 Sub Plan Template</button>`:""}<button onclick="window.openStudentCalendarModal()">🗓 Student Calendar</button>${pageOn("masterschedule")?`<button type="button" class="lpSideToggle${lpSideBySideOn()?" active":""}" aria-pressed="${lpSideBySideOn()?"true":"false"}" onclick="window.toggleLpSideBySide()" title="Show your Master Schedule next to your lesson plans">${lpSideBySideOn()?"✕ Close Master Schedule":"🗂 Side by side"}</button>`:""}<button onclick="window.openMultiDayLessonModal()">🔗 Multi-Day Lesson</button><button onclick="window.openLessonPlanManager()">⚙️ Customize</button></div></header>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>${lpUndoToastHTML()}`;
+    return `<header class="lessonCompactHeader"><h2>Lesson Plans</h2><div class="lessonPlanControls"><button onclick="window.changeLessonWeek(-1)">← Previous</button><div><b>${range}</b></div><button onclick="window.changeLessonWeek(1)">Next →</button><button onclick="window.goToLessonWeekToday()">Today</button></div><div class="lessonHeaderActions">${lpActions}</div></header><div class="lpMonthBar">${lpViewToggleHTML()}</div>${todoCard}<section class="lessonPlanCard"><div class="lessonTableWrap"><table class="lessonTable"><thead><tr><th class="lessonCorner">Class</th>${head}</tr></thead><tbody>${rowHTML||'<tr><td colspan="6" class="small">No lesson-plan rows yet. Use Customize to add classes or rows.</td></tr>'}</tbody></table></div></section>${lpUndoToastHTML()}`;
   }catch(err){
     console.error('Lesson Plans error:',err);
     return `<header><div><h2>Lesson Plans</h2><p>Something went wrong while loading this page.</p></div></header><section class="card"><p><b>The rest of your dashboard is safe.</b></p><p class="small">${esc(err?.message||String(err))}</p><button onclick="window.openLessonPlanManager()">Open Lesson Plan Customize</button></section>`;
@@ -6492,6 +6532,7 @@ let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+// V4.12.4: Lesson Plans → "Week · all classes | Month · one class" toggle (month grid of one class, her class colors).
 // V4.12.4: Lesson Plans → "🗂 Side by side" shows the Master Schedule (fully working, same code) beside the plans.
 // V4.12.3: Random Number keeps going: each Next draws a number not yet drawn, lists the numbers in order, says when
 // every number in the range is used, has Start over, and changing the range starts over.
