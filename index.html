@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.12.4</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.12.5</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -791,6 +791,23 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .subPlanStaticSection h4,.subPlanEditSection h4{margin:0 0 8px}.subPlanSchedulePreview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.subPlanSchedulePreview div{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:#f7f9fc;border-radius:7px}
 .subPlanPeriodEditHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.subPlanPeriodEditHead span{font-size:12px;color:#667085;margin-left:8px}.subPlanLessonPreview{padding:7px 0;border-top:1px solid #edf0f5}.subPlanLessonPreview:first-of-type{border-top:0}.subPlanLessonPreview>div{margin-top:3px}.subPlanPeriodEdit label{display:block;margin-top:8px}.subPlanPeriodEdit textarea{min-height:55px}
 @media(max-width:700px){.subPlanTemplateGrid{grid-template-columns:1fr}.subPlanSchedulePreview{grid-template-columns:1fr}.subPlanModalActions{position:static}}
+
+/* V4.12.5: calmer Lesson Plans grid (week and month) — clear calendar lines, quiet check boxes and buttons. Same controls, same sizes. */
+.lessonTable{border-top:1px solid #a7b1c2!important;border-left:1px solid #a7b1c2!important}
+.lessonTable th,.lessonTable td{border-right:1px solid #a7b1c2!important;border-bottom:1px solid #a7b1c2!important;box-shadow:none!important}
+.lessonTable .lessonCell{border-radius:0!important}
+.lessonTable .lessonStatus{background:transparent!important;border-color:transparent!important;color:#aab3c0!important;font-weight:500!important}
+.lessonTable .lessonStatus input{accent-color:#9fabbb!important;opacity:.5;transition:opacity .15s}
+.lessonTable .lessonStatus:has(input:checked){color:#7c8797!important}
+.lessonTable .lessonStatus input:checked{opacity:.6}
+.lessonTable .lessonCell textarea::placeholder{color:#c3cad5!important;opacity:1}
+.lessonTable .lessonRowMove{background:transparent!important;border-color:#e3e7ee!important;box-shadow:none!important;opacity:.6}
+.lessonTable .lessonRowMove:focus-visible{opacity:1;outline:2px solid #2d3b59!important}
+.lessonTable .lessonStatus input:focus-visible{opacity:1;outline:2px solid #2d3b59!important;outline-offset:1px}
+.lessonTable .lessonPinBtn:not(.on),.lessonTable .lessonPushBtn{background:transparent!important;border-color:transparent!important;box-shadow:none!important;opacity:.4}
+.lessonTable .lessonPinBtn:focus-visible,.lessonTable .lessonPushBtn:focus-visible{opacity:1;outline:2px solid #2d3b59!important}
+.lessonTable .lessonComplete{background:#fff!important}
+.lessonTable .lessonCell textarea:focus{background:#f8fbff!important;box-shadow:inset 0 0 0 2px #7f9cc4!important}
 </style>
 </head>
 <body>
@@ -887,7 +904,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.12.4";
+const APP_VERSION="4.12.5";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -6532,6 +6549,7 @@ let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+// V4.12.5: Lesson Plans look calmer (CSS only): clearer grid lines, quiet check boxes, pin and push buttons.
 // V4.12.4: Lesson Plans → "Week · all classes | Month · one class" toggle (month grid of one class, her class colors).
 // V4.12.4: Lesson Plans → "🗂 Side by side" shows the Master Schedule (fully working, same code) beside the plans.
 // V4.12.3: Random Number keeps going: each Next draws a number not yet drawn, lists the numbers in order, says when
