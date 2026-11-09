@@ -9,3 +9,11 @@ Nothing else changes; the existing `users/{uid}` rules stay as they are.
 - Until this is deployed, printing still works (paper signatures); the online link shows "could not be loaded".
 
 `test.rules` = example owner-only `users/{uid}` rules + this block, used only for the local emulator test.
+
+## Student audit trail (V4.12.6) — not deployed from this note
+The live app stores events and notes inside the single per-user dashboard document
+(`users/{uid}/dashboards/main` → `dataJson`). Firestore rules cannot protect individual
+audit history rows inside that JSON blob. Client-side append-only history + a hash tip
+detect casual tampering; they are not cryptographic proof against someone who can write
+the whole document. A future design with a separate append-only `auditLogs` collection
+(create-only rules) would be stronger. Do not change production rules from this PR.
