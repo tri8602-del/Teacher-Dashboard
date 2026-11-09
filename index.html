@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.12.5</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.12.6</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -808,6 +808,12 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .lessonTable .lessonPinBtn:focus-visible,.lessonTable .lessonPushBtn:focus-visible{opacity:1;outline:2px solid #2d3b59!important}
 .lessonTable .lessonComplete{background:#fff!important}
 .lessonTable .lessonCell textarea:focus{background:#f8fbff!important;box-shadow:inset 0 0 0 2px #7f9cc4!important}
+.auditBadge{display:inline-block;font-size:11px;line-height:1.2;padding:1px 7px;border-radius:999px;border:1px solid #c9d2e3;color:#5b6575;margin-left:4px;vertical-align:middle}
+.auditBadge.edited{border-color:#d6b36a;background:#fff7e8;color:#8a5a00}
+.auditBadge.removed{border-color:#e3b0ab;background:#fdecea;color:#b3261e}
+.auditHistory{margin:8px 0 0;padding-left:18px}.auditHistory li{margin:8px 0}.auditChanges{margin:4px 0 0;padding-left:16px}
+.studentNoteRow{padding:8px 0;border-bottom:1px solid var(--line,#e5e9f0)}
+.noteTranscript{margin:4px 0 0}.noteLine{margin:0 0 8px}.noteWhen{font-size:12px;color:#5b6575}.noteMsg{white-space:pre-wrap;margin-top:2px}.hist.noteTranscript .noteWhen{font-size:9.5pt;color:#444}
 </style>
 </head>
 <body>
@@ -904,7 +910,7 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.12.5";
+const APP_VERSION="4.12.6";
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -1952,6 +1958,7 @@ function sidebarTimeRemainingHTML(){
 
 function render(){
   ensureSidebarSettings(); ensureClassroomTools(); ensureGroups(); ensureForms(); ensureAccommodations(); ensureLessonPlans(); ensureSubPlans();
+  try{if(migrateStudentAudit())save()}catch(e){console.error("Student audit migrate",e)}
   try{if(currentUser&&spReconcile())save();}catch(e){console.error("Shared pins",e)}
   if(!currentUser){$("#root").innerHTML=loginHTML();return}
   const userLabel=currentUser.displayName||currentUser.email||"Google user";
@@ -2098,19 +2105,71 @@ function currentClass(){
   const weekday=parseLocalDate(todayISO()).getDay();
   return data.classes.find(c=>classIsActiveToday(c)&&classHasRuleNow(c,weekday,block.period))||null;
 }
-function activeEvents(){return data.events.filter(e=>e.type==="timed"&&!e.end)}
-function eventComments(eventId){return data.notes.filter(n=>n.eventId===eventId)}
+// V4.12.6: append-only audit trail for student events (restroom/hall pass/etc.) and notes.
+// Original createdAt/created and the first snapshot are kept. Edits and deletes never erase —
+// they append a history row. Soft-deleted entries stay in the data and show in history/print.
+// Honest limit: this lives in her Firebase dashboard document. Anyone who can rewrite that
+// document can rewrite history; the hash chain only helps spot casual tampering.
+function auditNow(){return new Date().toISOString()}
+function auditWho(){try{return String(currentUser?.email||currentUser?.displayName||currentUser?.uid||"teacher")}catch(e){return "teacher"}}
+function auditHash(prev,payload){let h=2166136261>>>0;const s=String(prev||"")+"|"+JSON.stringify(payload);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return ("00000000"+(h>>>0).toString(16)).slice(-8)}
+function eventSnapshot(e){return {studentId:e.studentId||"",classId:e.classId||"",buttonId:e.buttonId||"",label:e.label||"",icon:e.icon||"",type:e.type||"",start:e.start||null,end:e.end||null,status:e.status||"",period:e.period??null}}
+function noteSnapshot(n){return {studentId:n.studentId||"",eventId:n.eventId||null,text:String(n.text||"")}}
+function auditDiff(a,b){const keys=Object.keys({...a,...b}),out=[];keys.forEach(k=>{const from=a[k]??null,to=b[k]??null;if(JSON.stringify(from)!==JSON.stringify(to))out.push({field:k,from,to})});return out}
+function pushAudit(rec,action,changes,extra){rec.history=Array.isArray(rec.history)?rec.history:[];const row={id:uid(),at:auditNow(),by:auditWho(),action,changes:changes||[],...(extra||{})};row.prevTip=rec.auditTip||null;row.tip=auditHash(row.prevTip,{action,at:row.at,by:row.by,changes:row.changes,extra:extra||null});rec.history.push(row);rec.auditTip=row.tip;return row}
+function ensureEventAudit(e){if(!e||typeof e!=="object")return e;if(!e.createdAt){e.createdAt=e.start||auditNow();e.createdSource=e.createdSource||"migrated";e.history=Array.isArray(e.history)?e.history:[];if(!e.history.length){const snap=eventSnapshot(e);pushAudit(e,"created",[],{snapshot:snap,migrated:true,note:"Existing entry imported. History before this version is unknown."})}}e.history=Array.isArray(e.history)?e.history:[];return e}
+function ensureNoteAudit(n){if(!n||typeof n!=="object")return n;if(!n.created)n.created=auditNow();if(!n.history){n.history=[];const snap=noteSnapshot(n);pushAudit(n,"created",[],{snapshot:snap,migrated:n._auditMigrated!==false&&(n.createdSource==="migrated"||!n.createdSource),note:n.createdSource==="new"?undefined:"Existing note imported. History before this version is unknown."});if(n.createdSource!=="new")n.createdSource="migrated"}n.history=Array.isArray(n.history)?n.history:[];return n}
+function migrateStudentAudit(){let changed=false;(data.events||[]).forEach(e=>{if(!e.createdAt){ensureEventAudit(e);changed=true}else{e.history=Array.isArray(e.history)?e.history:[]}});(data.notes||[]).forEach(n=>{if(!Array.isArray(n.history)){n._auditMigrated=true;ensureNoteAudit(n);changed=true}});return changed}
+function visibleEvents(){return (data.events||[]).filter(e=>!e.removedAt)}
+function visibleNotes(){return (data.notes||[]).filter(n=>!n.removedAt)}
+function eventEdited(e){return (e.history||[]).some(h=>h.action==="edited"||h.action==="returned")}
+function noteEdited(n){return (n.history||[]).some(h=>h.action==="edited")}
+function fmtAuditWhen(iso){if(!iso)return "—";const d=new Date(iso);if(Number.isNaN(d.getTime()))return String(iso);
+  try{const s=d.toLocaleString(undefined,{year:"numeric",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"});if(s&&!/\d{4}-\d{2}-\d{2}T/.test(s))return s}catch(e){}
+  const off=-d.getTimezoneOffset(),sign=off>=0?"+":"-",hh=String(Math.floor(Math.abs(off)/60)).padStart(2,"0"),mm=String(Math.abs(off)%60).padStart(2,"0");
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} (UTC${sign}${hh}:${mm})`}
+function auditFieldLabel(f){return ({studentId:"Student",classId:"Class",buttonId:"Button",label:"Name",icon:"Icon",type:"Type",start:"Start / left",end:"Return",status:"Return status",period:"Period",text:"Note text",eventId:"Linked event"})[f]||f}
+function auditVal(field,v){if(v==null||v==="")return "—";if(field==="studentId"){const st=data.students.find(x=>x.id===v);return st?studentDisplayName(st):v}if(field==="classId"){const c=data.classes.find(x=>x.id===v);return c?c.name:v}if(field==="start"||field==="end")return fmtAuditWhen(v);return String(v)}
+function auditBadge(rec){if(rec.removedAt)return `<span class="auditBadge removed" title="Removed — kept in the running log">removed</span>`;if(eventEdited(rec)||noteEdited(rec))return `<span class="auditBadge edited" title="View history">edited</span>`;return ""}
+function noteOriginalText(n){const c=(n.history||[]).find(h=>h.action==="created");return String(c?.snapshot?.text??n.text??"")}
+function noteVersionText(h,n){if(h.action==="created")return String(h.snapshot?.text??n.text??"");if(h.action==="edited")return String(h.textSnapshot??(h.changes||[]).find(c=>c.field==="text")?.to??n.text??"");return ""}
+function noteVersions(n){ensureNoteAudit(n);const out=[];(n.history||[]).forEach(h=>{if(h.action==="created"||h.action==="edited")out.push({action:h.action,at:h.at||n.created,by:h.by,tip:h.tip,text:noteVersionText(h,n),migrated:!!h.migrated})});
+  // newest first for history drill-down
+  return out.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at))||(a.action==="created"?1:0)-(b.action==="created"?1:0))}
+function noteShortWhen(iso){if(!iso)return "—";const d=new Date(iso);if(Number.isNaN(d.getTime()))return String(iso);
+  try{const date=d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}),time=d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});const s=`${date} (${time})`;if(!/\d{4}-\d{2}-\d{2}T/.test(s))return s}catch(e){}
+  return fmtAuditWhen(iso)}
+// Main note card: only the current full text. Edited notes headed "Edited: date (time)"; never-edited use the original time.
+function noteCurrentHTML(n,opts){opts=opts||{};const edited=noteEdited(n),when=edited?((n.history||[]).filter(h=>h.action==="edited").slice(-1)[0]?.at||n.created):n.created,label=edited?"Edited":"Original";
+  return `<div class="${opts.wrapClass||"noteCurrent"}"><div class="noteWhen"><b>${label}:</b> ${esc(noteShortWhen(when))}</div><div class="noteMsg">${esc(n.text||"")}</div></div>`}
+// History drill-down / print prior versions: newest first. Current = Edited; earlier = History (original included).
+function noteHistoryHTML(n,opts){opts=opts||{};const vers=noteVersions(n),cls=opts.listClass||"noteTranscript";
+  if(!vers.length)return `<p class="small">No history recorded.</p>`;
+  let html=`<div class="${cls}">`;
+  vers.forEach((v,i)=>{const head=i===0?(noteEdited(n)?"Edited":"Original"):"History";
+    html+=`<div class="noteLine ${i===0?"noteCurrentLine":"noteHistoryLine"}"><div class="noteWhen"><b>${head}:</b> ${esc(noteShortWhen(v.at))}${opts.showWho&&v.by?` · ${esc(v.by)}`:""}${opts.showTip&&v.tip?` · #${esc(v.tip)}`:""}${v.migrated&&i===vers.length-1?` <span class="small">(imported)</span>`:""}</div><div class="noteMsg">${esc(v.text)}</div></div>`});
+  if(n.removedAt)html+=`<div class="noteLine noteRemoved"><div class="noteWhen"><b>Removed:</b> ${esc(noteShortWhen(n.removedAt))}</div></div>`;
+  return html+`</div>`}
+function historyHTML(rec,kind){
+  if(kind==="note")return noteHistoryHTML(rec,{showWho:true,showTip:true});
+  const rows=[...(rec.history||[])].slice().reverse();if(!rows.length)return `<p class="small">No history recorded.</p>`;
+  return `<ol class="auditHistory">${rows.map(h=>`<li><div><b>${esc(h.action)}</b> · ${esc(fmtAuditWhen(h.at))} · ${esc(h.by||"")}${h.migrated?` <span class="small">(imported)</span>`:""}${h.tip?` <span class="small">#${esc(h.tip)}</span>`:""}</div>${h.note?`<div class="small">${esc(h.note)}</div>`:""}${(h.changes||[]).length?`<ul class="auditChanges">${h.changes.map(c=>`<li><b>${esc(auditFieldLabel(c.field))}</b>: ${esc(auditVal(c.field,c.from))} → ${esc(auditVal(c.field,c.to))}</li>`).join("")}</ul>`:""}</li>`).join("")}</ol>`}
+window.openAuditHistory=(kind,id)=>{document.querySelector("#auditHistoryModal")?.remove();const rec=kind==="event"?(data.events||[]).find(x=>x.id===id):(data.notes||[]).find(x=>x.id===id);if(!rec)return;const title=kind==="event"?`${rec.icon||""} ${rec.label||"Event"}`:"Note";const intro=kind==="note"?`<p class="small">Current note first, then earlier full versions underneath. Each line is the entire note at that time.</p>`:`<p class="small">Original recorded ${esc(fmtAuditWhen(rec.createdAt))}. Field changes are listed newest first.</p>`;document.body.insertAdjacentHTML("beforeend",`<div id="auditHistoryModal" class="modalbg"><div class="modal"><div class="modalHead"><h3>History · ${esc(title)}</h3><button type="button" onclick="document.querySelector('#auditHistoryModal')?.remove()">×</button></div>${intro}${historyHTML(rec,kind)}<div class="modalActions"><button type="button" onclick="document.querySelector('#auditHistoryModal')?.remove()">Close</button></div></div></div>`)}
+
+
+function activeEvents(){return visibleEvents().filter(e=>e.type==="timed"&&!e.end)}
+function eventComments(eventId,includeRemoved){return (data.notes||[]).filter(n=>n.eventId===eventId&&(includeRemoved||!n.removedAt))}
 function eventTimeLocal(iso){if(!iso)return "";const d=new Date(iso),off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,16)}
 function fromLocalInput(v){return v?new Date(v).toISOString():null}
 function formatDuration(ms){ms=Math.max(0,ms||0);const total=Math.floor(ms/60000),h=Math.floor(total/60),m=total%60;return h?`${h}h ${m}m`:`${m}m`}
 function rangeStart(range){const now=new Date();const d=new Date(now);d.setHours(0,0,0,0);if(range==="week"){const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day)}else if(range==="month")d.setDate(1);else if(range==="year"){d.setMonth(0,1)}return d}
 function timedDuration(events,range){const start=rangeStart(range).getTime(),now=Date.now();return events.filter(e=>e.type==="timed").reduce((sum,e)=>{const a=new Date(e.start).getTime(),b=e.end?new Date(e.end).getTime():now;const overlap=Math.max(0,b-Math.max(a,start));return sum+overlap},0)}
 function recentEventsHTML(){
-  const all=[...data.events].sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const all=[...visibleEvents()].sort((a,b)=>new Date(b.start)-new Date(a.start));
   const expanded=window.recentEventsExpanded===true;
   const ev=expanded?all:[];
   if(!all.length)return `<section class="card" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h3 style="margin:0">Recent Events</h3><button onclick="window.toggleRecentEvents()">▶ Show</button></div><p class="small" style="margin-bottom:0">No events recorded yet.</p></section>`;
-  return `<section class="card" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">Recent Events</h3><p class="small" style="margin:4px 0 0">${all.length} event${all.length===1?"":"s"} recorded</p></div><button onclick="window.toggleRecentEvents()">${expanded?"▼ Collapse":"▶ Expand"}</button></div>${expanded?`<div style="margin-top:10px">${ev.map(e=>{const st=data.students.find(x=>x.id===e.studentId),cls=data.classes.find(x=>x.id===e.classId),comments=eventComments(e.id);return `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><b>${esc(st?.name||"Unknown student")}</b> — ${e.icon} ${esc(e.label)} <span class="small">${esc(cls?.name||"")} · ${new Date(e.start).toLocaleString()}</span>${comments.length?`<div class="small">${esc(comments.map(n=>n.text).filter(Boolean).join(" · "))}</div>`:""}<div style="margin-top:6px"><button onclick="window.openEventModal('${e.id}')">Edit</button> <button onclick="window.note('${e.studentId}','${e.id}')">Add Comment</button> <button onclick="window.deleteEvent('${e.id}')">Delete</button></div></div>`}).join("")}</div>`:""}</section>`
+  return `<section class="card" style="margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">Recent Events</h3><p class="small" style="margin:4px 0 0">${all.length} event${all.length===1?"":"s"} recorded · edits keep a history</p></div><button onclick="window.toggleRecentEvents()">${expanded?"▼ Collapse":"▶ Expand"}</button></div>${expanded?`<div style="margin-top:10px">${ev.map(e=>{const st=data.students.find(x=>x.id===e.studentId),cls=data.classes.find(x=>x.id===e.classId),comments=eventComments(e.id);return `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><b>${esc(st?.name||"Unknown student")}</b> — ${e.icon} ${esc(e.label)} ${auditBadge(e)} <span class="small">${esc(cls?.name||"")} · recorded ${esc(fmtAuditWhen(e.createdAt||e.start))} · shown as ${esc(fmtAuditWhen(e.start))}</span>${comments.length?`<div class="small">${esc(comments.map(n=>n.text).filter(Boolean).join(" · "))}${comments.some(noteEdited)?` ${auditBadge(comments.find(noteEdited)||{})}`:""}</div>`:""}<div style="margin-top:6px"><button onclick="window.openEventModal('${e.id}')">Edit</button> <button onclick="window.openAuditHistory('event','${e.id}')">History</button> <button onclick="window.note('${e.studentId}','${e.id}')">Add Comment</button> <button onclick="window.deleteEvent('${e.id}')">Remove</button></div></div>`}).join("")}</div>`:""}</section>`
 }
 window.toggleRecentEvents=()=>{window.recentEventsExpanded=!(window.recentEventsExpanded===true);render();}
 function toastHTML(){return toast?`<div class="toast" id="appToast">${esc(toast)} <button type="button" onclick="window.clearToast()">×</button></div>`:""}
@@ -4405,7 +4464,7 @@ function students(){
   const studentRows=sortedStudents(data.students).map(st=>`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0">
       <span>${esc(studentDisplayName(st))}${st.googleClassroomImported?` <span class="small">· Google Classroom</span>`:""}</span>
-      <span style="white-space:nowrap"><button onclick="window.openStudentModal('${st.id}')">Edit</button> <button onclick="window.openStudentAccommodations('${st.id}')">Accommodations</button> <button onclick="window.deleteStudent('${st.id}')">Delete</button></span>
+      <span style="white-space:nowrap"><button onclick="window.openStudentModal('${st.id}')">Edit</button> <button onclick="window.openAddStudentNote('${st.id}')">📝 Note</button> <button onclick="window.openStudentLogModal('${st.id}')">🖨 Log</button> <button onclick="window.openStudentAccommodations('${st.id}')">Accommodations</button> <button onclick="window.deleteStudent('${st.id}')">Delete</button></span>
     </div>`).join("")||"<p>No students yet.</p>";
   return `<header><h2>Students & Classes</h2></header>
   <div class="split">
@@ -5353,21 +5412,21 @@ function reports(){
     const classSelect=`<label>Class<br><select onchange="window.setReportClass(this.value)">${classChoices.map(c=>`<option value="${esc(c.id)}" ${c.id===reportClassId?"selected":""}>${esc(c.name)}</option>`).join("")}</select></label>`;
     const matrixButtons=eventFilter==="all"?buttons:buttons.filter(b=>b.id===eventFilter);
     const eventMatches=e=>eventFilter==="all"||e.buttonId===eventFilter;
-    const count=(studentId,buttonId)=>data.events.filter(e=>e.studentId===studentId&&e.classId===reportClassId&&e.buttonId===buttonId).length;
+    const count=(studentId,buttonId)=>visibleEvents().filter(e=>e.studentId===studentId&&e.classId===reportClassId&&e.buttonId===buttonId).length;
     return `<header><h2>Reports</h2><p class="small">See individual totals or a whole-class behavior matrix.</p></header><section class="card">${modeControls}<div class="reportControls" style="margin-top:10px">${classSelect}</div><h3 style="margin-top:18px">${esc(cls?.name||"Class Report")}</h3><p class="small">${roster.length} student${roster.length===1?"":"s"} shown. Counts include events recorded while this class was active.</p><div class="tableWrap"><table class="reportMatrix"><thead><tr><th>Student</th>${matrixButtons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${esc(b.label)}</span></th>`).join("")}<th>Total</th></tr></thead><tbody>${roster.map(st=>{const total=data.events.filter(e=>e.studentId===st.id&&e.classId===reportClassId&&eventMatches(e)).length;return `<tr><td><b>${esc(st.name)}</b></td>${matrixButtons.map(b=>`<td>${count(st.id,b.id)}</td>`).join("")}<td><b>${total}</b></td></tr>`}).join("")||`<tr><td colspan="${matrixButtons.length+2}" class="small">No students match this class/filter.</td></tr>`}</tbody></table></div></section>${recentEventsHTML()}`;
   }
 
   const student=selectedStudent;
-  const allStudentEvents=student?data.events.filter(e=>e.studentId===student.id):[];
+  const allStudentEvents=student?visibleEvents().filter(e=>e.studentId===student.id):[];
   const classShownEvents=classFilter==="all"?allStudentEvents:allStudentEvents.filter(e=>e.classId===classFilter);
   const shownEvents=eventFilter==="all"?classShownEvents:classShownEvents.filter(e=>e.buttonId===eventFilter);
   const studentClassIds=new Set([...(classes.filter(c=>(c.studentIds||[]).includes(student?.id)).map(c=>c.id)),...allStudentEvents.map(e=>e.classId).filter(Boolean)]);
   const studentClasses=classes.filter(c=>studentClassIds.has(c.id));
-  const notes=student?data.notes.filter(n=>n.studentId===student.id):[];
+  const notes=student?visibleNotes().filter(n=>n.studentId===student.id&&!n.eventId):[];const eventNotes=student?visibleNotes().filter(n=>n.studentId===student.id&&n.eventId):[];
   const countButton=(events,bid)=>events.filter(e=>e.buttonId===bid).length;
   const timeRange=window.timeReportRange||"day";
   const timeOut=timedDuration(shownEvents,timeRange);
-  return `<header><h2>Reports</h2><p class="small">Filter by class, search students, and compare totals across classes.</p></header><section class="card">${modeControls}<div class="reportControls" style="margin-top:10px"><label>Student<br><select onchange="window.setReportStudent(this.value)">${studentOptions}</select></label></div>${student?`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px"><h3 style="margin:0">${esc(student.name)}</h3><button class="primary" onclick="window.openReportEventModal('${student.id}')">+ Add Event</button></div><p><b>${classFilter==="all"?"Total events across all classes":"Events in selected class"}:</b> ${shownEvents.length}</p><div class="card" style="margin:12px 0"><b>🚪 Time Out of the Classroom</b><div class="reportControls" style="margin-top:8px"><label>Range<br><select onchange="window.setTimeReportRange(this.value)"><option value="day" ${timeRange==="day"?"selected":""}>Day</option><option value="week" ${timeRange==="week"?"selected":""}>Week</option><option value="month" ${timeRange==="month"?"selected":""}>Month</option><option value="year" ${timeRange==="year"?"selected":""}>Year</option></select></label><div class="stat"><b>${formatDuration(timeOut)}</b><span>running total</span></div></div></div><div class="reportgrid">${(eventFilter==="all"?buttons:buttons.filter(b=>b.id===eventFilter)).map(b=>`<div class="stat">${b.icon}<b>${countButton(shownEvents,b.id)}</b><span>${esc(b.label)}</span></div>`).join("")}</div><h4>Breakdown by Class</h4><div class="tableWrap"><table class="reportMatrix"><thead><tr><th>Class</th>${(eventFilter==="all"?buttons:buttons.filter(b=>b.id===eventFilter)).map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${esc(b.label)}</span></th>`).join("")}<th>Total</th></tr></thead><tbody>${studentClasses.map(c=>{const ev=(eventFilter==="all"?allStudentEvents:allStudentEvents.filter(e=>e.buttonId===eventFilter)).filter(e=>e.classId===c.id);return `<tr><td><b>${esc(c.name)}</b></td>${(eventFilter==="all"?buttons:buttons.filter(b=>b.id===eventFilter)).map(b=>`<td>${countButton(ev,b.id)}</td>`).join("")}<td><b>${ev.length}</b></td></tr>`}).join("")||`<tr><td colspan="${buttons.length+2}" class="small">No class data yet.</td></tr>`}</tbody></table></div><h4>Notes</h4>${notes.map(n=>`<p>📝 ${esc(n.text)} <span class="small">${new Date(n.created).toLocaleString()}</span></p>`).join("")||"<p>None recorded.</p>"}`:"<p>No students match your current filter.</p>"}</section>${recentEventsHTML()}`;
+  return `<header><h2>Reports</h2><p class="small">Filter by class, search students, and compare totals across classes.</p></header><section class="card">${modeControls}<div class="reportControls" style="margin-top:10px"><label>Student<br><select onchange="window.setReportStudent(this.value)">${studentOptions}</select></label></div>${student?`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px"><h3 style="margin:0">${esc(student.name)}</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="window.openReportEventModal('${student.id}')">+ Add Event</button><button onclick="window.openAddStudentNote('${student.id}')">📝 Add Note</button><button onclick="window.openStudentLogModal('${student.id}')">🖨 Running Log</button></div></div><p><b>${classFilter==="all"?"Total events across all classes":"Events in selected class"}:</b> ${shownEvents.length}</p><div class="card" style="margin:12px 0"><b>🚪 Time Out of the Classroom</b><div class="reportControls" style="margin-top:8px"><label>Range<br><select onchange="window.setTimeReportRange(this.value)"><option value="day" ${timeRange==="day"?"selected":""}>Day</option><option value="week" ${timeRange==="week"?"selected":""}>Week</option><option value="month" ${timeRange==="month"?"selected":""}>Month</option><option value="year" ${timeRange==="year"?"selected":""}>Year</option></select></label><div class="stat"><b>${formatDuration(timeOut)}</b><span>running total</span></div></div></div><div class="reportgrid">${(eventFilter==="all"?buttons:buttons.filter(b=>b.id===eventFilter)).map(b=>`<div class="stat">${b.icon}<b>${countButton(shownEvents,b.id)}</b><span>${esc(b.label)}</span></div>`).join("")}</div><h4>Breakdown by Class</h4><div class="tableWrap"><table class="reportMatrix"><thead><tr><th>Class</th>${(eventFilter==="all"?buttons:buttons.filter(b=>b.id===eventFilter)).map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${esc(b.label)}</span></th>`).join("")}<th>Total</th></tr></thead><tbody>${studentClasses.map(c=>{const ev=(eventFilter==="all"?allStudentEvents:allStudentEvents.filter(e=>e.buttonId===eventFilter)).filter(e=>e.classId===c.id);return `<tr><td><b>${esc(c.name)}</b></td>${(eventFilter==="all"?buttons:buttons.filter(b=>b.id===eventFilter)).map(b=>`<td>${countButton(ev,b.id)}</td>`).join("")}<td><b>${ev.length}</b></td></tr>`}).join("")||`<tr><td colspan="${buttons.length+2}" class="small">No class data yet.</td></tr>`}</tbody></table></div><h4>Notes</h4>${notes.map(n=>`<div class="studentNoteRow"><div class="studentNoteHead">📝 Note ${auditBadge(n)}</div>${noteCurrentHTML(n)}<div style="margin-top:4px"><button onclick="window.openEditStudentNote('${n.id}')">Edit</button> <button onclick="window.openAuditHistory('note','${n.id}')">History</button> <button onclick="window.removeStudentNote('${n.id}')">Remove</button></div></div>`).join("")||"<p>None recorded.</p>"}${eventNotes.length?`<p class="small" style="margin-top:10px">${eventNotes.length} comment${eventNotes.length===1?"":"s"} attached to events (shown on those events and in the running log).</p>`:""}`:"<p>No students match your current filter.</p>"}</section>${recentEventsHTML()}`;
 }
 window.setReportMode=v=>{window.reportMode=v;render();}
 window.setReportClassFilter=v=>{window.reportClassFilter=v;render();}
@@ -5959,15 +6018,98 @@ window.record=(sid,bid)=>{
   const s=data.students.find(x=>x.id===sid),b=data.buttons.find(x=>x.id===bid),cls=currentClass();
   if(!s||!b){toast="That Quick Button is no longer available.";render();return;}
   if(!cls){toast="There is no active class right now.";render();return;}
-  const e={id:uid(),studentId:sid,classId:cls.id,buttonId:bid,label:b.label,icon:b.icon,type:b.type,start:new Date().toISOString(),end:null};
-  data.events.push(e);save();toast=`${b.icon} ${b.label} recorded for ${studentDisplayName(s)}.`;
+  const now=auditNow(),e={id:uid(),studentId:sid,classId:cls.id,buttonId:bid,label:b.label,icon:b.icon,type:b.type,start:now,end:null,createdAt:now,createdSource:"live",history:[]};
+  pushAudit(e,"created",[],{snapshot:eventSnapshot(e)});data.events.push(e);save();toast=`${b.icon} ${b.label} recorded for ${studentDisplayName(s)}.`;
   if(b.type==="event")selected={student:s,eventId:e.id};
   render();
 }
-window.returnEvent=(id,status)=>{const e=data.events.find(x=>x.id===id);if(!e)return;e.end=new Date().toISOString();e.status=status;save();render()}
+window.returnEvent=(id,status)=>{const e=data.events.find(x=>x.id===id);if(!e)return;ensureEventAudit(e);const before=eventSnapshot(e);e.end=auditNow();e.status=status;pushAudit(e,"returned",auditDiff(before,eventSnapshot(e)));save();render()}
 window.note=(sid,eid)=>{const student=data.students.find(x=>x.id===sid);if(student){selected={student,eventId:eid};render()}}
 window.closeNote=()=>{selected=null;render()}
-window.saveNote=()=>{const text=$("#noteText")?.value.trim();if(!selected)return;if(text){data.notes.push({id:uid(),studentId:selected.student.id,eventId:selected.eventId||null,text,created:new Date().toISOString()});toast="Saved.";}else toast="Event saved without a comment.";save();selected=null;render()}
+window.saveNote=()=>{const text=$("#noteText")?.value.trim();if(!selected)return;if(text){const n={id:uid(),studentId:selected.student.id,eventId:selected.eventId||null,text,created:auditNow(),createdSource:"new",history:[]};pushAudit(n,"created",[],{snapshot:noteSnapshot(n)});data.notes.push(n);toast="Saved.";}else toast="Event saved without a comment.";save();selected=null;render()}
+
+window.openAddStudentNote=sid=>{
+  const st=data.students.find(x=>x.id===sid);if(!st)return;
+  document.querySelector("#studentNoteModal")?.remove();
+  document.body.insertAdjacentHTML("beforeend",`<div id="studentNoteModal" class="modalbg"><div class="modal"><h3>📝 Note for ${esc(studentDisplayName(st))}</h3><p class="small">The original note and its time are locked. Later edits are saved as a timestamped transcript.</p><textarea id="studentNoteText" placeholder="What happened / what you observed..." style="width:100%;min-height:140px"></textarea><div style="margin-top:12px"><button class="primary" onclick="window.saveNewStudentNote('${sid}')">Save Note</button> <button onclick="document.querySelector('#studentNoteModal')?.remove()">Cancel</button></div></div></div>`);
+  setTimeout(()=>document.getElementById("studentNoteText")?.focus(),50);
+};
+window.saveNewStudentNote=sid=>{
+  const text=$("#studentNoteText")?.value.trim();if(!text){alert("Please enter a note.");return;}
+  const n={id:uid(),studentId:sid,eventId:null,text,created:auditNow(),createdSource:"new",history:[]};
+  pushAudit(n,"created",[],{snapshot:noteSnapshot(n)});data.notes.push(n);save();toast="Note saved.";document.querySelector("#studentNoteModal")?.remove();render();
+};
+window.openEditStudentNote=id=>{
+  const n=(data.notes||[]).find(x=>x.id===id);if(!n||n.removedAt)return;ensureNoteAudit(n);
+  document.querySelector("#studentNoteModal")?.remove();
+  const st=data.students.find(x=>x.id===n.studentId);
+  const original=(n.history||[]).find(h=>h.action==="created")?.snapshot?.text;
+  document.body.insertAdjacentHTML("beforeend",`<div id="studentNoteModal" class="modalbg"><div class="modal"><h3>Edit Note · ${esc(studentDisplayName(st||{}))}</h3><p class="small">Edit the full note below. Saving keeps the previous full version in History and stores this entire text as the new current note.</p><textarea id="studentNoteText" style="width:100%;min-height:140px">${esc(n.text)}</textarea><div style="margin-top:12px"><button class="primary" onclick="window.saveEditStudentNote('${id}')">Save Edit</button> <button onclick="window.openAuditHistory('note','${id}')">History</button> <button onclick="document.querySelector('#studentNoteModal')?.remove()">Cancel</button></div></div></div>`);
+};
+window.saveEditStudentNote=id=>{
+  const n=(data.notes||[]).find(x=>x.id===id);if(!n||n.removedAt)return;ensureNoteAudit(n);
+  const text=$("#studentNoteText")?.value.trim();if(!text){alert("Please enter a note.");return;}
+  const before=noteSnapshot(n);if(before.text===text){document.querySelector("#studentNoteModal")?.remove();return;}
+  n.text=text;pushAudit(n,"edited",auditDiff(before,noteSnapshot(n)),{textSnapshot:text});save();toast="Note edit logged.";document.querySelector("#studentNoteModal")?.remove();render();
+};
+window.removeStudentNote=id=>{
+  const n=(data.notes||[]).find(x=>x.id===id);if(!n||n.removedAt)return;
+  if(!confirm("Remove this note? It stays in the student's running log with a removed record — it is not erased."))return;
+  ensureNoteAudit(n);n.removedAt=auditNow();pushAudit(n,"removed",[],{snapshot:noteSnapshot(n)});save();toast="Note removed (kept in the running log).";render();
+};
+window.openStudentLogModal=sid=>{
+  const st=data.students.find(x=>x.id===sid);if(!st)return;
+  document.querySelector("#studentLogModal")?.remove();
+  const today=todayISO();
+  document.body.insertAdjacentHTML("beforeend",`<div id="studentLogModal" class="modalbg"><div class="modal"><h3>🖨 Running Log · ${esc(studentDisplayName(st))}</h3><p class="small">Everything for this student in one place: events, notes, comments, accommodations, and edit history. Soft-removed items are included and marked.</p><div class="reportControls"><label>From<br><input id="studentLogFrom" type="date"></label><label>To<br><input id="studentLogTo" type="date" value="${today}"></label></div><p class="small">Leave From blank to include everything. Times print with your time zone.</p><div style="margin-top:12px"><button class="primary" onclick="window.printStudentLog('${sid}')">Print / Save PDF</button> <button onclick="document.querySelector('#studentLogModal')?.remove()">Cancel</button></div></div></div>`);
+};
+window.studentLogEntries=sid=>{
+  const items=[];
+  (data.events||[]).filter(e=>e.studentId===sid).forEach(e=>{ensureEventAudit(e);items.push({kind:"event",sort:e.createdAt||e.start||"",rec:e})});
+  (data.notes||[]).filter(n=>n.studentId===sid).forEach(n=>{ensureNoteAudit(n);items.push({kind:"note",sort:n.created||"",rec:n})});
+  (data.accommodations||[]).filter(a=>a.studentId===sid).forEach(a=>{items.push({kind:"accommodation",sort:a.updatedAt||a.createdAt||"",rec:a})});
+  (data.forms||[]).forEach(f=>{const rec=f.records&&f.records[sid];if(!rec)return;items.push({kind:"form",sort:rec.receivedAt||rec.updatedAt||f.dueDate||"",rec:{form:f,record:rec}})});
+  return items.sort((a,b)=>String(a.sort||"").localeCompare(String(b.sort||"")));
+};
+window.printStudentLog=sid=>{
+  const st=data.students.find(x=>x.id===sid);if(!st)return;
+  const from=$("#studentLogFrom")?.value||"",to=$("#studentLogTo")?.value||"";
+  const inRange=iso=>{if(!iso)return !from;const d=String(iso).slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false;return true};
+  const items=window.studentLogEntries(sid).filter(it=>{
+    if(it.kind==="event")return inRange(it.rec.createdAt||it.rec.start)||(it.rec.history||[]).some(h=>inRange(h.at));
+    if(it.kind==="note")return inRange(it.rec.created)||(it.rec.history||[]).some(h=>inRange(h.at));
+    if(it.kind==="accommodation")return inRange(it.rec.updatedAt||it.rec.createdAt);
+    if(it.kind==="form")return inRange(it.rec.record.receivedAt||it.rec.record.updatedAt||it.rec.form.dueDate);
+    return true;
+  });
+  const printed=fmtAuditWhen(auditNow()),rangeLabel=from||to?`${from||"…"} → ${to||"…"}`:"All dates";
+  const css=`@page{margin:.6in}body{font-family:system-ui,Segoe UI,sans-serif;color:#1a2333;font-size:11pt;line-height:1.35}h1{font-size:18pt;margin:0 0 4px}.meta{color:#555;font-size:10pt;margin:0 0 14px}.entry{margin:0 0 12px;padding:8px 0;border-bottom:1px solid #e2e6ee}.entry.removed{opacity:.85}.tag{display:inline-block;font-size:9pt;border:1px solid #999;border-radius:999px;padding:0 7px;margin-right:4px}.tag.removed{border-color:#b3261e;color:#b3261e}.tag.edited{border-color:#8a5a00;color:#8a5a00}ol.hist{margin:6px 0 0 18px;padding:0;font-size:9.5pt;color:#444}ol.hist li{margin:3px 0}.limit{margin-top:18px;font-size:9pt;color:#666;border-top:1px solid #ccc;padding-top:8px}`;
+  let html=`<h1>Student Running Log</h1><p class="meta"><b>${esc(studentDisplayName(st))}</b><br>Printed ${esc(printed)} · Range: ${esc(rangeLabel)} · ${items.length} item${items.length===1?"":"s"}</p>`;
+  if(!items.length)html+=`<p>No records in this range.</p>`;
+  items.forEach(it=>{
+    if(it.kind==="event"){
+      const e=it.rec,cls=data.classes.find(c=>c.id===e.classId);
+      html+=`<div class="entry${e.removedAt?" removed":""}"><span class="tag">Event</span>${e.removedAt?`<span class="tag removed">removed</span>`:""}${eventEdited(e)?`<span class="tag edited">edited</span>`:""}<b> ${esc(e.icon||"")} ${esc(e.label||"")}</b><div class="meta">Original record ${esc(fmtAuditWhen(e.createdAt||e.start))} · Current start ${esc(fmtAuditWhen(e.start))}${e.end?` · Return ${esc(fmtAuditWhen(e.end))} (${esc(e.status||"")})`:""}${cls?` · ${esc(cls.name)}`:""}${e.auditTip?` · tip #${esc(e.auditTip)}`:""}</div>${historyHTML(e,"event").replace('class="auditHistory"','class="hist"')}</div>`;
+    }else if(it.kind==="note"){
+      const n=it.rec,linked=n.eventId?(data.events||[]).find(e=>e.id===n.eventId):null,vers=noteVersions(n);
+      html+=`<div class="entry${n.removedAt?" removed":""}"><span class="tag">${n.eventId?"Comment":"Note"}</span>${n.removedAt?`<span class="tag removed">removed</span>`:""}${noteEdited(n)?`<span class="tag edited">edited</span>`:""}${linked?`<div class="meta">on ${esc(linked.icon||"")} ${esc(linked.label||"event")}</div>`:""}${noteCurrentHTML(n,{wrapClass:"noteCurrent"})}`;
+      if(vers.length>1){html+=`<div class="hist noteTranscript" style="margin-top:8px">`;vers.slice(1).forEach(v=>{html+=`<div class="noteLine noteHistoryLine"><div class="noteWhen"><b>History:</b> ${esc(noteShortWhen(v.at))}${v.tip?` · #${esc(v.tip)}`:""}</div><div class="noteMsg">${esc(v.text)}</div></div>`});html+=`</div>`}
+      html+=`</div>`;
+    }else if(it.kind==="accommodation"){
+      const a=it.rec;
+      html+=`<div class="entry"><span class="tag">Accommodation</span><b> ${esc(a.kind==="service"?"Service":"Accommodation")}</b><div>${esc(a.text||"")}</div><div class="meta">${esc(a.category||"")}${a.active===false?" · inactive":""}</div></div>`;
+    }else if(it.kind==="form"){
+      const f=it.rec.form,r=it.rec.record;
+      html+=`<div class="entry"><span class="tag">Form</span><b> ${esc(f.name||"Form")}</b><div class="meta">${r.received?"Received":"Not received"}${r.receivedAt?` · ${esc(fmtAuditWhen(r.receivedAt))}`:""}${r.notes?` · ${esc(r.notes)}`:""}</div></div>`;
+    }
+  });
+  html+=`<p class="limit">This log is a copy of records stored in Teacher Dashboard. Original timestamps are kept when entries are edited; removals are marked, not erased. Anyone with access to rewrite the teacher's cloud data can still alter records — treat a printed/PDF copy as the durable snapshot if you need one for documentation.</p>`;
+  document.querySelector("#studentLogModal")?.remove();
+  const w=window.open("","_blank");if(!w){alert("Please allow pop-ups to print the running log.");return;}
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Running Log — ${esc(studentDisplayName(st))}</title><style>${css}</style></head><body>${html}<script>onload=()=>print()<\/script></body></html>`);
+  w.document.close();
+};
+
 window.openEventModal=id=>{
   document.querySelector("#eventModal")?.remove();
   const e=data.events.find(x=>x.id===id);if(!e)return;
@@ -5986,13 +6128,14 @@ window.openEventModal=id=>{
 window.syncEventFields=()=>{const b=data.buttons.find(x=>x.id===$("#eventButton")?.value);if(!b)return;const label=$("#eventLabel"),icon=$("#eventIcon");if(label)label.value=b.label;if(icon)icon.value=b.icon;const timed=$("#eventTimedFields");if(timed)timed.style.display=b.type==="timed"?"block":"none";}
 window.closeEventModal=()=>document.querySelector("#eventModal")?.remove();
 window.saveEventEdit=id=>{
-  const e=data.events.find(x=>x.id===id);if(!e)return;const start=fromLocalInput($("#eventStart")?.value);if(!start){alert("Please enter a start time.");return;}
-  const b=data.buttons.find(x=>x.id===$("#eventButton")?.value);
-  e.studentId=$("#eventStudent")?.value||e.studentId;e.classId=$("#eventClass")?.value||"";e.start=start;
-  e.buttonId=b?.id||e.buttonId||"";e.type=b?.type||e.type;e.label=$("#eventLabel")?.value.trim()||b?.label||e.label;e.icon=$("#eventIcon")?.value.trim()||b?.icon||e.icon;
-  if(e.type==="timed"){const endVal=$("#eventEnd")?.value;e.end=endVal?fromLocalInput(endVal):null;e.status=$("#eventStatus")?.value||e.status||"returned";if(e.end&&new Date(e.end)<new Date(e.start)){alert("Return time cannot be before start time.");return;}}
-  else e.end=null;
-  save();toast="Event updated.";window.closeEventModal();render();
+  const e=data.events.find(x=>x.id===id);if(!e)return;ensureEventAudit(e);const start=fromLocalInput($("#eventStart")?.value);if(!start){alert("Please enter a start time.");return;}
+  const b=data.buttons.find(x=>x.id===$("#eventButton")?.value);const before=eventSnapshot(e);
+  const next={...before,studentId:$("#eventStudent")?.value||e.studentId,classId:$("#eventClass")?.value||"",start,buttonId:b?.id||e.buttonId||"",type:b?.type||e.type,label:$("#eventLabel")?.value.trim()||b?.label||e.label,icon:$("#eventIcon")?.value.trim()||b?.icon||e.icon};
+  if(next.type==="timed"){const endVal=$("#eventEnd")?.value;next.end=endVal?fromLocalInput(endVal):null;next.status=$("#eventStatus")?.value||e.status||"returned";if(next.end&&new Date(next.end)<new Date(next.start)){alert("Return time cannot be before start time.");return;}}
+  else{next.end=null}
+  const changes=auditDiff(before,next);if(!changes.length){window.closeEventModal();return;}
+  Object.assign(e,next); // createdAt never touched
+  pushAudit(e,"edited",changes);save();toast="Event updated — change logged.";window.closeEventModal();render();
 }
 window.openReportEventModal=sid=>{
   document.querySelector("#reportEventModal")?.remove();const st=data.students.find(x=>x.id===sid);if(!st)return;
@@ -6019,10 +6162,11 @@ window.saveReportEvent=sid=>{
   let start,end=null;
   if(b.type==="timed"){const stime=$("#reportEventStartTime")?.value,etime=$("#reportEventEndTime")?.value;if(!stime){alert("Please enter the time the student left the room.");return;}start=fromLocalInput(`${date}T${stime}`);end=etime?fromLocalInput(`${date}T${etime}`):null;if(end&&new Date(end)<new Date(start)){alert("Return time cannot be before out time.");return;}}
   else start=fromLocalInput(`${date}T12:00`);
-  data.events.push({id:uid(),studentId:sid,classId,buttonId:b.id,label,icon,type:b.type,start,end,period:Number(period),createdFromReport:true});
+  const e={id:uid(),studentId:sid,classId,buttonId:b.id,label,icon,type:b.type,start,end,period:Number(period),createdFromReport:true,createdAt:start||auditNow(),createdSource:"report",history:[]};
+  pushAudit(e,"created",[],{snapshot:eventSnapshot(e)});data.events.push(e);
   save();toast="Event added.";window.closeReportEventModal();render();
 }
-window.deleteEvent=id=>{const e=data.events.find(x=>x.id===id);if(!e)return;if(!confirm("Delete this event?"))return;data.events=data.events.filter(x=>x.id!==id);data.notes=data.notes.filter(n=>n.eventId!==id);save();toast="Event deleted.";render();}
+window.deleteEvent=id=>{const e=data.events.find(x=>x.id===id);if(!e||e.removedAt)return;if(!confirm("Remove this event? It stays in the student's running log with a removed record — it is not erased."))return;ensureEventAudit(e);const before=eventSnapshot(e);e.removedAt=auditNow();pushAudit(e,"removed",[],{snapshot:before});(data.notes||[]).filter(n=>n.eventId===id&&!n.removedAt).forEach(n=>{ensureNoteAudit(n);n.removedAt=e.removedAt;pushAudit(n,"removed",[],{snapshot:noteSnapshot(n),note:"Linked event was removed."})});save();toast="Event removed (kept in the running log).";render();}
 window.addStudent=()=>{
   const firstName=$("#newStudentFirstName")?.value.trim()||"";
   const lastName=$("#newStudentLastName")?.value.trim()||"";
@@ -6549,6 +6693,7 @@ let calcSettingsOpen=false;window.__calcSetOpen=v=>{calcSettingsOpen=v;};
 function calcSigForPrint(s=calcSettings()){return calcSignatureSrc(s);}
 function calcSignatureSrc(s=calcSettings()){return s.sigMode==="none"?"":(s.signature||"");}
 // The letter. Returned as structured parts; `paragraphs` (flat text) is kept for older signing pages and the record.
+// V4.12.6: Student events/notes keep an append-only audit trail (locked original time, edit transcript, soft remove) + Add Note + printable running log.
 // V4.12.5: Lesson Plans look calmer (CSS only): clearer grid lines, quiet check boxes, pin and push buttons.
 // V4.12.4: Lesson Plans → "Week · all classes | Month · one class" toggle (month grid of one class, her class colors).
 // V4.12.4: Lesson Plans → "🗂 Side by side" shows the Master Schedule (fully working, same code) beside the plans.
