@@ -887,6 +887,39 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 @media(max-width:750px){.msBulkTop{gap:6px}.msBulkTop b{font-size:14px;width:100%}.msBulkTop button{padding:5px 9px;font-size:13px}}
 .msKeepChips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px;max-height:96px;overflow:auto}.msKeepChip{display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
 </style>
+<style id="v4130-trip-form">
+/* V4.13.0: student contact fields + district trip form filler */
+.contactFieldsGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.contactFieldsGrid label{display:block}
+.contactFieldsGrid input{width:100%;box-sizing:border-box}
+@media(max-width:600px){.contactFieldsGrid{grid-template-columns:1fr}}
+.districtFormsCard{margin-bottom:14px}
+.districtFormRow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.tripFillPanel{max-width:820px}
+.tripFillPanel .modalBody{display:grid;gap:12px;max-height:min(78vh,820px);overflow:auto}
+.tripFillGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.tripFillGrid{grid-template-columns:1fr}}
+.tripStudentCheckList{max-height:260px;overflow:auto;border:1px solid #e0e6ef;border-radius:10px;padding:8px 10px;background:#fff}
+.tripStudentCheckList .checkRow{display:flex;gap:8px;align-items:flex-start;padding:4px 0}
+.tripStudentCheckList .checkRow .small{font-weight:400}
+.tripFillTools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.importPreviewTable{width:100%;border-collapse:collapse;font-size:13px}
+.importPreviewTable th,.importPreviewTable td{border:1px solid #e0e6ef;padding:6px 8px;vertical-align:top;text-align:left}
+.importPreviewTable th{background:#f7f8fb}
+.importMatchOk{color:#176b46;font-weight:700}
+.importMatchReview{color:#8a5a00;font-weight:700}
+.importMatchNone{color:#a12622;font-weight:700}
+.importPreviewWrap{max-height:min(55vh,480px);overflow:auto;border:1px solid #e0e6ef;border-radius:10px}
+.nameFormatToggle{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+
+
+#tripFillModal .modalHead, #contactImportModal .modalHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#tripFillModal .modalHead h3, #contactImportModal .modalHead h3{margin:0}
+#tripFillModal .modalHead button, #contactImportModal .modalHead button{border:0;background:transparent;font-size:22px;line-height:1;padding:2px 8px;min-height:0;cursor:pointer}
+#tripFillModal .modal{width:min(820px,96vw)}
+#contactImportModal .modal{width:min(920px,96vw)}
+#tripFillModal .modalActions, #contactImportModal .modalActions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+</style>
 <script src="vendor/qrcode.js"></script>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -910,7 +943,8 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.12.6";
+const APP_VERSION="4.13.0";
+// V4.13.0: optional student contact fields; spreadsheet import; fillable district Trip Form (Part 2).
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -987,6 +1021,7 @@ const seed={
  setupComplete:false,
  pvaasSettings:{customEndDate:""},
  googleClassroom:{clientId:"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com",lastImportAt:"",connectedAt:""},
+ districtForms:{personInCharge:"",cellPhone:"",nameFormat:"lastFirst"},
  calendarOverrides:{},
  masterSchedules:{years:{},seeded:{}},
  calendarColors:{instructional:"#4f9d69",inservice:"#8b6bb8",noschool:"#cf5f5f",earlydismissal:"#d58a2b",nineWeeks:"#d59627",endNineWeeks:"#c77b20",trimester:"#3f7fc0",endTrimester:"#2f679e",semester:"#6c63a8",endSemester:"#514a8a",alternateSchedule:"#b05c8a",note:"#556070"},
@@ -1489,7 +1524,7 @@ function normalizeLoadedDashboard(raw){
   ["classes","students","groups","forms","accommodations","accommodationSources","events","notes","schoolDays","gradeCourses","lessonPlanSyncGroups","calculators"].forEach(k=>{if(!Array.isArray(out[k]))out[k]=[];});
   if(!Array.isArray(out.buttons)||!out.buttons.length)out.buttons=structuredClone(seed.buttons);
   if(!Array.isArray(out.bellSchedules)||!out.bellSchedules.length)out.bellSchedules=defaultBellSchedules();
-  ["calendarSettings","pvaasSettings","googleClassroom","calendarColors"].forEach(k=>{const v=x[k];out[k]={...structuredClone(seed[k]),...((v&&typeof v==="object"&&!Array.isArray(v))?v:{})};});
+  ["calendarSettings","pvaasSettings","googleClassroom","calendarColors","districtForms"].forEach(k=>{const v=x[k];out[k]={...structuredClone(seed[k]||{}),...((v&&typeof v==="object"&&!Array.isArray(v))?v:{})};});
   ["calendarOverrides","accommodationAI"].forEach(k=>{if(!out[k]||typeof out[k]!=="object"||Array.isArray(out[k]))out[k]=structuredClone(seed[k]);});
   // Master Schedule (V4.3.0). Older backups and devices don't have it yet.
   {const ms=out.masterSchedules,ok=v=>v&&typeof v==="object"&&!Array.isArray(v);out.masterSchedules=ok(ms)?{...ms,years:ok(ms.years)?ms.years:{},seeded:ok(ms.seeded)?ms.seeded:{}}:{years:{},seeded:{}};}
@@ -1957,7 +1992,7 @@ function sidebarTimeRemainingHTML(){
 }
 
 function render(){
-  ensureSidebarSettings(); ensureClassroomTools(); ensureGroups(); ensureForms(); ensureAccommodations(); ensureLessonPlans(); ensureSubPlans();
+  ensureSidebarSettings(); ensureClassroomTools(); ensureGroups(); ensureForms(); ensureDistrictForms(); ensureAccommodations(); ensureLessonPlans(); ensureSubPlans();
   try{if(migrateStudentAudit())save()}catch(e){console.error("Student audit migrate",e)}
   try{if(currentUser&&spReconcile())save();}catch(e){console.error("Shared pins",e)}
   if(!currentUser){$("#root").innerHTML=loginHTML();return}
@@ -4226,6 +4261,7 @@ function normalizeStudents(){
     s.firstName=first;
     s.lastName=last;
     s.name=[first,last].filter(Boolean).join(" ") || current || "Unnamed Student";
+    ["studentPhone","homePhone","iceName","icePhone"].forEach(k=>{s[k]=typeof s[k]==="string"?s[k]:String(s[k]||"");});
   });
 }
 function sortedStudents(list=data.students){
@@ -4439,6 +4475,7 @@ function mergeStudentData(target,source){
   // Classroom identities, the caller blocks the merge because they may be different people.
   if(!target.googleClassroomUserId&&source.googleClassroomUserId)target.googleClassroomUserId=source.googleClassroomUserId;
   if(source.googleClassroomImported)target.googleClassroomImported=true;
+  mergeStudentContacts(target,source);
   data.students=data.students.filter(s=>s.id!==sourceId);
 }
 window.openStudentMergeModal=()=>{
@@ -4469,7 +4506,7 @@ function students(){
   return `<header><h2>Students & Classes</h2></header>
   <div class="split">
     <section class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Students</h3><button type="button" onclick="window.openStudentMergeModal()">Merge Students</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Students</h3><span style="white-space:nowrap"><button type="button" onclick="window.openContactImport()">Import Contacts</button> <button type="button" onclick="window.openStudentMergeModal()">Merge Students</button></span></div>
       <div class="add" style="align-items:end;flex-wrap:wrap">
         <label style="flex:1;min-width:170px">First Name<br><input id="newStudentFirstName" placeholder="First name" style="width:100%"></label>
         <label style="flex:1;min-width:170px">Last Name<br><input id="newStudentLastName" placeholder="Last name" style="width:100%"></label>
@@ -5007,6 +5044,7 @@ function forms(){
     return `<section class="card formCard compactFormRow"><div class="formCardTop"><div class="formRowInfo"><span class="formRowTitle">${esc(f.name)}</span><span class="formRowMeta"><b>${received} / ${ids.length} received</b>${f.dueDate?` · Due ${f.dueDate}`:""}</span></div><div class="formRowActions formReorderActions"><button class="formMove" title="Move up" aria-label="Move ${esc(f.name)} up" onclick="window.moveForm('${f.id}',-1)" ${index===0?"disabled":""}>↑</button><button class="formMove" title="Move down" aria-label="Move ${esc(f.name)} down" onclick="window.moveForm('${f.id}',1)" ${index===ordered.length-1?"disabled":""}>↓</button><button onclick="window.openFormEditor('${f.id}')">Edit</button><button onclick="window.copyForm('${f.id}')">Copy</button><button onclick="window.printForm('${f.id}')">🖨 Print Form</button><button onclick="window.printFormTracker('${f.id}')">🖨 Print Tracker</button><button onclick="window.archiveForm('${f.id}',true)">Archive</button><button class="primary" onclick="window.openFormTracker('${f.id}')">Open Tracker</button></div></div></section>`;
   }).join("");
   return `<header><div><h2>Forms & Records</h2><p>Create a tracker once, then keep all the information you need in one place.</p></div><button class="primary" onclick="window.openFormEditor()">＋ Create Form</button></header>
+  <section class="card districtFormsCard"><div class="districtFormRow"><div><h3 style="margin:0 0 4px">District forms</h3><p class="small" style="margin:0"><b>Trip Form — Part 2, Student Listing</b> · Pick a class or group, uncheck absentees, and print or download the filled form.</p></div><button class="primary" onclick="window.openTripFormFiller()">Fill Trip Form</button></div></section>
   <section class="card"><div class="formsSectionHeader"><h3>Your Forms & Records</h3><button class="smallButton" onclick="window.alphabetizeForms()">A–Z</button></div>${cards||(archived.length?'<p class="small">No active forms. Your archived forms are below.</p>':'<p class="small">No forms yet. Create your Calculator Agreement, permission slips, club forms, or anything else you need to track.</p>')}</section>${archivedSection}`;
 }
 window.copyForm=(id)=>{
@@ -6200,6 +6238,7 @@ window.openStudentModal=id=>{
       <label style="flex:1;min-width:170px">Last Name<br><input id="editStudentLastName" value="${esc(st.lastName||"")}" style="width:100%"></label>
     </div>
     <details class="collapsibleFieldset"><summary>Classes</summary><div class="collapsibleInner"><p class="small">Check every class this student belongs to.</p><div class="checkGrid">${data.classes.map(c=>`<label><input type="checkbox" name="studentClass" value="${esc(c.id)}" ${(c.studentIds||[]).includes(st.id)?"checked":""}> ${esc(c.name)}</label>`).join("")||"<span class='small'>No classes yet. Add a class first.</span>"}</div></div></details>
+    ${studentContactFieldsHTML(st)}
     <details class="collapsibleFieldset"><summary>Do Not Seat With</summary><div class="collapsibleInner"><p class="small">These restrictions apply across all classes and are used when making groups.</p><div class="checkGrid">${sortedStudents(data.students.filter(other=>other.id!==st.id)).map(other=>`<label><input type="checkbox" name="studentRestriction" value="${esc(other.id)}" ${(st.doNotSeatWith||[]).includes(other.id)?"checked":""}> ${esc(studentDisplayName(other))}</label>`).join("")||"<span class='small'>Add other students first.</span>"}</div></div></details>${studentCalcHTML(st.id)}<div style="margin-top:16px"><button class="primary" onclick="window.saveStudent('${st.id}')">Save Student</button> <button onclick="window.closeStudentModal()">Cancel</button></div></div></div>`);
 }
 window.closeStudentModal=()=>document.querySelector("#studentModal")?.remove();
@@ -6209,6 +6248,7 @@ window.saveStudent=id=>{
   const lastName=$("#editStudentLastName")?.value.trim()||"";
   if(!firstName && !lastName){alert("Please enter a first or last name.");return;}
   st.firstName=firstName;st.lastName=lastName;st.name=[firstName,lastName].filter(Boolean).join(" ");
+  readStudentContactFields(st);
   const selectedIds=[...document.querySelectorAll('input[name="studentClass"]:checked')].map(x=>x.value);
   data.classes.forEach(c=>{const has=selectedIds.includes(c.id);const beforeIds=[...(c.studentIds||[])];c.studentIds=has?[...new Set([...(c.studentIds||[]),id])]:((c.studentIds||[]).filter(sid=>sid!==id));pvaasNoteRosterChange(c,beforeIds,c.studentIds);});
   const selectedRestrictions=[...document.querySelectorAll('input[name="studentRestriction"]:checked')].map(x=>x.value);
@@ -7067,6 +7107,857 @@ function studentCalcHTML(stId){
   if(!now.length&&!past.length)return "";
   return `<details class="collapsibleFieldset" open><summary>🧮 Graphing Calculator</summary><div class="collapsibleInner">${now.map(c=>`<p>Has JM ${esc(c.jm)} (S/N ${esc(c.serial||"—")}${c.color?`, ${esc(c.color)}`:""}) since ${esc(calcFmtDate(c.out.date))} · ${c.out.contract?"contract ✓":"<b>no contract yet</b>"}</p>`).join("")}${past.map(({c,h})=>`<p class="small">Had JM ${esc(c.jm)} ${esc(calcFmtDate(h.date))} → ${esc(calcFmtDate(h.returned))}</p>`).join("")}</div></details>`;
 }
+
+// ---------------------------------------------------------------------------
+// V4.13.0: optional student contact fields, spreadsheet import, and a
+// fillable district Trip Form (Part 2, Student Listing). The blank form is a
+// vector recreation of the district layout (no student data, nothing private).
+// Filled copies are generated in the browser and downloaded or printed; they
+// are never written to the public site.
+// ---------------------------------------------------------------------------
+const TRIP_FORM_ROW_CAP=17;
+const STUDENT_CONTACT_KEYS=["studentPhone","homePhone","iceName","icePhone"];
+function ensureDistrictForms(){
+  if(!data.districtForms||typeof data.districtForms!=="object"||Array.isArray(data.districtForms))data.districtForms={};
+  data.districtForms.personInCharge=String(data.districtForms.personInCharge||"");
+  data.districtForms.cellPhone=String(data.districtForms.cellPhone||"");
+  data.districtForms.nameFormat=data.districtForms.nameFormat==="firstLast"?"firstLast":"lastFirst";
+}
+function studentContactValue(st,key){return String(st?.[key]||"").trim();}
+function applyStudentContactDefaults(st){
+  STUDENT_CONTACT_KEYS.forEach(k=>{if(typeof st[k]!=="string")st[k]=String(st[k]||"");});
+  return st;
+}
+function mergeStudentContacts(target,source){
+  STUDENT_CONTACT_KEYS.forEach(k=>{
+    if(!studentContactValue(target,k)&&studentContactValue(source,k))target[k]=String(source[k]).trim();
+  });
+}
+function studentRosterName(st,fmt){
+  const first=studentFirstName(st),last=studentLastName(st);
+  if((fmt||data.districtForms?.nameFormat)==="firstLast")return [first,last].filter(Boolean).join(" ")||studentDisplayName(st);
+  if(first&&last)return `${last}, ${first}`;
+  return last||first||studentDisplayName(st);
+}
+function iceContactDisplay(st){
+  const n=studentContactValue(st,"iceName"),p=studentContactValue(st,"icePhone");
+  if(n&&p)return `${n}  ${p}`;
+  return n||p||"";
+}
+function tripFormPageCount(n){n=Math.max(0,Number(n)||0);return n?Math.ceil(n/TRIP_FORM_ROW_CAP):1;}
+function formatTripDate(iso){
+  const m=String(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return String(iso||"");
+  const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+  return d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+}
+function personInChargeLine(person,phone){
+  const a=String(person||"").trim(),b=String(phone||"").trim();
+  if(a&&b)return `${a}  ${b}`;
+  return a||b||"";
+}
+function buildTripFormModel(opts){
+  const students=Array.isArray(opts.students)?opts.students:[];
+  const fmt=opts.nameFormat==="firstLast"?"firstLast":"lastFirst";
+  const rows=students.map(st=>({
+    id:st.id,
+    name:studentRosterName(st,fmt),
+    studentPhone:studentContactValue(st,"studentPhone"),
+    homePhone:studentContactValue(st,"homePhone"),
+    ice:iceContactDisplay(st)
+  }));
+  const pages=[],total=tripFormPageCount(rows.length)||1;
+  for(let i=0;i<total;i++){
+    const slice=rows.slice(i*TRIP_FORM_ROW_CAP,(i+1)*TRIP_FORM_ROW_CAP);
+    const padded=slice.concat(Array.from({length:TRIP_FORM_ROW_CAP-slice.length},()=>({name:"",studentPhone:"",homePhone:"",ice:""})));
+    pages.push({page:i+1,total,rows:padded,filled:slice.length});
+  }
+  return {
+    title:"TRIP FORM - Part 2",
+    subtitle:"Student Listing",
+    note:"Must be turned in to the office two days prior to the event - once turned in no changes maybe be made.",
+    rollCall:"Please do a verbal / facial recognition roll call.",
+    date:formatTripDate(opts.date||""),
+    dateRaw:opts.date||"",
+    personLine:personInChargeLine(opts.personInCharge,opts.cellPhone),
+    destination:String(opts.destination||"").trim(),
+    nameFormat:fmt,
+    pages,
+    studentCount:rows.length
+  };
+}
+window.studentRosterName=studentRosterName;
+window.iceContactDisplay=iceContactDisplay;
+window.tripFormPageCount=tripFormPageCount;
+window.buildTripFormModel=buildTripFormModel;
+window.formatTripDate=formatTripDate;
+
+function studentContactFieldsHTML(st){
+  return `<details class="collapsibleFieldset" open><summary>Contact information <span class="small">(optional)</span></summary><div class="collapsibleInner">
+    <p class="small">Used when filling a district trip form. Leave blank if you do not have a number yet.</p>
+    <div class="contactFieldsGrid">
+      <label>Student phone<input id="editStudentPhone" value="${esc(st.studentPhone||"")}" placeholder="555-123-4567"></label>
+      <label>Home phone<input id="editHomePhone" value="${esc(st.homePhone||"")}" placeholder="555-123-4567"></label>
+      <label>Parent / I.C.E. contact name<input id="editIceName" value="${esc(st.iceName||"")}" placeholder="Parent or emergency contact"></label>
+      <label>Parent cell / I.C.E. phone<input id="editIcePhone" value="${esc(st.icePhone||"")}" placeholder="555-123-4567"></label>
+    </div>
+  </div></details>`;
+}
+function readStudentContactFields(st){
+  st.studentPhone=($("#editStudentPhone")?.value||"").trim();
+  st.homePhone=($("#editHomePhone")?.value||"").trim();
+  st.iceName=($("#editIceName")?.value||"").trim();
+  st.icePhone=($("#editIcePhone")?.value||"").trim();
+}
+
+function tripMeasure(text,sizePt){
+  if(typeof document!=="undefined"){
+    const ctx=tripMeasure.ctx||(tripMeasure.ctx=document.createElement("canvas").getContext("2d"));
+    ctx.font=`${sizePt}pt "Times New Roman",Times,serif`;
+    return ctx.measureText(String(text||"")).width;
+  }
+  return String(text||"").length*sizePt*1.15;
+}
+function tripFitText(text,maxPx,maxSize,minSize){
+  const raw=String(text||"");
+  if(!raw)return {text:"",size:maxSize};
+  let size=maxSize, out=raw;
+  while(size>minSize&&tripMeasure(out,size)>maxPx)size-=0.25;
+  size=Math.round(size*10)/10;
+  if(tripMeasure(out,size)>maxPx){
+    while(out.length&&tripMeasure(out+"...",size)>maxPx)out=out.slice(0,-1);
+    out+="...";
+  }
+  return {text:out,size};
+}
+
+function tripFormPageHTML(model,page){
+  const cells=page.rows.map(r=>{
+    const name=tripFitText(r.name,178,11,6);
+    const sp=tripFitText(r.studentPhone,104,10.5,6);
+    const hp=tripFitText(r.homePhone,104,10.5,6);
+    const ice=tripFitText(r.ice,104,10.5,6);
+    return `<tr>
+      <td class="tripOnOff"></td><td class="tripOnOff"></td><td class="tripOnOff"></td><td class="tripOnOff"></td>
+      <td class="tripName"><span style="font-size:${name.size}pt">${esc(name.text)}</span></td>
+      <td><span style="font-size:${sp.size}pt">${esc(sp.text)}</span></td>
+      <td><span style="font-size:${hp.size}pt">${esc(hp.text)}</span></td>
+      <td><span style="font-size:${ice.size}pt">${esc(ice.text)}</span></td>
+    </tr>`;
+  }).join("");
+  return `<section class="tripPage">
+    <h1 class="tripTitle">${esc(model.title)}</h1>
+    <h2 class="tripSubtitle">${esc(model.subtitle)}</h2>
+    <p class="tripNote">${esc(model.note)}</p>
+    <p class="tripField"><span class="tripLbl">Date of Trip</span><span class="tripLine">${esc(model.date)}</span></p>
+    <p class="tripField"><span class="tripLbl">Person in Charge and Cell Phone</span><span class="tripLine tripLineWide">${esc(model.personLine)}</span></p>
+    <p class="tripField"><span class="tripLbl">Destination</span><span class="tripLine">${esc(model.destination)}</span></p>
+    <p class="tripRoll">${esc(model.rollCall)}</p>
+    <table class="tripGrid">
+      <thead><tr>
+        <th>On</th><th>Off</th><th>On</th><th>Off</th>
+        <th>Student Name</th><th>Student Phone #</th><th>Home Phone #</th><th>Parent Cell or I.C.E. Contact</th>
+      </tr></thead>
+      <tbody>${cells}</tbody>
+    </table>
+    <div class="tripPageNo">Page ${page.page} of ${page.total}</div>
+  </section>`;
+}
+function tripFormPrintCSS(){
+  return `
+    @page{size:letter;margin:0}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#fff;color:#000}
+    body{font-family:"Times New Roman",Times,serif}
+    .tripToolbar{padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:Arial,'Segoe UI',sans-serif;background:#f4f6fa;border-bottom:1px solid #d8dee8}
+    .tripPage{width:8.5in;height:11in;padding:0.62in 0.62in 0.5in;position:relative;overflow:hidden;background:#fff;page-break-after:always;break-after:page}
+    .tripPage:last-of-type{page-break-after:auto;break-after:auto}
+    .tripTitle{text-align:center;font-size:13.5pt;font-weight:700;margin:0 0 8px;letter-spacing:.01em}
+    .tripSubtitle{text-align:center;font-size:12pt;font-weight:700;margin:0 0 16px}
+    .tripNote{text-align:center;font-size:10pt;font-weight:700;margin:0 0 22px;line-height:1.3}
+    .tripField{margin:0 0 11px;font-size:11.5pt;display:flex;align-items:flex-end;gap:8px}
+    .tripLbl{white-space:nowrap}
+    .tripLine{display:inline-block;border-bottom:1px solid #000;min-height:16px;flex:1;max-width:4.6in;padding:0 4px 1px;font-size:12pt;line-height:1.1}
+    .tripLineWide{max-width:4.1in}
+    .tripRoll{margin:18px 0 8px;font-size:11.5pt}
+    .tripGrid{width:100%;border-collapse:collapse;table-layout:fixed}
+    .tripGrid th,.tripGrid td{border:1.4px solid #000;padding:2px 4px;vertical-align:middle}
+    .tripGrid th{font-size:9.5pt;font-weight:700;height:0.46in;text-align:center;line-height:1.15}
+    .tripGrid td{height:0.385in;font-size:10.5pt;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+    .tripGrid td.tripName{text-align:left}
+    .tripGrid td.tripOnOff{width:0.38in;padding:0}
+    .tripGrid th:nth-child(1),.tripGrid th:nth-child(2),.tripGrid th:nth-child(3),.tripGrid th:nth-child(4),
+    .tripGrid td:nth-child(1),.tripGrid td:nth-child(2),.tripGrid td:nth-child(3),.tripGrid td:nth-child(4){width:0.38in;text-align:center}
+    .tripGrid th:nth-child(5),.tripGrid td:nth-child(5){width:28%}
+    .tripGrid th:nth-child(6),.tripGrid td:nth-child(6),
+    .tripGrid th:nth-child(7),.tripGrid td:nth-child(7),
+    .tripGrid th:nth-child(8),.tripGrid td:nth-child(8){width:17%;text-align:left}
+    .tripPageNo{position:absolute;left:0;right:0;bottom:0.32in;text-align:center;font-size:10pt}
+    @media screen{body{background:#e8ebf0}.tripToolbar{position:sticky;top:0;z-index:2}.tripPage{margin:16px auto;box-shadow:0 2px 14px rgba(0,0,0,.12)}}
+    @media print{.tripToolbar{display:none!important}body{background:#fff}.tripPage{margin:0;box-shadow:none}}
+  `;
+}
+function tripFormDocumentHTML(model){
+  return model.pages.map(p=>tripFormPageHTML(model,p)).join("");
+}
+function openTripFormPreview(model,autoPrint){
+  const w=window.open("","_blank","width=980,height=860");
+  if(!w){alert("Please allow pop-ups for Teacher Dashboard so the trip form can open.");return null;}
+  const title=model.destination?`Trip Form - ${model.destination}`:"Trip Form - Part 2";
+  w.document.open();
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${tripFormPrintCSS()}</style></head><body>
+    <div class="tripToolbar noPrint"><button onclick="window.print()">🖨 Print</button><span>${esc(model.studentCount)} student${model.studentCount===1?"":"s"} · ${model.pages.length} page${model.pages.length===1?"":"s"}</span></div>
+    ${tripFormDocumentHTML(model)}
+    <script>window.TRIP_FORM_MODEL=${JSON.stringify(model).replace(/</g,"\\u003c")};${autoPrint?"window.addEventListener('load',()=>setTimeout(()=>window.print(),250));":""}<\\/script>
+  </body></html>`);
+  w.document.close();
+  return w;
+}
+
+// Minimal PDF writer (Helvetica, letter pages) so a filled form can be saved
+// without sending student data anywhere.
+const PDF_HELV=[.278,.278,.355,.556,.556,.889,.667,.191,.333,.333,.389,.584,.278,.333,.278,.278,.556,.556,.556,.556,.556,.556,.556,.556,.556,.556,.278,.278,.584,.584,.584,.556,.640,.667,.667,.722,.722,.667,.611,.778,.722,.278,.500,.667,.556,.833,.722,.778,.667,.778,.722,.667,.611,.722,.667,.944,.667,.667,.611,.278,.278,.278,.469,.556,.333,.556,.556,.500,.556,.556,.278,.556,.556,.222,.222,.500,.222,.833,.556,.556,.556,.556,.333,.500,.278,.556,.500,.722,.500,.500,.500,.334,.260,.334,.584];
+function pdfHelvW(s,size){
+  let w=0;
+  for(const ch of String(s||"")){
+    const c=ch.charCodeAt(0);
+    if(c>=32&&c<=126)w+=PDF_HELV[c-32];
+    else w+=0.6;
+  }
+  return w*size;
+}
+function pdfEscape(s){
+  let out="";
+  for(const ch of String(s||"")){
+    const c=ch.charCodeAt(0);
+    if(ch==="\\"||ch==="("||ch===")")out+="\\"+ch;
+    else if(c===10)out+="\\n";
+    else if(c===13)out+="\\r";
+    else if(c===9)out+="\\t";
+    else if(c>=32&&c<=126)out+=ch;
+    else if(c>=160&&c<=255)out+="\\"+c.toString(8).padStart(3,"0");
+    else out+="?";
+  }
+  return out;
+}
+function pdfFit(s,maxW,maxSize,minSize){
+  const raw=String(s||"");
+  if(!raw)return {text:"",size:maxSize};
+  let size=maxSize, t=raw;
+  while(size>minSize&&pdfHelvW(t,size)>maxW)size-=0.2;
+  size=Math.round(size*10)/10;
+  if(pdfHelvW(t,size)>maxW){
+    while(t.length && pdfHelvW(t+"...",size)>maxW)t=t.slice(0,-1);
+    t=t+"...";
+  }
+  return {text:t,size};
+}
+function buildTripFormPdf(model){
+  const pageW=612,pageH=792;
+  const marginX=48,top=pageH-52;
+  const objects=["%PDF-1.4"];
+  const offsets=[0];
+  const bodyStreams=model.pages.map(page=>{
+    const cmds=[];
+    const push=s=>cmds.push(s);
+    const text=(str,x,y,size,center=false)=>{
+      if(!str)return;
+      const fit=typeof size==="object"?size:pdfFit(str,200,size,7);
+      const t=fit.text??str,sz=fit.size??size;
+      let tx=x;
+      if(center)tx=x-pdfHelvW(t,sz)/2;
+      push(`BT /F1 ${sz} Tf 1 0 0 1 ${tx.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEscape(t)}) Tj ET`);
+    };
+    const line=(x1,y1,x2,y2,w=1)=>{push(`${w} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);};
+    const rect=(x,y,w,h,lw=1.2)=>{push(`${lw} w ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re S`);};
+
+    text(model.title,pageW/2,top,14,true);
+    text(model.subtitle,pageW/2,top-18,12,true);
+    const noteFit=pdfFit(model.note,pageW-marginX*2,10,8);
+    text(noteFit.text,pageW/2,top-42,noteFit,true);
+
+    const fieldY0=top-78;
+    const field=(label,value,y,lineStart)=>{
+      text(label,marginX,y,11);
+      const lx=lineStart,rx=pageW-marginX;
+      line(lx,y-2,rx,y-2,1);
+      if(value){
+        const fit=pdfFit(value,rx-lx-8,12,7);
+        text(fit.text,lx+4,y,fit);
+      }
+    };
+    field("Date of Trip",model.date,fieldY0,marginX+72);
+    field("Person in Charge and Cell Phone",model.personLine,fieldY0-22,marginX+178);
+    field("Destination",model.destination,fieldY0-44,marginX+72);
+    text(model.rollCall,marginX,fieldY0-70,11);
+
+    const tableTop=fieldY0-86;
+    const tableLeft=marginX;
+    const tableWidth=pageW-marginX*2;
+    const headerH=28;
+    const rowH=22.15;
+    const cols=[24,24,24,24,138,86,80,0];
+    cols[7]=tableWidth-cols.slice(0,7).reduce((a,b)=>a+b,0);
+    const xs=[tableLeft];
+    cols.forEach(w=>xs.push(xs[xs.length-1]+w));
+    const tableH=headerH+rowH*TRIP_FORM_ROW_CAP;
+    rect(tableLeft,tableTop-tableH,tableWidth,tableH,1.3);
+    xs.slice(1,-1).forEach(x=>line(x,tableTop,x,tableTop-tableH,1.2));
+    line(tableLeft,tableTop-headerH,tableLeft+tableWidth,tableTop-headerH,1.2);
+    for(let r=1;r<=TRIP_FORM_ROW_CAP;r++)line(tableLeft,tableTop-headerH-r*rowH,tableLeft+tableWidth,tableTop-headerH-r*rowH,1.1);
+
+    const heads=["On","Off","On","Off","Student Name","Student Phone #","Home Phone #","Parent Cell or I.C.E. Contact"];
+    heads.forEach((h,i)=>{
+      const cx=(xs[i]+xs[i+1])/2;
+      if(i<4)text(h,cx,tableTop-18,9,true);
+      else{
+        const lines=h.includes(" or ")?[h.split(" or ")[0]+" or",h.split(" or ")[1]]:h.includes(" ")&&h.length>12?h.split(" "):[h];
+        if(h==="Student Phone #"){text("Student",cx,tableTop-12,8,true);text("Phone #",cx,tableTop-22,8,true);}
+        else if(h==="Home Phone #"){text("Home",cx,tableTop-12,8,true);text("Phone #",cx,tableTop-22,8,true);}
+        else if(h.startsWith("Parent")){text("Parent Cell or",cx,tableTop-12,8,true);text("I.C.E. Contact",cx,tableTop-22,8,true);}
+        else text(h,cx,tableTop-18,9,true);
+      }
+    });
+    page.rows.forEach((r,i)=>{
+      const y=tableTop-headerH-i*rowH-15.2;
+      const pad=3;
+      const name=pdfFit(r.name,cols[4]-pad*2,10,5.5);
+      const sp=pdfFit(r.studentPhone,cols[5]-pad*2,9.5,5.5);
+      const hp=pdfFit(r.homePhone,cols[6]-pad*2,9.5,5.5);
+      const ice=pdfFit(r.ice,cols[7]-pad*2,9.5,5.5);
+      if(name.text)text(name.text,xs[4]+pad,y,name);
+      if(sp.text)text(sp.text,xs[5]+pad,y,sp);
+      if(hp.text)text(hp.text,xs[6]+pad,y,hp);
+      if(ice.text)text(ice.text,xs[7]+pad,y,ice);
+    });
+    text(`Page ${page.page} of ${page.total}`,pageW/2,36,10,true);
+    const stream=cmds.join("\n");
+    return stream;
+  });
+
+  const fontId=3+bodyStreams.length*2;
+  const pagesId=2;
+  function addObj(s){offsets.push(objects.join("\n").length+1);objects.push(s);}
+  // We'll rebuild with proper xref offsets at the end.
+  const parts=[];
+  const off=[0];
+  function emit(s){off.push(parts.reduce((a,b)=>a+b.length+1,0));parts.push(s);}
+  emit("%PDF-1.4");
+  const pageIds=[],contentIds=[];
+  bodyStreams.forEach(()=>{pageIds.push(0);contentIds.push(0);});
+  // assign numbers: 1 catalog, 2 pages, then pairs of page+content, then font
+  let num=3;
+  bodyStreams.forEach((_,i)=>{pageIds[i]=num++;contentIds[i]=num++;});
+  const fontNum=num++;
+  emit(`1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj`);
+  emit(`2 0 obj<< /Type /Pages /Kids [${pageIds.map(id=>id+" 0 R").join(" ")}] /Count ${bodyStreams.length} >>endobj`);
+  bodyStreams.forEach((stream,i)=>{
+    emit(`${pageIds[i]} 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontNum} 0 R >> >> /Contents ${contentIds[i]} 0 R >>endobj`);
+    emit(`${contentIds[i]} 0 obj<< /Length ${stream.length} >>stream\n${stream}\nendstream\nendobj`);
+  });
+  emit(`${fontNum} 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj`);
+  const xrefStart=parts.reduce((a,b)=>a+b.length+1,0);
+  let xref=`xref\n0 ${off.length}\n0000000000 65535 f \n`;
+  // recompute offsets properly
+  const sizes=[];
+  let pos=0;
+  const joined=[];
+  function recOff(){
+    const o=[0];
+    let p=0;
+    parts.forEach((s,i)=>{
+      // first part is header at 0? We started emit("%PDF-1.4") as object 0-like
+    });
+  }
+  // Build exact bytes
+  const encoder=new TextEncoder();
+  const chunks=[];
+  function pushStr(s){const b=encoder.encode(s);chunks.push(b);return b.length;}
+  const objOff=[0];
+  let cursor=0;
+  cursor+=pushStr("%PDF-1.4\n");
+  const emit2=(s)=>{objOff.push(cursor);cursor+=pushStr(s+(s.endsWith("\n")?"":"\n"));};
+  emit2("1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj");
+  emit2(`2 0 obj<< /Type /Pages /Kids [${pageIds.map(id=>id+" 0 R").join(" ")}] /Count ${bodyStreams.length} >>endobj`);
+  bodyStreams.forEach((stream,i)=>{
+    emit2(`${pageIds[i]} 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontNum} 0 R >> >> /Contents ${contentIds[i]} 0 R >>endobj`);
+    emit2(`${contentIds[i]} 0 obj<< /Length ${stream.length} >>stream\n${stream}\nendstream\nendobj`);
+  });
+  emit2(`${fontNum} 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj`);
+  const xrefAt=cursor;
+  let xt="xref\n0 "+objOff.length+"\n0000000000 65535 f \n";
+  for(let i=1;i<objOff.length;i++)xt+=String(objOff[i]).padStart(10,"0")+" 00000 n \n";
+  cursor+=pushStr(xt);
+  cursor+=pushStr(`trailer<< /Size ${objOff.length} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`);
+  const out=new Uint8Array(cursor);
+  let p=0;chunks.forEach(c=>{out.set(c,p);p+=c.length;});
+  return out;
+}
+window.buildTripFormPdf=buildTripFormPdf;
+function downloadTripFormPdf(model){
+  const bytes=buildTripFormPdf(model);
+  const dest=(model.destination||"Trip").replace(/[\\/:*?"<>|]+/g," ").trim();
+  const stamp=model.dateRaw||localDateKey();
+  const name=`Trip Form - ${dest} - ${stamp}.pdf`;
+  const blob=new Blob([bytes],{type:"application/pdf"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+  return {name,bytes};
+}
+window.downloadTripFormPdf=downloadTripFormPdf;
+
+// ----- contact spreadsheet import (CSV and xlsx, all in the browser) -----
+function normalizeNameKey(s){return String(s||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
+function contactNameKey(first,last){return normalizeNameKey(first)+"|"+normalizeNameKey(last);}
+function parsePersonName(raw){
+  const t=String(raw||"").trim();
+  if(!t)return {firstName:"",lastName:""};
+  if(t.includes(",")){
+    const i=t.indexOf(",");
+    return {lastName:t.slice(0,i).trim(),firstName:t.slice(i+1).trim()};
+  }
+  const parts=t.split(/\s+/).filter(Boolean);
+  if(parts.length===1)return {firstName:parts[0],lastName:""};
+  return {firstName:parts[0],lastName:parts.slice(1).join(" ")};
+}
+function parseCsvText(text){
+  const s=String(text||"").replace(/^\uFEFF/,"");
+  const rows=[];
+  let row=[],field="",i=0,inQ=false;
+  const pushField=()=>{row.push(field);field="";};
+  const pushRow=()=>{if(row.some(c=>String(c).trim()))rows.push(row);row=[];};
+  while(i<s.length){
+    const ch=s[i];
+    if(inQ){
+      if(ch==='"'){if(s[i+1]==='"'){field+='"';i+=2;continue;}inQ=false;i++;continue;}
+      field+=ch;i++;continue;
+    }
+    if(ch==='"'){inQ=true;i++;continue;}
+    if(ch===","||ch==="\t"||ch===";"){pushField();i++;continue;}
+    if(ch==="\n"){pushField();pushRow();i++;continue;}
+    if(ch==="\r"){i++;continue;}
+    field+=ch;i++;
+  }
+  pushField();pushRow();
+  return rows;
+}
+function detectCsvDelimiter(text){
+  const line=String(text||"").replace(/^\uFEFF/,"").split(/\r?\n/).find(l=>l.trim())||"";
+  const counts={",":(line.match(/,/g)||[]).length,"\t":(line.match(/\t/g)||[]).length,";":(line.match(/;/g)||[]).length};
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][1]?Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0]:",";
+}
+function rowsFromMatrix(matrix){
+  if(!matrix.length)return {headers:[],rows:[]};
+  const headers=matrix[0].map(h=>String(h||"").trim());
+  const rows=matrix.slice(1).map(r=>{
+    const obj={};headers.forEach((h,i)=>obj[h]=r[i]==null?"":String(r[i]).trim());
+    return obj;
+  }).filter(o=>Object.values(o).some(v=>v));
+  return {headers,rows};
+}
+function headerAlias(name){
+  const k=normalizeNameKey(name).replace(/ /g,"");
+  const map={
+    firstname:"firstName",first:"firstName",studentfirstname:"firstName",givenname:"firstName",
+    lastname:"lastName",last:"lastName",studentlastname:"lastName",surname:"lastName",familyname:"lastName",
+    name:"name",studentname:"name",student:"name",fullname:"name",studentfullname:"name",
+    studentphone:"studentPhone",studentphone:"studentPhone",studentphonenumber:"studentPhone",studentcell:"studentPhone",cell:"studentPhone",cellphone:"studentPhone",mobile:"studentPhone",student:"studentPhone",
+    homephone:"homePhone",homephonenumber:"homePhone",home:"homePhone",housephone:"homePhone",homecell:"homePhone",
+    icename:"iceName",parentname:"iceName",guardianname:"iceName",emergencyname:"iceName",icecontactname:"iceName",parent:"iceName",guardian:"iceName",
+    icephone:"icePhone",parentcell:"icePhone",parentphone:"icePhone",guardianphone:"icePhone",emergencyphone:"icePhone",ice:"icePhone",icecontact:"icePhone",parentcelloricicecontact:"icePhone",parentcelloricecontact:"icePhone",emergencycontact:"icePhone",icecontactphone:"icePhone"
+  };
+  // refine a few that collided
+  if(k==="student")return "name";
+  if(k==="parentcelloric.e.contact"||k==="parentcelloricecontact"||k==="parentcelloricicecontact")return "iceContact";
+  if(k==="parentcellorice"||k.includes("parentcell")&&k.includes("ice"))return "iceContact";
+  if(k==="icecontact"||k==="emergencycontact")return "iceContact";
+  return map[k]||"";
+}
+function splitCombinedIce(value){
+  const t=String(value||"").trim();
+  if(!t)return {iceName:"",icePhone:""};
+  const m=t.match(/^(.*?)(?:\s{2,}|\s+[–—-]\s+|\s+\(|\s+)(\+?\d[\d\s.()-]{5,})$/);
+  if(m)return {iceName:m[1].replace(/\($/,"").trim(),icePhone:m[2].replace(/[()]/g,"").trim()};
+  if(/^\+?\d[\d\s.()-]{5,}$/.test(t))return {iceName:"",icePhone:t};
+  return {iceName:t,icePhone:""};
+}
+function normalizeImportRow(raw){
+  const mapped={};
+  Object.keys(raw).forEach(h=>{
+    const alias=headerAlias(h);
+    if(alias)mapped[alias]=String(raw[h]||"").trim();
+  });
+  let first=mapped.firstName||"",last=mapped.lastName||"";
+  if((!first||!last)&&mapped.name){
+    const p=parsePersonName(mapped.name);
+    if(!first)first=p.firstName;
+    if(!last)last=p.lastName;
+  }
+  let iceName=mapped.iceName||"",icePhone=mapped.icePhone||"";
+  if((!iceName||!icePhone)&&mapped.iceContact){
+    const p=splitCombinedIce(mapped.iceContact);
+    if(!iceName)iceName=p.iceName;
+    if(!icePhone)icePhone=p.icePhone;
+  }
+  return {
+    firstName:first,
+    lastName:last,
+    name:[first,last].filter(Boolean).join(" ")||String(mapped.name||"").trim(),
+    studentPhone:mapped.studentPhone||"",
+    homePhone:mapped.homePhone||"",
+    iceName,
+    icePhone,
+    raw
+  };
+}
+function matchContactImport(rows,students){
+  const list=(students||[]).map(st=>({st,first:normalizeNameKey(studentFirstName(st)),last:normalizeNameKey(studentLastName(st)),key:contactNameKey(studentFirstName(st),studentLastName(st)),display:studentDisplayName(st)}));
+  const byKey=new Map();
+  list.forEach(x=>{if(!byKey.has(x.key))byKey.set(x.key,[]);byKey.get(x.key).push(x);});
+  return rows.map((row,index)=>{
+    const key=contactNameKey(row.firstName,row.lastName);
+    const swap=contactNameKey(row.lastName,row.firstName);
+    let candidates=byKey.get(key)||[];
+    let how="exact";
+    if(!candidates.length&&row.firstName&&row.lastName){candidates=byKey.get(swap)||[];how="swapped";}
+    if(!candidates.length){
+      const f=normalizeNameKey(row.firstName),l=normalizeNameKey(row.lastName);
+      const byLast=l?list.filter(x=>x.last===l):[];
+      const byFirst=f?list.filter(x=>x.first===f):[];
+      if(byLast.length===1&&(!f||byLast[0].first[0]===f[0])){candidates=byLast;how="lastName";}
+      else if(byFirst.length===1&&(!l||byFirst[0].last[0]===l[0])){candidates=byFirst;how="firstName";}
+      else if(byLast.length>1||byFirst.length>1){candidates=[...new Map([...byLast,...byFirst].map(x=>[x.st.id,x])).values()];how="review";}
+    }
+    const unique=candidates.length===1?candidates[0]:null;
+    const status=unique?"matched":(candidates.length?"review":"unmatched");
+    return {index,row,status,how:unique?how:"",studentId:unique?unique.st.id:"",candidates:candidates.map(x=>({id:x.st.id,name:x.display})),apply:status==="matched"};
+  });
+}
+window.parseCsvText=parseCsvText;
+window.normalizeImportRow=normalizeImportRow;
+window.matchContactImport=matchContactImport;
+window.headerAlias=headerAlias;
+
+async function inflateRawBytes(u8){
+  if(typeof DecompressionStream==="function"){
+    const ds=new DecompressionStream("deflate-raw");
+    const buf=await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(buf);
+  }
+  throw new Error("This browser cannot read Excel files. Please save the spreadsheet as a CSV and try again.");
+}
+function readU32(v,o){return (v[o]|(v[o+1]<<8)|(v[o+2]<<16)|(v[o+3]<<24))>>>0;}
+function readU16(v,o){return v[o]|(v[o+1]<<8);}
+async function unzipArrayBuffer(buf){
+  const u=new Uint8Array(buf);
+  const files={};
+  let o=0;
+  while(o+30<=u.length){
+    if(readU32(u,o)!==0x04034b50)break;
+    const method=readU16(u,o+8),compSize=readU32(u,o+18),uncomp=readU32(u,o+22),nameLen=readU16(u,o+26),extra=readU16(u,o+28);
+    const name=new TextDecoder().decode(u.slice(o+30,o+30+nameLen));
+    const start=o+30+nameLen+extra;
+    const data=u.slice(start,start+compSize);
+    if(method===0)files[name]=data;
+    else if(method===8)files[name]=await inflateRawBytes(data);
+    else throw new Error("Unsupported Excel compression. Please save the file as a CSV.");
+    o=start+compSize;
+  }
+  return files;
+}
+function xmlText(el){return (el?.textContent||"").trim();}
+function parseSharedStrings(xml){
+  if(!xml)return [];
+  const doc=new DOMParser().parseFromString(xml,"text/xml");
+  return [...doc.getElementsByTagName("si")].map(si=>{
+    const ts=[...si.getElementsByTagName("t")];
+    return ts.map(t=>t.textContent||"").join("");
+  });
+}
+function colLettersToIndex(ref){
+  const m=String(ref||"").match(/^([A-Z]+)/i);
+  if(!m)return 0;
+  let n=0;for(const ch of m[1].toUpperCase())n=n*26+(ch.charCodeAt(0)-64);
+  return n-1;
+}
+function parseSheetMatrix(sheetXml,shared){
+  const doc=new DOMParser().parseFromString(sheetXml,"text/xml");
+  const rows=[...doc.getElementsByTagName("sheetData")[0]?.getElementsByTagName("row")||[]];
+  const matrix=[];
+  rows.forEach(row=>{
+    const rIndex=Number(row.getAttribute("r")||matrix.length+1)-1;
+    while(matrix.length<=rIndex)matrix.push([]);
+    [...row.getElementsByTagName("c")].forEach(c=>{
+      const idx=colLettersToIndex(c.getAttribute("r")||"");
+      const t=c.getAttribute("t")||"";
+      const v=c.getElementsByTagName("v")[0];
+      const is=c.getElementsByTagName("is")[0];
+      let val="";
+      if(t==="s")val=shared[Number(xmlText(v))]||"";
+      else if(t==="inlineStr")val=xmlText(is||c);
+      else val=xmlText(v);
+      const line=matrix[rIndex];
+      while(line.length<=idx)line.push("");
+      line[idx]=val;
+    });
+  });
+  return matrix;
+}
+async function parseContactSpreadsheet(file){
+  const name=(file.name||"").toLowerCase();
+  if(name.endsWith(".csv")||name.endsWith(".txt")||(file.type||"").includes("csv")||(file.type||"").includes("text")){
+    const text=await file.text();
+    const delim=detectCsvDelimiter(text);
+    const matrix=delim===","?parseCsvText(text):parseCsvText(text.replaceAll(delim,","));
+    // if delimiter wasn't comma, parseCsvText already treats tab/semicolon as delimiters
+    const parsed=rowsFromMatrix(matrix);
+    return {...parsed,rows:parsed.rows.map(normalizeImportRow),source:file.name};
+  }
+  if(name.endsWith(".xlsx")||name.endsWith(".xlsm")){
+    const files=await unzipArrayBuffer(await file.arrayBuffer());
+    const decoder=new TextDecoder();
+    const shared=parseSharedStrings(files["xl/sharedStrings.xml"]?decoder.decode(files["xl/sharedStrings.xml"]):"");
+    const sheetName=Object.keys(files).find(k=>/^xl\/worksheets\/sheet1\.xml$/i.test(k))||Object.keys(files).find(k=>/xl\/worksheets\/sheet\d+\.xml$/i.test(k));
+    if(!sheetName)throw new Error("That Excel file has no worksheet I can read. Please save it as a CSV.");
+    const matrix=parseSheetMatrix(decoder.decode(files[sheetName]),shared);
+    const parsed=rowsFromMatrix(matrix);
+    return {...parsed,rows:parsed.rows.map(normalizeImportRow),source:file.name};
+  }
+  if(name.endsWith(".xls"))throw new Error("This is an older Excel (.xls) file. Please save it as .xlsx or CSV and try again.");
+  const text=await file.text();
+  const matrix=parseCsvText(text);
+  const parsed=rowsFromMatrix(matrix);
+  return {...parsed,rows:parsed.rows.map(normalizeImportRow),source:file.name};
+}
+window.parseContactSpreadsheet=parseContactSpreadsheet;
+
+window.openContactImport=()=>{
+  normalizeStudents();
+  document.querySelector("#contactImportModal")?.remove();
+  document.body.insertAdjacentHTML("beforeend",`<div id="contactImportModal" class="modalbg"><div class="modal" style="width:min(920px,96vw);max-width:920px">
+    <div class="modalHead"><h3>Import Contact Information</h3><button type="button" aria-label="Close" onclick="window.closeContactImport()">×</button></div>
+    <div class="modalBody"><p class="small">Upload a CSV or Excel spreadsheet. Students are matched by name. You will preview every row and confirm before anything is saved.</p>
+      <p class="small">Use columns such as First Name, Last Name (or Student Name), Student Phone, Home Phone, and Parent Cell / I.C.E. Contact (name and phone can be separate columns or together). Empty cells will not erase a number that is already on the student.</p>
+      <input id="contactImportFile" type="file" accept=".csv,.txt,.xlsx,.xlsm,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="window.handleContactImportFile(this)">
+      <div id="contactImportPreview"><p class="small">No file chosen yet.</p></div>
+    </div>
+    <div class="modalActions"><button type="button" onclick="window.closeContactImport()">Cancel</button><button type="button" class="primary" id="contactImportSave" disabled onclick="window.applyContactImport()">Save matches</button></div>
+  </div></div>`);
+};
+window.closeContactImport=()=>{document.querySelector("#contactImportModal")?.remove();window._contactImportPlan=null;};
+window.handleContactImportFile=async el=>{
+  const file=el.files&&el.files[0];
+  const host=document.getElementById("contactImportPreview");
+  const btn=document.getElementById("contactImportSave");
+  if(!file){if(host)host.innerHTML='<p class="small">No file chosen yet.</p>';if(btn)btn.disabled=true;return;}
+  if(host)host.innerHTML='<p class="small">Reading spreadsheet…</p>';
+  try{
+    const parsed=await parseContactSpreadsheet(file);
+    if(!parsed.rows.length)throw new Error("I could not find any data rows in that file.");
+    const plan=matchContactImport(parsed.rows,data.students);
+    window._contactImportPlan={parsed,plan};
+    window.renderContactImportPreview();
+  }catch(err){
+    console.warn(err);
+    if(host)host.innerHTML=`<p class="small" style="color:#a12622">${esc(err.message||"That file could not be read.")}</p>`;
+    if(btn)btn.disabled=true;
+  }
+};
+window.updateImportMatch=(index,studentId)=>{
+  const plan=window._contactImportPlan?.plan;if(!plan||!plan[index])return;
+  const row=plan[index];
+  row.studentId=studentId||"";
+  row.status=studentId?"matched":(row.candidates.length?"review":"unmatched");
+  row.apply=!!studentId;
+  window.renderContactImportPreview();
+};
+window.toggleImportApply=(index,on)=>{
+  const plan=window._contactImportPlan?.plan;if(!plan||!plan[index])return;
+  plan[index].apply=!!on&&!!plan[index].studentId;
+};
+window.renderContactImportPreview=()=>{
+  const host=document.getElementById("contactImportPreview");
+  const btn=document.getElementById("contactImportSave");
+  const pack=window._contactImportPlan;
+  if(!host||!pack)return;
+  const plan=pack.plan;
+  const nMatch=plan.filter(p=>p.studentId).length,nApply=plan.filter(p=>p.apply&&p.studentId).length,nReview=plan.filter(p=>p.status==="review"&&!p.studentId).length,nNone=plan.filter(p=>p.status==="unmatched").length;
+  const studentOpts=s=>`<option value="">— Choose —</option>`+sortedStudents(data.students).map(st=>`<option value="${esc(st.id)}" ${s.studentId===st.id?"selected":""}>${esc(studentDisplayName(st))}</option>`).join("");
+  const rows=plan.map(p=>{
+    const r=p.row;
+    const label=p.status==="matched"?"Match":p.status==="review"?"Needs review":"No match";
+    const cls=p.status==="matched"?"importMatchOk":p.status==="review"?"importMatchReview":"importMatchNone";
+    return `<tr>
+      <td><input type="checkbox" ${p.apply&&p.studentId?"checked":""} ${p.studentId?"":"disabled"} onchange="window.toggleImportApply(${p.index},this.checked)"></td>
+      <td>${esc(r.name||(`${r.firstName} ${r.lastName}`.trim())||"—")}</td>
+      <td>${esc(r.studentPhone||"—")}</td>
+      <td>${esc(r.homePhone||"—")}</td>
+      <td>${esc([r.iceName,r.icePhone].filter(Boolean).join("  ")||"—")}</td>
+      <td class="${cls}">${label}</td>
+      <td><select onchange="window.updateImportMatch(${p.index},this.value)">${studentOpts(p)}</select></td>
+    </tr>`;
+  }).join("");
+  host.innerHTML=`<p class="small"><b>${pack.parsed.source||"Spreadsheet"}:</b> ${plan.length} row${plan.length===1?"":"s"} · ${nMatch} matched · ${nReview} need review · ${nNone} with no match. ${nApply} will be saved.</p>
+    <div class="importPreviewWrap"><table class="importPreviewTable">
+      <thead><tr><th>Save</th><th>Spreadsheet name</th><th>Student phone</th><th>Home phone</th><th>Parent / I.C.E.</th><th>Status</th><th>Dashboard student</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  if(btn)btn.disabled=nApply===0;
+};
+window.applyContactImport=()=>{
+  const plan=window._contactImportPlan?.plan;if(!plan)return;
+  const chosen=plan.filter(p=>p.apply&&p.studentId);
+  if(!chosen.length){alert("Choose at least one matched row to save.");return;}
+  let updated=0;
+  chosen.forEach(p=>{
+    const st=data.students.find(s=>s.id===p.studentId);if(!st)return;
+    const r=p.row;
+    if(r.studentPhone)st.studentPhone=r.studentPhone;
+    if(r.homePhone)st.homePhone=r.homePhone;
+    if(r.iceName)st.iceName=r.iceName;
+    if(r.icePhone)st.icePhone=r.icePhone;
+    updated++;
+  });
+  save();
+  window.closeContactImport();
+  toast=`Updated contact information for ${updated} student${updated===1?"":"s"}.`;
+  render();
+};
+
+// ----- Fill Trip Form flow -----
+function tripFillRoster(){
+  const kind=document.getElementById("tripFillKind")?.value||"";
+  const [type,id]=kind.split(":");
+  if(type==="class"){
+    const c=data.classes.find(x=>x.id===id);
+    return sortedStudents(data.students.filter(s=>(c?.studentIds||[]).includes(s.id)));
+  }
+  if(type==="group"){
+    const g=data.groups.find(x=>x.id===id);
+    return sortedStudents(data.students.filter(s=>(g?.studentIds||[]).includes(s.id)));
+  }
+  return [];
+}
+function tripFillSelectionLabel(){
+  const kind=document.getElementById("tripFillKind")?.value||"";
+  const [type,id]=kind.split(":");
+  if(type==="class")return data.classes.find(x=>x.id===id)?.name||"Class";
+  if(type==="group")return data.groups.find(x=>x.id===id)?.name||"Group";
+  return "";
+}
+window.refreshTripFillRoster=()=>{
+  const host=document.getElementById("tripFillList");
+  if(!host)return;
+  const roster=tripFillRoster();
+  if(!roster.length){host.innerHTML='<p class="small">Choose a class or group to see its students.</p>';window.refreshTripFillCount();return;}
+  const checked=new Set(roster.map(s=>s.id));
+  // keep previous unchecks if the same roster is redrawn
+  const prev=[...document.querySelectorAll('#tripFillList input[type="checkbox"]')];
+  const prevMap=new Map(prev.map(i=>[i.value,i.checked]));
+  host.innerHTML=roster.map(s=>{
+    const on=prevMap.has(s.id)?prevMap.get(s.id):true;
+    const missing=!studentContactValue(s,"studentPhone")&&!studentContactValue(s,"homePhone")&&!iceContactDisplay(s);
+    return `<label class="checkRow"><input type="checkbox" value="${esc(s.id)}" ${on?"checked":""} onchange="window.refreshTripFillCount()"> <span>${esc(studentDisplayName(s))}${missing?` <span class="small">(no contacts yet)</span>`:""}</span></label>`;
+  }).join("");
+  window.refreshTripFillCount();
+};
+window.tripFillSelectAll=(on)=>{
+  document.querySelectorAll('#tripFillList input[type="checkbox"]').forEach(i=>{i.checked=!!on;});
+  window.refreshTripFillCount();
+};
+window.refreshTripFillCount=()=>{
+  const el=document.getElementById("tripFillCount");if(!el)return;
+  const boxes=[...document.querySelectorAll('#tripFillList input[type="checkbox"]')];
+  const n=boxes.filter(i=>i.checked).length;
+  const pages=tripFormPageCount(n);
+  el.textContent=boxes.length?`${n} of ${boxes.length} selected · ${pages} page${pages===1?"":"s"}`:"Choose a class or group.";
+};
+function currentTripFormModel(){
+  ensureDistrictForms();
+  const ids=[...document.querySelectorAll('#tripFillList input[type="checkbox"]:checked')].map(i=>i.value);
+  const students=sortedStudents(data.students.filter(s=>ids.includes(s.id)));
+  const person=document.getElementById("tripPerson")?.value.trim()||"";
+  const phone=document.getElementById("tripCell")?.value.trim()||"";
+  const fmt=document.querySelector('input[name="tripNameFormat"]:checked')?.value||"lastFirst";
+  data.districtForms.personInCharge=person;
+  data.districtForms.cellPhone=phone;
+  data.districtForms.nameFormat=fmt;
+  return buildTripFormModel({
+    students,
+    date:document.getElementById("tripDate")?.value||"",
+    personInCharge:person,
+    cellPhone:phone,
+    destination:document.getElementById("tripDestination")?.value.trim()||"",
+    nameFormat:fmt
+  });
+}
+window.printFilledTripForm=()=>{
+  const kind=document.getElementById("tripFillKind")?.value;
+  if(!kind){alert("Choose a class or group first.");return;}
+  const model=currentTripFormModel();
+  if(!model.studentCount){alert("Check at least one student to include on the form.");return;}
+  save();
+  openTripFormPreview(model,true);
+};
+window.downloadFilledTripForm=()=>{
+  const kind=document.getElementById("tripFillKind")?.value;
+  if(!kind){alert("Choose a class or group first.");return;}
+  const model=currentTripFormModel();
+  if(!model.studentCount){alert("Check at least one student to include on the form.");return;}
+  save();
+  const result=downloadTripFormPdf(model);
+  toast=`Saved ${result.name}`;
+  return result;
+};
+window.openTripFormFiller=()=>{
+  ensureGroups();ensureDistrictForms();normalizeStudents();
+  document.querySelector("#tripFillModal")?.remove();
+  const classOpts=data.classes.map(c=>`<option value="class:${esc(c.id)}">${esc(c.name)} (class)</option>`).join("");
+  const groupOpts=data.groups.map(g=>`<option value="group:${esc(g.id)}">${esc(g.name)} (group)</option>`).join("");
+  const df=data.districtForms;
+  const today=todayISO();
+  document.body.insertAdjacentHTML("beforeend",`<div id="tripFillModal" class="modalbg"><div class="modal tripFillPanel">
+    <div class="modalHead"><h3>Fill Trip Form — Part 2</h3><button type="button" aria-label="Close" onclick="window.closeTripFormFiller()">×</button></div>
+    <div class="modalBody"><p class="small">Choose a class or group, uncheck anyone who is absent, then print or download the filled student listing.</p>
+      <label>Class or group
+        <select id="tripFillKind" onchange="window.refreshTripFillRoster()">
+          <option value="">Choose…</option>
+          ${groupOpts}${groupOpts&&classOpts?`<option disabled>────────</option>`:""}${classOpts}
+        </select>
+      </label>
+      <div>
+        <div class="tripFillTools"><b>Students</b><button type="button" class="smallButton" onclick="window.tripFillSelectAll(true)">Select all</button><button type="button" class="smallButton" onclick="window.tripFillSelectAll(false)">Clear</button><span class="small" id="tripFillCount"></span></div>
+        <div class="tripStudentCheckList" id="tripFillList"><p class="small">Choose a class or group to see its students.</p></div>
+      </div>
+      <div class="tripFillGrid">
+        <label>Date of Trip<input id="tripDate" type="date" value="${esc(today)}"></label>
+        <label>Destination<input id="tripDestination" placeholder="e.g., State debate tournament"></label>
+        <label>Person in charge<input id="tripPerson" value="${esc(df.personInCharge||"")}" placeholder="Your name"></label>
+        <label>Cell phone<input id="tripCell" value="${esc(df.cellPhone||"")}" placeholder="Your cell number"></label>
+      </div>
+      <div>
+        <b>Student names</b>
+        <div class="nameFormatToggle">
+          <label><input type="radio" name="tripNameFormat" value="lastFirst" ${df.nameFormat!=="firstLast"?"checked":""}> Last, First</label>
+          <label><input type="radio" name="tripNameFormat" value="firstLast" ${df.nameFormat==="firstLast"?"checked":""}> First Last</label>
+        </div>
+        <p class="small">On / Off boxes are left blank for roll call. Missing contact numbers stay blank.</p>
+      </div>
+    </div>
+    <div class="modalActions">
+      <button type="button" onclick="window.closeTripFormFiller()">Cancel</button>
+      <button type="button" onclick="window.printFilledTripForm()">🖨 Print</button>
+      <button type="button" class="primary" onclick="window.downloadFilledTripForm()">Download PDF</button>
+    </div>
+  </div></div>`);
+  window.refreshTripFillRoster();
+};
+window.closeTripFormFiller=()=>document.querySelector("#tripFillModal")?.remove();
+
 </script>
 
 <style id="v2318-ipad-status-controls">
