@@ -888,11 +888,18 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .msKeepChips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px;max-height:96px;overflow:auto}.msKeepChip{display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
 </style>
 <style id="v4130-trip-form">
-/* V4.13.0: student contact fields + district trip form filler */
+/* V4.13.1: student contact fields, multiple I.C.E. contacts, trip form filler */
 .contactFieldsGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
 .contactFieldsGrid label{display:block}
 .contactFieldsGrid input{width:100%;box-sizing:border-box}
 @media(max-width:600px){.contactFieldsGrid{grid-template-columns:1fr}}
+.iceContactList{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.iceContactRow{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.iceContactRow label{display:block}
+.iceContactRow input{width:100%;box-sizing:border-box}
+.iceContactRow .iceRemoveBtn{margin-bottom:2px;font-size:12px;padding:4px 8px;min-height:0;white-space:nowrap}
+.iceAddBtn{margin-top:8px}
+@media(max-width:600px){.iceContactRow{grid-template-columns:1fr}}
 .districtFormsCard{margin-bottom:14px}
 .districtFormRow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .tripFillPanel{max-width:820px}
@@ -953,8 +960,8 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.13.0";
-// V4.13.0: optional student contact fields; spreadsheet import; fillable district Trip Form (Part 2).
+const APP_VERSION="4.13.1";
+// V4.13.1: multiple I.C.E. contacts per student; contacts print on separate lines at a readable size.
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
@@ -4272,6 +4279,7 @@ function normalizeStudents(){
     s.lastName=last;
     s.name=[first,last].filter(Boolean).join(" ") || current || "Unnamed Student";
     ["studentPhone","homePhone","iceName","icePhone"].forEach(k=>{s[k]=typeof s[k]==="string"?s[k]:String(s[k]||"");});
+    if(typeof normalizeStudentIceContacts==="function")normalizeStudentIceContacts(s);
   });
 }
 function sortedStudents(list=data.students){
@@ -7119,13 +7127,17 @@ function studentCalcHTML(stId){
 }
 
 // ---------------------------------------------------------------------------
-// V4.13.0: optional student contact fields, spreadsheet import, and a
-// fillable district Trip Form (Part 2, Student Listing). The blank form is a
-// vector recreation of the district layout (no student data, nothing private).
-// Filled copies are generated in the browser and downloaded or printed; they
-// are never written to the public site.
+// V4.13.1: optional student contact fields (including multiple I.C.E.
+// contacts), spreadsheet import, and a fillable district Trip Form (Part 2,
+// Student Listing). The blank form is a vector recreation of the district
+// layout (no student data, nothing private). Filled copies are generated in
+// the browser and downloaded or printed; they are never written to the public site.
 // ---------------------------------------------------------------------------
 const TRIP_FORM_ROW_CAP=17;
+const TRIP_ROW_BASE_H=22.15;
+const TRIP_ROW_EXTRA_H=12.2;
+const TRIP_READABLE_MIN=8;
+const TRIP_COL_W={name:140,phone:60,ice:134};
 const STUDENT_CONTACT_KEYS=["studentPhone","homePhone","iceName","icePhone"];
 function ensureDistrictForms(){
   if(!data.districtForms||typeof data.districtForms!=="object"||Array.isArray(data.districtForms))data.districtForms={};
@@ -7136,12 +7148,116 @@ function ensureDistrictForms(){
 function studentContactValue(st,key){return String(st?.[key]||"").trim();}
 function applyStudentContactDefaults(st){
   STUDENT_CONTACT_KEYS.forEach(k=>{if(typeof st[k]!=="string")st[k]=String(st[k]||"");});
+  normalizeStudentIceContacts(st);
   return st;
+}
+function splitIceDelims(s){
+  return String(s||"").split(/\s+\/\s+|\s*;\s+/).map(x=>x.trim()).filter(Boolean);
+}
+function iceLooksLikePhone(s){
+  const d=String(s||"").replace(/\D/g,"");
+  return d.length>=7&&d.length<=15&&!/[a-zA-Z]{3,}/.test(String(s||""));
+}
+function icePhonePattern(){return /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?:\s*(?:x|ext\.?|extension)\s*\d+)?/g;}
+function extractPhonesFromText(s){
+  const t=String(s||"");
+  const out=[];
+  const re=icePhonePattern();
+  let m;while((m=re.exec(t)))out.push(m[0].trim());
+  return out;
+}
+function stripPhonesFromText(s){
+  return String(s||"").replace(icePhonePattern()," ").replace(/[\/;]+/g," / ").replace(/\s+/g," ").trim().replace(/^\/\s*|\s*\/$/g,"").trim();
+}
+function splitNameAndPhone(seg){
+  const t=String(seg||"").trim();
+  if(!t)return {name:"",phone:""};
+  const m=t.match(/^(.*?)(?:\s{2,}|\s+[–—-]\s+|\s+\(|\s+)(\+?\d[\d\s.()-]{5,})$/);
+  if(m)return {name:m[1].replace(/\($/,"").trim(),phone:m[2].replace(/[()]/g,"").trim()};
+  if(iceLooksLikePhone(t))return {name:"",phone:t};
+  return {name:t,phone:""};
+}
+function cleanIceContact(c){
+  return {name:String(c?.name||"").trim(),phone:String(c?.phone||"").trim()};
+}
+function iceContactsEqual(a,b){
+  return cleanIceContact(a).name.toLowerCase()===cleanIceContact(b).name.toLowerCase()&&cleanIceContact(a).phone===cleanIceContact(b).phone;
+}
+function parseLegacyIceContacts(name,phone){
+  const n=String(name||"").trim(),p=String(phone||"").trim();
+  if(!n&&!p)return [];
+  const nameParts=splitIceDelims(n);
+  const phoneParts=splitIceDelims(p);
+  if(nameParts.length>=2&&phoneParts.length>=2&&nameParts.length===phoneParts.length){
+    return nameParts.map((nm,i)=>cleanIceContact({name:splitNameAndPhone(nm).name||nm,phone:phoneParts[i]}));
+  }
+  if(!p&&nameParts.length>=2){
+    const fromSegs=nameParts.map(splitNameAndPhone);
+    if(fromSegs.every(x=>x.phone)&&fromSegs.length>=2)return fromSegs.map(cleanIceContact);
+  }
+  const combined=[n,p].filter(Boolean).join("  ");
+  const phones=extractPhonesFromText(combined);
+  const names=splitIceDelims(stripPhonesFromText(combined));
+  if(phones.length>=1&&names.length===phones.length)return names.map((nm,i)=>cleanIceContact({name:nm,phone:phones[i]}));
+  if(phones.length>=2&&names.length===1)return phones.map((ph,i)=>cleanIceContact({name:i===0?names[0]:"",phone:ph}));
+  if(phones.length>=2&&names.length===0)return phones.map(ph=>cleanIceContact({name:"",phone:ph}));
+  if(!p&&n){
+    const split=splitNameAndPhone(n);
+    if(split.phone)return [cleanIceContact(split)];
+  }
+  // Two names but only one phone (or no phone) is ambiguous, so keep the original text as one contact.
+  return [cleanIceContact({name:n,phone:p})];
+}
+function syncLegacyIceFields(st,contacts){
+  const first=contacts[0]||{name:"",phone:""};
+  st.iceName=first.name||"";
+  st.icePhone=first.phone||"";
+  st.iceContacts=contacts.map(cleanIceContact);
+  return st;
+}
+function normalizeStudentIceContacts(st){
+  if(!st||typeof st!=="object")return st;
+  const existing=Array.isArray(st.iceContacts)?st.iceContacts.map(cleanIceContact).filter(c=>c.name||c.phone):[];
+  if(existing.length){
+    syncLegacyIceFields(st,existing);
+    return st;
+  }
+  const migrated=parseLegacyIceContacts(st.iceName,st.icePhone);
+  syncLegacyIceFields(st,migrated);
+  return st;
+}
+function studentIceContacts(st,opts){
+  normalizeStudentIceContacts(st);
+  const list=(st?.iceContacts||[]).map(cleanIceContact).filter(c=>c.name||c.phone);
+  if(opts?.padOne&&!list.length)return [{name:"",phone:""}];
+  return list;
+}
+function applyIceContacts(st,contacts){
+  const list=(contacts||[]).map(cleanIceContact).filter(c=>c.name||c.phone);
+  syncLegacyIceFields(st,list);
+  return st;
+}
+function mergeIceContactLists(targetList,sourceList){
+  const out=(targetList||[]).map(cleanIceContact);
+  (sourceList||[]).forEach((c,i)=>{
+    const src=cleanIceContact(c);
+    if(!src.name&&!src.phone)return;
+    if(i<out.length){
+      if(!out[i].name&&src.name)out[i].name=src.name;
+      if(!out[i].phone&&src.phone)out[i].phone=src.phone;
+    }else if(!out.some(x=>iceContactsEqual(x,src))){
+      out.push(src);
+    }
+  });
+  return out.filter(c=>c.name||c.phone);
 }
 function mergeStudentContacts(target,source){
   STUDENT_CONTACT_KEYS.forEach(k=>{
     if(!studentContactValue(target,k)&&studentContactValue(source,k))target[k]=String(source[k]).trim();
   });
+  normalizeStudentIceContacts(target);
+  normalizeStudentIceContacts(source);
+  applyIceContacts(target,mergeIceContactLists(target.iceContacts,source.iceContacts));
 }
 function studentRosterName(st,fmt){
   const first=studentFirstName(st),last=studentLastName(st);
@@ -7149,12 +7265,117 @@ function studentRosterName(st,fmt){
   if(first&&last)return `${last}, ${first}`;
   return last||first||studentDisplayName(st);
 }
-function iceContactDisplay(st){
-  const n=studentContactValue(st,"iceName"),p=studentContactValue(st,"icePhone");
-  if(n&&p)return `${n}  ${p}`;
-  return n||p||"";
+function iceContactLinesFor(st){
+  return studentIceContacts(st).map(c=>[c.name,c.phone].filter(Boolean).join("  ")).filter(Boolean);
 }
-function tripFormPageCount(n){n=Math.max(0,Number(n)||0);return n?Math.ceil(n/TRIP_FORM_ROW_CAP):1;}
+function iceContactDisplay(st){
+  return iceContactLinesFor(st).join("\n");
+}
+function tripTextWidth(s,size){
+  if(typeof pdfHelvW==="function")return pdfHelvW(s,size);
+  return String(s||"").length*size*0.5;
+}
+function tripWrapLines(text,maxW,size){
+  const raw=String(text||"").trim();
+  if(!raw)return [];
+  if(tripTextWidth(raw,size)<=maxW)return [raw];
+  const words=raw.split(/\s+/).filter(Boolean);
+  const lines=[];
+  let cur="";
+  const push=()=>{if(cur){lines.push(cur);cur="";}};
+  words.forEach(w=>{
+    const next=cur?cur+" "+w:w;
+    if(tripTextWidth(next,size)<=maxW){cur=next;return;}
+    if(!cur){
+      // A single token (usually a phone) is never ellipsized; keep it whole.
+      lines.push(w);
+      return;
+    }
+    push();
+    cur=w;
+  });
+  push();
+  return lines.length?lines:[raw];
+}
+function formatIcePrintLines(contacts){
+  const size=9.5,maxW=TRIP_COL_W.ice;
+  const lines=[];
+  (contacts||[]).forEach(c=>{
+    const name=String(c.name||"").trim(),phone=String(c.phone||"").trim();
+    if(!name&&!phone)return;
+    if(name&&phone){
+      const one=`${name}  ${phone}`;
+      if(tripTextWidth(one,size)<=maxW){lines.push(one);return;}
+      tripWrapLines(name,maxW,size).forEach(l=>lines.push(l));
+      lines.push(phone);
+      return;
+    }
+    tripWrapLines(name||phone,maxW,size).forEach(l=>lines.push(l));
+  });
+  return lines;
+}
+function tripRowLineCount(row){
+  const nameN=Math.max(1,(row.nameLines||tripWrapLines(row.name,TRIP_COL_W.name,10)).length);
+  const spN=Math.max(1,(row.studentPhoneLines||tripWrapLines(row.studentPhone,TRIP_COL_W.phone,9.5)).length);
+  const hpN=Math.max(1,(row.homePhoneLines||tripWrapLines(row.homePhone,TRIP_COL_W.phone,9.5)).length);
+  const iceN=Math.max(1,(row.iceLines||[]).length||1);
+  return Math.max(nameN,spN,hpN,iceN,1);
+}
+function tripRowHeight(lines){return TRIP_ROW_BASE_H+Math.max(0,(Number(lines)||1)-1)*TRIP_ROW_EXTRA_H;}
+function tripPageBudget(){return TRIP_ROW_BASE_H*TRIP_FORM_ROW_CAP+TRIP_ROW_EXTRA_H;}
+function decorateTripRow(st,fmt){
+  const contacts=studentIceContacts(st);
+  const iceLines=formatIcePrintLines(contacts);
+  const name=studentRosterName(st,fmt);
+  const studentPhone=studentContactValue(st,"studentPhone");
+  const homePhone=studentContactValue(st,"homePhone");
+  const row={
+    id:st.id,
+    name,
+    studentPhone,
+    homePhone,
+    ice:iceLines.join("\n"),
+    iceLines,
+    nameLines:tripWrapLines(name,TRIP_COL_W.name,10),
+    studentPhoneLines:tripWrapLines(studentPhone,TRIP_COL_W.phone,9.5),
+    homePhoneLines:tripWrapLines(homePhone,TRIP_COL_W.phone,9.5)
+  };
+  row.lines=tripRowLineCount(row);
+  row.height=tripRowHeight(row.lines);
+  return row;
+}
+function emptyTripRow(){
+  return {id:"",name:"",studentPhone:"",homePhone:"",ice:"",iceLines:[],nameLines:[],studentPhoneLines:[],homePhoneLines:[],lines:1,height:TRIP_ROW_BASE_H};
+}
+function paginateTripRows(rows){
+  const budget=tripPageBudget();
+  const pages=[];
+  let cur=[],used=0;
+  const flush=()=>{
+    const remain=budget-used;
+    const pads=Math.max(0,Math.floor((remain+0.001)/TRIP_ROW_BASE_H));
+    const padded=cur.concat(Array.from({length:pads},()=>emptyTripRow()));
+    pages.push({rows:padded,filled:cur.length,usedHeight:used,slots:used/TRIP_ROW_BASE_H});
+    cur=[];used=0;
+  };
+  (rows||[]).forEach(r=>{
+    const h=r.height||tripRowHeight(r.lines||1);
+    if(cur.length&&used+h>budget+0.05)flush();
+    cur.push(r);
+    used+=h;
+  });
+  if(cur.length||!pages.length)flush();
+  pages.forEach((p,i)=>{p.page=i+1;p.total=pages.length;});
+  return pages;
+}
+function tripFormPageCount(nOrStudents){
+  if(Array.isArray(nOrStudents)){
+    const fmt=data?.districtForms?.nameFormat||"lastFirst";
+    return paginateTripRows(nOrStudents.map(st=>decorateTripRow(st,fmt))).length||1;
+  }
+  const n=Math.max(0,Number(nOrStudents)||0);
+  return n?Math.ceil(n/TRIP_FORM_ROW_CAP):1;
+}
 function formatTripDate(iso){
   const m=String(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(!m)return String(iso||"");
@@ -7169,19 +7390,8 @@ function personInChargeLine(person,phone){
 function buildTripFormModel(opts){
   const students=Array.isArray(opts.students)?opts.students:[];
   const fmt=opts.nameFormat==="firstLast"?"firstLast":"lastFirst";
-  const rows=students.map(st=>({
-    id:st.id,
-    name:studentRosterName(st,fmt),
-    studentPhone:studentContactValue(st,"studentPhone"),
-    homePhone:studentContactValue(st,"homePhone"),
-    ice:iceContactDisplay(st)
-  }));
-  const pages=[],total=tripFormPageCount(rows.length)||1;
-  for(let i=0;i<total;i++){
-    const slice=rows.slice(i*TRIP_FORM_ROW_CAP,(i+1)*TRIP_FORM_ROW_CAP);
-    const padded=slice.concat(Array.from({length:TRIP_FORM_ROW_CAP-slice.length},()=>({name:"",studentPhone:"",homePhone:"",ice:""})));
-    pages.push({page:i+1,total,rows:padded,filled:slice.length});
-  }
+  const rows=students.map(st=>decorateTripRow(st,fmt));
+  const pages=paginateTripRows(rows);
   return {
     title:"TRIP FORM - Part 2",
     subtitle:"Student Listing",
@@ -7198,26 +7408,79 @@ function buildTripFormModel(opts){
 }
 window.studentRosterName=studentRosterName;
 window.iceContactDisplay=iceContactDisplay;
+window.iceContactLinesFor=iceContactLinesFor;
+window.studentIceContacts=studentIceContacts;
+window.parseLegacyIceContacts=parseLegacyIceContacts;
+window.normalizeStudentIceContacts=normalizeStudentIceContacts;
 window.tripFormPageCount=tripFormPageCount;
 window.buildTripFormModel=buildTripFormModel;
 window.formatTripDate=formatTripDate;
 
+function iceInputIds(prefix,index){
+  if(index===0&&prefix==="edit")return ["editIceName","editIcePhone"];
+  if(index===0&&prefix==="tripGuest")return ["tripGuestIceName","tripGuestIcePhone"];
+  return [`${prefix}IceName_${index}`,`${prefix}IcePhone_${index}`];
+}
+function iceContactRowHTML(prefix,index,contact,removable){
+  const [nameId,phoneId]=iceInputIds(prefix,index);
+  const remove=removable?`<button type="button" class="iceRemoveBtn" onclick="window.removeIceContactRow(this)">Remove</button>`:`<span></span>`;
+  return `<div class="iceContactRow">
+    <label>Parent / I.C.E. contact name<input class="iceNameInput" id="${esc(nameId)}" value="${esc(contact.name||"")}" placeholder="Parent or emergency contact"></label>
+    <label>Parent cell / I.C.E. phone<input class="icePhoneInput" id="${esc(phoneId)}" value="${esc(contact.phone||"")}" placeholder="555-123-4567"></label>
+    ${remove}
+  </div>`;
+}
+function iceContactEditorHTML(listId,prefix,st){
+  const contacts=studentIceContacts(st||{},{padOne:true});
+  const rows=contacts.map((c,i)=>iceContactRowHTML(prefix,i,c,contacts.length>1)).join("");
+  return `<div class="iceContactList" id="${esc(listId)}">${rows}</div>
+    <button type="button" class="smallButton iceAddBtn" onclick="window.addIceContactRow('${esc(listId)}','${esc(prefix)}')">＋ Add contact</button>`;
+}
+window.addIceContactRow=(listId,prefix)=>{
+  const list=document.getElementById(listId);if(!list)return;
+  const n=list.querySelectorAll(".iceContactRow").length;
+  list.insertAdjacentHTML("beforeend",iceContactRowHTML(prefix,n,{name:"",phone:""},true));
+  if(n===1){
+    const first=list.querySelector(".iceContactRow");
+    if(first&&!first.querySelector(".iceRemoveBtn")){
+      const spacer=first.querySelector("span:last-child");
+      const btn=document.createElement("button");
+      btn.type="button";btn.className="iceRemoveBtn";btn.textContent="Remove";
+      btn.setAttribute("onclick","window.removeIceContactRow(this)");
+      if(spacer)spacer.replaceWith(btn);else first.appendChild(btn);
+    }
+  }
+};
+window.removeIceContactRow=btn=>{
+  const row=btn?.closest(".iceContactRow");
+  const list=row?.parentElement;if(!row||!list)return;
+  if(list.querySelectorAll(".iceContactRow").length<=1)return;
+  row.remove();
+  const left=list.querySelectorAll(".iceContactRow");
+  if(left.length===1)left[0].querySelector(".iceRemoveBtn")?.replaceWith(document.createElement("span"));
+};
+function readIceContactRows(listId){
+  return [...document.querySelectorAll(`#${listId} .iceContactRow`)].map(row=>({
+    name:row.querySelector(".iceNameInput")?.value.trim()||"",
+    phone:row.querySelector(".icePhoneInput")?.value.trim()||""
+  })).filter(c=>c.name||c.phone);
+}
+
 function studentContactFieldsHTML(st){
+  normalizeStudentIceContacts(st);
   return `<details class="collapsibleFieldset" open><summary>Contact information <span class="small">(optional)</span></summary><div class="collapsibleInner">
-    <p class="small">Used when filling a district trip form. Leave blank if you do not have a number yet.</p>
+    <p class="small">Used when filling a district trip form. Leave blank if you do not have a number yet. Add another I.C.E. contact only when a student has more than one.</p>
     <div class="contactFieldsGrid">
       <label>Student phone<input id="editStudentPhone" value="${esc(st.studentPhone||"")}" placeholder="555-123-4567"></label>
       <label>Home phone<input id="editHomePhone" value="${esc(st.homePhone||"")}" placeholder="555-123-4567"></label>
-      <label>Parent / I.C.E. contact name<input id="editIceName" value="${esc(st.iceName||"")}" placeholder="Parent or emergency contact"></label>
-      <label>Parent cell / I.C.E. phone<input id="editIcePhone" value="${esc(st.icePhone||"")}" placeholder="555-123-4567"></label>
     </div>
+    ${iceContactEditorHTML("editIceList","edit",st)}
   </div></details>`;
 }
 function readStudentContactFields(st){
   st.studentPhone=($("#editStudentPhone")?.value||"").trim();
   st.homePhone=($("#editHomePhone")?.value||"").trim();
-  st.iceName=($("#editIceName")?.value||"").trim();
-  st.icePhone=($("#editIcePhone")?.value||"").trim();
+  applyIceContacts(st,readIceContactRows("editIceList"));
 }
 
 function tripMeasure(text,sizePt){
@@ -7241,18 +7504,20 @@ function tripFitText(text,maxPx,maxSize,minSize){
   return {text:out,size};
 }
 
+function tripCellLinesHTML(lines,size){
+  const list=(lines||[]).map(x=>String(x||"").trim()).filter(Boolean);
+  if(!list.length)return "";
+  return list.map(l=>`<span class="tripLineItem" style="font-size:${size}pt">${esc(l)}</span>`).join("");
+}
 function tripFormPageHTML(model,page){
   const cells=page.rows.map(r=>{
-    const name=tripFitText(r.name,178,11,6);
-    const sp=tripFitText(r.studentPhone,104,10.5,6);
-    const hp=tripFitText(r.homePhone,104,10.5,6);
-    const ice=tripFitText(r.ice,104,10.5,6);
-    return `<tr>
+    const n=Math.max(1,Number(r.lines)||1);
+    return `<tr class="tripRow${n>1?n:"1"}">
       <td class="tripOnOff"></td><td class="tripOnOff"></td><td class="tripOnOff"></td><td class="tripOnOff"></td>
-      <td class="tripName"><span style="font-size:${name.size}pt">${esc(name.text)}</span></td>
-      <td><span style="font-size:${sp.size}pt">${esc(sp.text)}</span></td>
-      <td><span style="font-size:${hp.size}pt">${esc(hp.text)}</span></td>
-      <td><span style="font-size:${ice.size}pt">${esc(ice.text)}</span></td>
+      <td class="tripName tripWrap">${tripCellLinesHTML(r.nameLines||(r.name?[r.name]:[]),10)}</td>
+      <td class="tripWrap">${tripCellLinesHTML(r.studentPhoneLines||(r.studentPhone?[r.studentPhone]:[]),9.5)}</td>
+      <td class="tripWrap">${tripCellLinesHTML(r.homePhoneLines||(r.homePhone?[r.homePhone]:[]),9.5)}</td>
+      <td class="tripWrap tripIce">${tripCellLinesHTML(r.iceLines||[],9.5)}</td>
     </tr>`;
   }).join("");
   return `<section class="tripPage">
@@ -7293,7 +7558,10 @@ function tripFormPrintCSS(){
     .tripGrid{width:100%;border-collapse:collapse;table-layout:fixed}
     .tripGrid th,.tripGrid td{border:1.4px solid #000;padding:2px 4px;vertical-align:middle}
     .tripGrid th{font-size:9.5pt;font-weight:700;height:0.46in;text-align:center;line-height:1.15}
-    .tripGrid td{height:0.385in;font-size:10.5pt;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+    .tripGrid td{height:0.385in;font-size:10pt;overflow:visible;white-space:normal}
+    .tripGrid tr.tripRow1 td{height:0.385in}
+    .tripGrid td.tripWrap{white-space:normal;overflow:visible;text-overflow:clip;text-align:left}
+    .tripGrid td.tripIce .tripLineItem,.tripGrid td.tripWrap .tripLineItem{display:block;line-height:1.25;letter-spacing:0}
     .tripGrid td.tripName{text-align:left}
     .tripGrid td.tripOnOff{width:0.38in;padding:0}
     .tripGrid th:nth-child(1),.tripGrid th:nth-child(2),.tripGrid th:nth-child(3),.tripGrid th:nth-child(4),
@@ -7405,40 +7673,47 @@ function buildTripFormPdf(model){
     const tableLeft=marginX;
     const tableWidth=pageW-marginX*2;
     const headerH=28;
-    const rowH=22.15;
-    const cols=[24,24,24,24,138,86,80,0];
+    const cols=[24,24,24,24,146,68,66,0];
     cols[7]=tableWidth-cols.slice(0,7).reduce((a,b)=>a+b,0);
     const xs=[tableLeft];
     cols.forEach(w=>xs.push(xs[xs.length-1]+w));
-    const tableH=headerH+rowH*TRIP_FORM_ROW_CAP;
+    const rowHeights=page.rows.map(r=>r.height||tripRowHeight(r.lines||1));
+    const tableH=headerH+rowHeights.reduce((a,b)=>a+b,0);
     rect(tableLeft,tableTop-tableH,tableWidth,tableH,1.3);
     xs.slice(1,-1).forEach(x=>line(x,tableTop,x,tableTop-tableH,1.2));
     line(tableLeft,tableTop-headerH,tableLeft+tableWidth,tableTop-headerH,1.2);
-    for(let r=1;r<=TRIP_FORM_ROW_CAP;r++)line(tableLeft,tableTop-headerH-r*rowH,tableLeft+tableWidth,tableTop-headerH-r*rowH,1.1);
+    let gridY=tableTop-headerH;
+    rowHeights.forEach(h=>{gridY-=h;line(tableLeft,gridY,tableLeft+tableWidth,gridY,1.1);});
 
     const heads=["On","Off","On","Off","Student Name","Student Phone #","Home Phone #","Parent Cell or I.C.E. Contact"];
     heads.forEach((h,i)=>{
       const cx=(xs[i]+xs[i+1])/2;
       if(i<4)text(h,cx,tableTop-18,9,true);
       else{
-        const lines=h.includes(" or ")?[h.split(" or ")[0]+" or",h.split(" or ")[1]]:h.includes(" ")&&h.length>12?h.split(" "):[h];
         if(h==="Student Phone #"){text("Student",cx,tableTop-12,8,true);text("Phone #",cx,tableTop-22,8,true);}
         else if(h==="Home Phone #"){text("Home",cx,tableTop-12,8,true);text("Phone #",cx,tableTop-22,8,true);}
         else if(h.startsWith("Parent")){text("Parent Cell or",cx,tableTop-12,8,true);text("I.C.E. Contact",cx,tableTop-22,8,true);}
         else text(h,cx,tableTop-18,9,true);
       }
     });
+    const textRaw=(str,x,y,size,center=false)=>text(str,x,y,{text:String(str||""),size},center);
+    const drawLines=(lines,x,yTop,rowH,size)=>{
+      const list=(lines||[]).map(v=>String(v||"").trim()).filter(Boolean);
+      if(!list.length)return;
+      const lh=Math.min(12.2,Math.max(10,size+2));
+      const block=list.length*lh;
+      let y=yTop-(rowH-block)/2-size*0.8;
+      list.forEach(line=>{textRaw(line,x,y,size);y-=lh;});
+    };
+    let yTop=tableTop-headerH;
     page.rows.forEach((r,i)=>{
-      const y=tableTop-headerH-i*rowH-15.2;
+      const h=rowHeights[i];
       const pad=3;
-      const name=pdfFit(r.name,cols[4]-pad*2,10,5.5);
-      const sp=pdfFit(r.studentPhone,cols[5]-pad*2,9.5,5.5);
-      const hp=pdfFit(r.homePhone,cols[6]-pad*2,9.5,5.5);
-      const ice=pdfFit(r.ice,cols[7]-pad*2,9.5,5.5);
-      if(name.text)text(name.text,xs[4]+pad,y,name);
-      if(sp.text)text(sp.text,xs[5]+pad,y,sp);
-      if(hp.text)text(hp.text,xs[6]+pad,y,hp);
-      if(ice.text)text(ice.text,xs[7]+pad,y,ice);
+      drawLines(r.nameLines||(r.name?[r.name]:[]),xs[4]+pad,yTop,h,10);
+      drawLines(r.studentPhoneLines||(r.studentPhone?[r.studentPhone]:[]),xs[5]+pad,yTop,h,9.5);
+      drawLines(r.homePhoneLines||(r.homePhone?[r.homePhone]:[]),xs[6]+pad,yTop,h,9.5);
+      drawLines(r.iceLines||[],xs[7]+pad,yTop,h,9.5);
+      yTop-=h;
     });
     text(`Page ${page.page} of ${page.total}`,pageW/2,36,10,true);
     const stream=cmds.join("\n");
@@ -7569,22 +7844,35 @@ function rowsFromMatrix(matrix){
   }).filter(o=>Object.values(o).some(v=>v));
   return {headers,rows};
 }
+function parseIceHeader(name){
+  const raw=normalizeNameKey(name);
+  const compact=raw.replace(/ /g,"");
+  if(!/(?:parent|guardian|ice|emergency)/.test(compact))return null;
+  if(/student/.test(compact)||/home/.test(compact))return null;
+  let idx=1;
+  const num=raw.match(/(?:^|\s)(\d+)(?:\s|$)/)||compact.match(/(\d+)/);
+  if(num)idx=Math.max(1,parseInt(num[1],10));
+  const isCombined=/parentcelloric/.test(compact)||(/contact/.test(compact)&&!/phone/.test(compact)&&!/name/.test(compact))||(/^(?:parent|guardian|ice|emergency)\d+$/.test(compact));
+  const isPhone=(/phone|cell|mobile/.test(compact)&&!isCombined)||/contactphone|icephone|parentphone|guardianphone|emergencyphone/.test(compact);
+  const isName=/name/.test(compact)&&!/phone/.test(compact);
+  if(isCombined)return {role:"combined",index:idx};
+  if(isPhone)return {role:"phone",index:idx};
+  if(isName)return {role:"name",index:idx};
+  if(/^(?:parent|guardian|emergency)\d*$/.test(compact))return {role:"name",index:idx};
+  if(/^(?:ice)\d*$/.test(compact))return {role:"phone",index:idx};
+  return null;
+}
 function headerAlias(name){
+  if(parseIceHeader(name))return "";
   const k=normalizeNameKey(name).replace(/ /g,"");
   const map={
     firstname:"firstName",first:"firstName",studentfirstname:"firstName",givenname:"firstName",
     lastname:"lastName",last:"lastName",studentlastname:"lastName",surname:"lastName",familyname:"lastName",
     name:"name",studentname:"name",student:"name",fullname:"name",studentfullname:"name",
     studentphone:"studentPhone",studentphone:"studentPhone",studentphonenumber:"studentPhone",studentcell:"studentPhone",cell:"studentPhone",cellphone:"studentPhone",mobile:"studentPhone",student:"studentPhone",
-    homephone:"homePhone",homephonenumber:"homePhone",home:"homePhone",housephone:"homePhone",homecell:"homePhone",
-    icename:"iceName",parentname:"iceName",guardianname:"iceName",emergencyname:"iceName",icecontactname:"iceName",parent:"iceName",guardian:"iceName",
-    icephone:"icePhone",parentcell:"icePhone",parentphone:"icePhone",guardianphone:"icePhone",emergencyphone:"icePhone",ice:"icePhone",icecontact:"icePhone",parentcelloricicecontact:"icePhone",parentcelloricecontact:"icePhone",emergencycontact:"icePhone",icecontactphone:"icePhone"
+    homephone:"homePhone",homephonenumber:"homePhone",home:"homePhone",housephone:"homePhone",homecell:"homePhone"
   };
-  // refine a few that collided
   if(k==="student")return "name";
-  if(k==="parentcelloric.e.contact"||k==="parentcelloricecontact"||k==="parentcelloricicecontact")return "iceContact";
-  if(k==="parentcellorice"||k.includes("parentcell")&&k.includes("ice"))return "iceContact";
-  if(k==="icecontact"||k==="emergencycontact")return "iceContact";
   return map[k]||"";
 }
 function splitCombinedIce(value){
@@ -7597,9 +7885,35 @@ function splitCombinedIce(value){
 }
 function normalizeImportRow(raw){
   const mapped={};
+  const iceSlots=[];
+  const ensureSlot=i=>{while(iceSlots.length<i)iceSlots.push({name:"",phone:""});return iceSlots[i-1];};
   Object.keys(raw).forEach(h=>{
+    const ice=parseIceHeader(h);
+    const val=String(raw[h]||"").trim();
+    if(!val)return;
+    if(ice){
+      const slot=ensureSlot(ice.index);
+      if(ice.role==="name")slot.name=val;
+      else if(ice.role==="phone")slot.phone=val;
+      else{
+        const parsed=parseLegacyIceContacts(val,"");
+        if(parsed.length>1){
+          parsed.forEach((c,j)=>{
+            const s=ensureSlot(ice.index+j);
+            if(!s.name&&c.name)s.name=c.name;
+            if(!s.phone&&c.phone)s.phone=c.phone;
+          });
+        }else{
+          const p=splitCombinedIce(val);
+          if(!slot.name&&p.iceName)slot.name=p.iceName;
+          if(!slot.phone&&p.icePhone)slot.phone=p.icePhone;
+          if(!p.iceName&&!p.icePhone&&!slot.name)slot.name=val;
+        }
+      }
+      return;
+    }
     const alias=headerAlias(h);
-    if(alias)mapped[alias]=String(raw[h]||"").trim();
+    if(alias)mapped[alias]=val;
   });
   let first=mapped.firstName||"",last=mapped.lastName||"";
   if((!first||!last)&&mapped.name){
@@ -7607,23 +7921,21 @@ function normalizeImportRow(raw){
     if(!first)first=p.firstName;
     if(!last)last=p.lastName;
   }
-  let iceName=mapped.iceName||"",icePhone=mapped.icePhone||"";
-  if((!iceName||!icePhone)&&mapped.iceContact){
-    const p=splitCombinedIce(mapped.iceContact);
-    if(!iceName)iceName=p.iceName;
-    if(!icePhone)icePhone=p.icePhone;
-  }
+  const iceContacts=iceSlots.map(cleanIceContact).filter(c=>c.name||c.phone);
+  const firstIce=iceContacts[0]||{name:"",phone:""};
   return {
     firstName:first,
     lastName:last,
     name:[first,last].filter(Boolean).join(" ")||String(mapped.name||"").trim(),
     studentPhone:mapped.studentPhone||"",
     homePhone:mapped.homePhone||"",
-    iceName,
-    icePhone,
+    iceName:firstIce.name,
+    icePhone:firstIce.phone,
+    iceContacts,
     raw
   };
 }
+
 function matchContactImport(rows,students){
   const list=(students||[]).map(st=>({st,first:normalizeNameKey(studentFirstName(st)),last:normalizeNameKey(studentLastName(st)),key:contactNameKey(studentFirstName(st),studentLastName(st)),display:studentDisplayName(st)}));
   const byKey=new Map();
@@ -7751,7 +8063,7 @@ window.openContactImport=()=>{
   document.body.insertAdjacentHTML("beforeend",`<div id="contactImportModal" class="modalbg"><div class="modal" style="width:min(920px,96vw);max-width:920px">
     <div class="modalHead"><h3>Import Contact Information</h3><button type="button" aria-label="Close" onclick="window.closeContactImport()">×</button></div>
     <div class="modalBody"><p class="small">Upload a CSV or Excel spreadsheet. Students are matched by name. You will preview every row and confirm before anything is saved.</p>
-      <p class="small">Use columns such as First Name, Last Name (or Student Name), Student Phone, Home Phone, and Parent Cell / I.C.E. Contact (name and phone can be separate columns or together). Empty cells will not erase a number that is already on the student.</p>
+      <p class="small">Use columns such as First Name, Last Name (or Student Name), Student Phone, Home Phone, and Parent / I.C.E. contacts. Extra contacts can be in columns like Parent 2, Parent 2 Phone, ICE 2, or ICE 2 Name / ICE 2 Phone. Name and phone can be separate columns or together. Empty cells will not erase a number that is already on the student.</p>
       <input id="contactImportFile" type="file" accept=".csv,.txt,.xlsx,.xlsm,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="window.handleContactImportFile(this)">
       <div id="contactImportPreview"><p class="small">No file chosen yet.</p></div>
     </div>
@@ -7806,7 +8118,7 @@ window.renderContactImportPreview=()=>{
       <td>${esc(r.name||(`${r.firstName} ${r.lastName}`.trim())||"—")}</td>
       <td>${esc(r.studentPhone||"—")}</td>
       <td>${esc(r.homePhone||"—")}</td>
-      <td>${esc([r.iceName,r.icePhone].filter(Boolean).join("  ")||"—")}</td>
+      <td>${esc((r.iceContacts&&r.iceContacts.length?r.iceContacts.map(c=>[c.name,c.phone].filter(Boolean).join(" ")).join(" · "):[r.iceName,r.icePhone].filter(Boolean).join("  "))||"—")}</td>
       <td class="${cls}">${label}</td>
       <td><select onchange="window.updateImportMatch(${p.index},this.value)">${studentOpts(p)}</select></td>
     </tr>`;
@@ -7828,8 +8140,20 @@ window.applyContactImport=()=>{
     const r=p.row;
     if(r.studentPhone)st.studentPhone=r.studentPhone;
     if(r.homePhone)st.homePhone=r.homePhone;
-    if(r.iceName)st.iceName=r.iceName;
-    if(r.icePhone)st.icePhone=r.icePhone;
+    normalizeStudentIceContacts(st);
+    const incoming=(r.iceContacts&&r.iceContacts.length)?r.iceContacts:((r.iceName||r.icePhone)?[{name:r.iceName||"",phone:r.icePhone||""}]:[]);
+    if(incoming.length){
+      const cur=studentIceContacts(st);
+      incoming.forEach((c,i)=>{
+        const src=cleanIceContact(c);
+        if(!src.name&&!src.phone)return;
+        if(i<cur.length){
+          if(src.name)cur[i].name=src.name;
+          if(src.phone)cur[i].phone=src.phone;
+        }else cur.push(src);
+      });
+      applyIceContacts(st,cur);
+    }
     updated++;
   });
   save();
@@ -7922,7 +8246,8 @@ window.refreshTripFillCount=()=>{
   const el=document.getElementById("tripFillCount");if(!el)return;
   const boxes=[...document.querySelectorAll('#tripFillList input[type="checkbox"]')];
   const n=boxes.filter(i=>i.checked).length;
-  const pages=tripFormPageCount(n);
+  const selected=boxes.filter(i=>i.checked).map(i=>tripFillStudentById(i.value)).filter(Boolean);
+  const pages=tripFormPageCount(selected.length?selected:n);
   el.textContent=boxes.length?`${n} of ${boxes.length} selected · ${pages} page${pages===1?"":"s"}`:"Add students to this form.";
 };
 function tripFillStudentById(id){
@@ -7984,8 +8309,11 @@ window.addTripFillGuest=(fields)=>{
     homePhone:String(fields?.homePhone||"").trim(),
     iceName:String(fields?.iceName||"").trim(),
     icePhone:String(fields?.icePhone||"").trim(),
+    iceContacts:Array.isArray(fields?.iceContacts)?fields.iceContacts:[],
     tripGuest:true
   };
+  if(guest.iceContacts.length)applyIceContacts(guest,guest.iceContacts);
+  else normalizeStudentIceContacts(guest);
   tripFillDraft.guests.push(guest);
   tripFillDraft.checked[guest.id]=true;
   window.closeTripAddGuest();
@@ -8040,9 +8368,8 @@ window.openTripAddGuest=()=>{
         <label>Last name<input id="tripGuestLast"></label>
         <label>Student phone<input id="tripGuestStudentPhone" placeholder="555-123-4567"></label>
         <label>Home phone<input id="tripGuestHomePhone" placeholder="555-123-4567"></label>
-        <label>Parent / I.C.E. contact name<input id="tripGuestIceName"></label>
-        <label>Parent cell / I.C.E. phone<input id="tripGuestIcePhone" placeholder="555-123-4567"></label>
       </div>
+      ${iceContactEditorHTML("tripGuestIceList","tripGuest",{})}
     </div>
     <div class="modalActions">
       <button type="button" onclick="window.closeTripAddGuest()">Cancel</button>
@@ -8057,8 +8384,7 @@ window.confirmTripAddGuest=()=>{
     lastName:document.getElementById("tripGuestLast")?.value||"",
     studentPhone:document.getElementById("tripGuestStudentPhone")?.value||"",
     homePhone:document.getElementById("tripGuestHomePhone")?.value||"",
-    iceName:document.getElementById("tripGuestIceName")?.value||"",
-    icePhone:document.getElementById("tripGuestIcePhone")?.value||""
+    iceContacts:readIceContactRows("tripGuestIceList")
   });
 };
 window.closeTripAddGuest=()=>document.querySelector("#tripAddGuestModal")?.remove();
