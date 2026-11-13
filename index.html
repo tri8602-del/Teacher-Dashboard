@@ -919,6 +919,16 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 #tripFillModal .modal{width:min(820px,96vw)}
 #contactImportModal .modal{width:min(920px,96vw)}
 #tripFillModal .modalActions, #contactImportModal .modalActions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+
+.tripRemoveAdded{margin-left:8px;font-size:12px;padding:1px 8px;min-height:0}
+.tripStackModal{z-index:40}
+.tripStackModal .modalHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.tripStackModal .modalHead h3{margin:0}
+.tripStackModal .modalHead button{border:0;background:transparent;font-size:22px;line-height:1;padding:2px 8px;min-height:0;cursor:pointer}
+.tripStackModal .modal{width:min(560px,96vw)}
+.tripStackModal .modalActions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+#tripAddStudentSearch{width:100%;box-sizing:border-box;margin-bottom:8px}
+
 </style>
 <script src="vendor/qrcode.js"></script>
 <script type="module">
@@ -7829,19 +7839,48 @@ window.applyContactImport=()=>{
 };
 
 // ----- Fill Trip Form flow -----
-function tripFillRoster(){
+let tripFillDraft={addedRosterIds:[],guests:[],checked:{}};
+window.resetTripFillDraft=()=>{tripFillDraft={addedRosterIds:[],guests:[],checked:{}};};
+function tripFillBaseRoster(){
   const kind=document.getElementById("tripFillKind")?.value||"";
   const [type,id]=kind.split(":");
   if(type==="class"){
     const c=data.classes.find(x=>x.id===id);
-    return sortedStudents(data.students.filter(s=>(c?.studentIds||[]).includes(s.id)));
+    return data.students.filter(s=>(c?.studentIds||[]).includes(s.id));
   }
   if(type==="group"){
     const g=data.groups.find(x=>x.id===id);
-    return sortedStudents(data.students.filter(s=>(g?.studentIds||[]).includes(s.id)));
+    return data.students.filter(s=>(g?.studentIds||[]).includes(s.id));
   }
   return [];
 }
+function tripFillAddedRoster(){
+  const base=new Set(tripFillBaseRoster().map(s=>s.id));
+  return (tripFillDraft.addedRosterIds||[]).filter(id=>!base.has(id)).map(id=>data.students.find(s=>s.id===id)).filter(Boolean);
+}
+function tripFillGuests(){return (tripFillDraft.guests||[]).slice();}
+function tripFillSort(list){
+  return [...list].sort((a,b)=>{
+    const la=studentLastName(a).localeCompare(studentLastName(b),undefined,{sensitivity:"base"});
+    if(la)return la;
+    return studentFirstName(a).localeCompare(studentFirstName(b),undefined,{sensitivity:"base"});
+  });
+}
+function tripFillAllEntries(){
+  return tripFillSort([...tripFillBaseRoster(),...tripFillAddedRoster(),...tripFillGuests()]);
+}
+function tripFillOnListIds(){return new Set(tripFillAllEntries().map(s=>s.id));}
+function tripFillIsAdded(id){
+  return (tripFillDraft.addedRosterIds||[]).includes(id)||(tripFillDraft.guests||[]).some(g=>g.id===id);
+}
+function tripFillAvailableRoster(){
+  const on=tripFillOnListIds();
+  return sortedStudents(data.students.filter(s=>!on.has(s.id)));
+}
+window.tripFillAllEntries=tripFillAllEntries;
+window.tripFillAvailableRoster=tripFillAvailableRoster;
+window.tripFillDraft=()=>tripFillDraft;
+
 function tripFillSelectionLabel(){
   const kind=document.getElementById("tripFillKind")?.value||"";
   const [type,id]=kind.split(":");
@@ -7852,21 +7891,31 @@ function tripFillSelectionLabel(){
 window.refreshTripFillRoster=()=>{
   const host=document.getElementById("tripFillList");
   if(!host)return;
-  const roster=tripFillRoster();
-  if(!roster.length){host.innerHTML='<p class="small">Choose a class or group to see its students.</p>';window.refreshTripFillCount();return;}
-  const checked=new Set(roster.map(s=>s.id));
-  // keep previous unchecks if the same roster is redrawn
+  const roster=tripFillAllEntries();
+  if(!roster.length){
+    host.innerHTML='<p class="small">No students on this form yet. Add students from your roster, or add someone who is not in the dashboard.</p>';
+    window.refreshTripFillCount();
+    return;
+  }
   const prev=[...document.querySelectorAll('#tripFillList input[type="checkbox"]')];
-  const prevMap=new Map(prev.map(i=>[i.value,i.checked]));
+  prev.forEach(i=>{tripFillDraft.checked[i.value]=i.checked;});
   host.innerHTML=roster.map(s=>{
-    const on=prevMap.has(s.id)?prevMap.get(s.id):true;
+    const on=Object.prototype.hasOwnProperty.call(tripFillDraft.checked,s.id)?tripFillDraft.checked[s.id]:true;
     const missing=!studentContactValue(s,"studentPhone")&&!studentContactValue(s,"homePhone")&&!iceContactDisplay(s);
-    return `<label class="checkRow"><input type="checkbox" value="${esc(s.id)}" ${on?"checked":""} onchange="window.refreshTripFillCount()"> <span>${esc(studentDisplayName(s))}${missing?` <span class="small">(no contacts yet)</span>`:""}</span></label>`;
+    const added=tripFillIsAdded(s.id);
+    const guest=s.tripGuest?` <span class="small">(added for this form)</span>`:"";
+    const missingLbl=missing?` <span class="small">(no contacts yet)</span>`:"";
+    const remove=added?` <button type="button" class="tripRemoveAdded" title="Remove from this form" aria-label="Remove ${esc(studentDisplayName(s))} from this form" onclick="event.preventDefault();event.stopPropagation();window.removeTripFillEntry('${s.id}')">Remove</button>`:"";
+    return `<label class="checkRow"><input type="checkbox" value="${esc(s.id)}" ${on?"checked":""} onchange="window.tripFillRememberCheck(this)"> <span>${esc(studentDisplayName(s))}${guest}${missingLbl}${remove}</span></label>`;
   }).join("");
   window.refreshTripFillCount();
 };
+window.tripFillRememberCheck=el=>{
+  if(el&&el.value)tripFillDraft.checked[el.value]=!!el.checked;
+  window.refreshTripFillCount();
+};
 window.tripFillSelectAll=(on)=>{
-  document.querySelectorAll('#tripFillList input[type="checkbox"]').forEach(i=>{i.checked=!!on;});
+  document.querySelectorAll('#tripFillList input[type="checkbox"]').forEach(i=>{i.checked=!!on;tripFillDraft.checked[i.value]=!!on;});
   window.refreshTripFillCount();
 };
 window.refreshTripFillCount=()=>{
@@ -7874,12 +7923,15 @@ window.refreshTripFillCount=()=>{
   const boxes=[...document.querySelectorAll('#tripFillList input[type="checkbox"]')];
   const n=boxes.filter(i=>i.checked).length;
   const pages=tripFormPageCount(n);
-  el.textContent=boxes.length?`${n} of ${boxes.length} selected · ${pages} page${pages===1?"":"s"}`:"Choose a class or group.";
+  el.textContent=boxes.length?`${n} of ${boxes.length} selected · ${pages} page${pages===1?"":"s"}`:"Add students to this form.";
 };
+function tripFillStudentById(id){
+  return tripFillGuests().find(g=>g.id===id)||data.students.find(s=>s.id===id)||null;
+}
 function currentTripFormModel(){
   ensureDistrictForms();
   const ids=[...document.querySelectorAll('#tripFillList input[type="checkbox"]:checked')].map(i=>i.value);
-  const students=sortedStudents(data.students.filter(s=>ids.includes(s.id)));
+  const students=tripFillSort(ids.map(tripFillStudentById).filter(Boolean));
   const person=document.getElementById("tripPerson")?.value.trim()||"";
   const phone=document.getElementById("tripCell")?.value.trim()||"";
   const fmt=document.querySelector('input[name="tripNameFormat"]:checked')?.value||"lastFirst";
@@ -7896,16 +7948,12 @@ function currentTripFormModel(){
   });
 }
 window.printFilledTripForm=()=>{
-  const kind=document.getElementById("tripFillKind")?.value;
-  if(!kind){alert("Choose a class or group first.");return;}
   const model=currentTripFormModel();
   if(!model.studentCount){alert("Check at least one student to include on the form.");return;}
   save();
   openTripFormPreview(model,true);
 };
 window.downloadFilledTripForm=()=>{
-  const kind=document.getElementById("tripFillKind")?.value;
-  if(!kind){alert("Choose a class or group first.");return;}
   const model=currentTripFormModel();
   if(!model.studentCount){alert("Check at least one student to include on the form.");return;}
   save();
@@ -7913,25 +7961,128 @@ window.downloadFilledTripForm=()=>{
   toast=`Saved ${result.name}`;
   return result;
 };
+window.addTripFillRosterStudents=(ids)=>{
+  const on=tripFillOnListIds();
+  (ids||[]).forEach(id=>{
+    if(!id||on.has(id)||!data.students.some(s=>s.id===id))return;
+    if(!tripFillDraft.addedRosterIds.includes(id))tripFillDraft.addedRosterIds.push(id);
+    tripFillDraft.checked[id]=true;
+  });
+  window.closeTripAddStudent();
+  window.refreshTripFillRoster();
+};
+window.addTripFillGuest=(fields)=>{
+  const first=String(fields?.firstName||"").trim();
+  const last=String(fields?.lastName||"").trim();
+  if(!first&&!last){alert("Please enter a first or last name.");return null;}
+  const guest={
+    id:"tripg_"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2)),
+    firstName:first,
+    lastName:last,
+    name:[first,last].filter(Boolean).join(" "),
+    studentPhone:String(fields?.studentPhone||"").trim(),
+    homePhone:String(fields?.homePhone||"").trim(),
+    iceName:String(fields?.iceName||"").trim(),
+    icePhone:String(fields?.icePhone||"").trim(),
+    tripGuest:true
+  };
+  tripFillDraft.guests.push(guest);
+  tripFillDraft.checked[guest.id]=true;
+  window.closeTripAddGuest();
+  window.refreshTripFillRoster();
+  return guest;
+};
+window.removeTripFillEntry=(id)=>{
+  tripFillDraft.addedRosterIds=(tripFillDraft.addedRosterIds||[]).filter(x=>x!==id);
+  tripFillDraft.guests=(tripFillDraft.guests||[]).filter(g=>g.id!==id);
+  delete tripFillDraft.checked[id];
+  window.refreshTripFillRoster();
+};
+window.filterTripAddStudents=()=>{
+  const q=(document.getElementById("tripAddStudentSearch")?.value||"").trim().toLowerCase();
+  document.querySelectorAll("#tripAddStudentList .tripAddRow").forEach(row=>{
+    row.style.display=(!q||(row.dataset.search||"").includes(q))?"flex":"none";
+  });
+};
+window.openTripAddStudent=()=>{
+  normalizeStudents();
+  const available=tripFillAvailableRoster();
+  document.querySelector("#tripAddStudentModal")?.remove();
+  const rows=available.map(s=>`<label class="checkRow tripAddRow" data-search="${esc(studentDisplayName(s)).toLowerCase()}"><input type="checkbox" value="${esc(s.id)}"> ${esc(studentDisplayName(s))}</label>`).join("")||'<p class="small">Every student in the dashboard is already on this form.</p>';
+  document.body.insertAdjacentHTML("beforeend",`<div id="tripAddStudentModal" class="modalbg tripStackModal"><div class="modal">
+    <div class="modalHead"><h3>Add student</h3><button type="button" aria-label="Close" onclick="window.closeTripAddStudent()">×</button></div>
+    <div class="modalBody">
+      <p class="small">Search and pick any student already in your roster who is not on this form. Their saved contact information will be used.</p>
+      <input id="tripAddStudentSearch" placeholder="🔍 Search students..." oninput="window.filterTripAddStudents()">
+      <div class="tripStudentCheckList" id="tripAddStudentList">${rows}</div>
+    </div>
+    <div class="modalActions">
+      <button type="button" onclick="window.closeTripAddStudent()">Cancel</button>
+      <button type="button" class="primary" onclick="window.confirmTripAddStudents()">Add selected</button>
+    </div>
+  </div></div>`);
+  setTimeout(()=>document.getElementById("tripAddStudentSearch")?.focus(),0);
+};
+window.confirmTripAddStudents=()=>{
+  const ids=[...document.querySelectorAll('#tripAddStudentList input[type="checkbox"]:checked')].map(i=>i.value);
+  if(!ids.length){alert("Choose at least one student to add.");return;}
+  window.addTripFillRosterStudents(ids);
+};
+window.closeTripAddStudent=()=>document.querySelector("#tripAddStudentModal")?.remove();
+window.openTripAddGuest=()=>{
+  document.querySelector("#tripAddGuestModal")?.remove();
+  document.body.insertAdjacentHTML("beforeend",`<div id="tripAddGuestModal" class="modalbg tripStackModal"><div class="modal">
+    <div class="modalHead"><h3>Add someone not in the dashboard</h3><button type="button" aria-label="Close" onclick="window.closeTripAddGuest()">×</button></div>
+    <div class="modalBody">
+      <p class="small">This person appears only on this trip form and is not added to your student list. They stay on the form if you close it and come back later in this session.</p>
+      <div class="contactFieldsGrid">
+        <label>First name<input id="tripGuestFirst" autofocus></label>
+        <label>Last name<input id="tripGuestLast"></label>
+        <label>Student phone<input id="tripGuestStudentPhone" placeholder="555-123-4567"></label>
+        <label>Home phone<input id="tripGuestHomePhone" placeholder="555-123-4567"></label>
+        <label>Parent / I.C.E. contact name<input id="tripGuestIceName"></label>
+        <label>Parent cell / I.C.E. phone<input id="tripGuestIcePhone" placeholder="555-123-4567"></label>
+      </div>
+    </div>
+    <div class="modalActions">
+      <button type="button" onclick="window.closeTripAddGuest()">Cancel</button>
+      <button type="button" class="primary" onclick="window.confirmTripAddGuest()">Add to form</button>
+    </div>
+  </div></div>`);
+  setTimeout(()=>document.getElementById("tripGuestFirst")?.focus(),0);
+};
+window.confirmTripAddGuest=()=>{
+  window.addTripFillGuest({
+    firstName:document.getElementById("tripGuestFirst")?.value||"",
+    lastName:document.getElementById("tripGuestLast")?.value||"",
+    studentPhone:document.getElementById("tripGuestStudentPhone")?.value||"",
+    homePhone:document.getElementById("tripGuestHomePhone")?.value||"",
+    iceName:document.getElementById("tripGuestIceName")?.value||"",
+    icePhone:document.getElementById("tripGuestIcePhone")?.value||""
+  });
+};
+window.closeTripAddGuest=()=>document.querySelector("#tripAddGuestModal")?.remove();
 window.openTripFormFiller=()=>{
   ensureGroups();ensureDistrictForms();normalizeStudents();
   document.querySelector("#tripFillModal")?.remove();
+  document.querySelector("#tripAddStudentModal")?.remove();
+  document.querySelector("#tripAddGuestModal")?.remove();
   const classOpts=data.classes.map(c=>`<option value="class:${esc(c.id)}">${esc(c.name)} (class)</option>`).join("");
   const groupOpts=data.groups.map(g=>`<option value="group:${esc(g.id)}">${esc(g.name)} (group)</option>`).join("");
   const df=data.districtForms;
   const today=todayISO();
   document.body.insertAdjacentHTML("beforeend",`<div id="tripFillModal" class="modalbg"><div class="modal tripFillPanel">
     <div class="modalHead"><h3>Fill Trip Form — Part 2</h3><button type="button" aria-label="Close" onclick="window.closeTripFormFiller()">×</button></div>
-    <div class="modalBody"><p class="small">Choose a class or group, uncheck anyone who is absent, then print or download the filled student listing.</p>
+    <div class="modalBody"><p class="small">Choose a class or group, or add students yourself. Uncheck anyone who is absent, then print or download the filled student listing.</p>
       <label>Class or group
         <select id="tripFillKind" onchange="window.refreshTripFillRoster()">
-          <option value="">Choose…</option>
+          <option value="">No class or group — add students yourself</option>
           ${groupOpts}${groupOpts&&classOpts?`<option disabled>────────</option>`:""}${classOpts}
         </select>
       </label>
       <div>
-        <div class="tripFillTools"><b>Students</b><button type="button" class="smallButton" onclick="window.tripFillSelectAll(true)">Select all</button><button type="button" class="smallButton" onclick="window.tripFillSelectAll(false)">Clear</button><span class="small" id="tripFillCount"></span></div>
-        <div class="tripStudentCheckList" id="tripFillList"><p class="small">Choose a class or group to see its students.</p></div>
+        <div class="tripFillTools"><b>Students</b><button type="button" class="smallButton" onclick="window.tripFillSelectAll(true)">Select all</button><button type="button" class="smallButton" onclick="window.tripFillSelectAll(false)">Clear</button><button type="button" class="smallButton" onclick="window.openTripAddStudent()">＋ Add student</button><button type="button" class="smallButton" onclick="window.openTripAddGuest()">＋ Add someone not in dashboard</button><span class="small" id="tripFillCount"></span></div>
+        <div class="tripStudentCheckList" id="tripFillList"></div>
       </div>
       <div class="tripFillGrid">
         <label>Date of Trip<input id="tripDate" type="date" value="${esc(today)}"></label>
@@ -7945,7 +8096,7 @@ window.openTripFormFiller=()=>{
           <label><input type="radio" name="tripNameFormat" value="lastFirst" ${df.nameFormat!=="firstLast"?"checked":""}> Last, First</label>
           <label><input type="radio" name="tripNameFormat" value="firstLast" ${df.nameFormat==="firstLast"?"checked":""}> First Last</label>
         </div>
-        <p class="small">On / Off boxes are left blank for roll call. Missing contact numbers stay blank.</p>
+        <p class="small">On / Off boxes are left blank for roll call. Missing contact numbers stay blank. Students you add only for this form are not saved to your roster.</p>
       </div>
     </div>
     <div class="modalActions">
@@ -7956,7 +8107,13 @@ window.openTripFormFiller=()=>{
   </div></div>`);
   window.refreshTripFillRoster();
 };
-window.closeTripFormFiller=()=>document.querySelector("#tripFillModal")?.remove();
+window.closeTripFormFiller=()=>{
+  document.querySelector("#tripAddStudentModal")?.remove();
+  document.querySelector("#tripAddGuestModal")?.remove();
+  const boxes=[...document.querySelectorAll('#tripFillList input[type="checkbox"]')];
+  boxes.forEach(i=>{tripFillDraft.checked[i.value]=i.checked;});
+  document.querySelector("#tripFillModal")?.remove();
+};
 
 </script>
 
