@@ -19,3 +19,13 @@
 
 Not changed (shared infrastructure, see open questions): Firebase project config, Google Classroom OAuth client, AI worker endpoint, icons/manifest, "JM #" calculator label wording.
 No school name, district name, or email addresses were found in the code.
+
+
+## V4.13.3 — Settings module switches
+Add-on modules can be turned off in Settings → **Add-on modules**. Core pages stay on: Live Class, Students & Classes, Calendar, Reminders & Announcements, and Settings.
+
+The switches are: Lesson Plans, Master Schedule, Sub Plans, Bell Schedules, Grade Calculator, Forms & Records, Reports, Quick Buttons, PVAAS Reporting, Accommodations, and Sign-Out.
+
+Turning a module off hides its sidebar item, its page (the app returns to Live Class if you were on that page), and related in-page surfaces (for example the Live Class accommodations marker, today's lesson card, Quick Buttons, the Calendar bell-schedule editor, and Grade Calculator / Google Classroom / PVAAS fields in Settings). Saved data is not deleted and comes back when the module is turned on again.
+
+A dashboard with no `data.modules` key uses the profile defaults (Lindsay: everything on; a new teacher: PVAAS, Accommodations, and Sign-Out off). The key is only written when a teacher changes a switch from that default, so Lindsay's existing data is unchanged until she flips one.
