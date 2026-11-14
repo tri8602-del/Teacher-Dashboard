@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.13.2</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.13.3</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -59,6 +59,19 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 .dayNum{font-size:10px;color:var(--muted);margin-top:2px}.calMarks{font-size:14px;margin-top:auto;line-height:1.3}.calMark{font-weight:800;margin-right:3px}.calNote{font-size:11px;margin-top:3px;color:#556070}.colorGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.colorGrid label{font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px}.colorGrid input[type=color]{width:46px;height:32px;padding:2px}.todayNotes{border-left:4px solid #4c79c6}.todayNotes h3{margin-bottom:8px}.todayNotes ul{margin:8px 0 0;padding-left:22px}.todayNotes li{margin:6px 0}
 .altScheduleTag,.calendarTypeTag{font-size:10px;font-weight:700;margin-top:auto;padding:2px 6px;border-radius:999px;background:#fff9;border:1px solid #00000012;color:inherit;max-width:100%;white-space:normal;line-height:1.15}.calendarTypeTag{margin-top:4px}.bellScheduleList{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:16px}.bellScheduleCard{border:1px solid #e0e4ec;border-radius:12px;padding:12px;background:#fff}.bellScheduleCard h4{margin:0 0 5px}.bellScheduleCard p{margin:0 0 10px}.scheduleTable{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}.scheduleTable th,.scheduleTable td{border-bottom:1px solid #e5e8ee;padding:7px;text-align:left}.scheduleTable input{width:100%;box-sizing:border-box}.scheduleActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.scheduleEditor{max-width:760px}.scheduleRows{max-height:48vh;overflow:auto;border:1px solid #e0e4ec;border-radius:10px;padding:8px}.scheduleRow{display:grid;grid-template-columns:1.8fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}.scheduleRow input{min-width:0}.scheduleRow button{padding:7px 9px}.scheduleMeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.scheduleMeta input{flex:1;min-width:180px}@media(max-width:620px){.scheduleRow{grid-template-columns:1fr 1fr 1fr}.scheduleRow input:first-child{grid-column:1/-1}.scheduleRow button{grid-column:3}}.calEventTag{font-size:10px;font-weight:700;margin-top:4px;line-height:1.2}
 .appFooter{margin-top:32px;padding:14px 0 4px;text-align:center;color:#98a1b2;font-size:10px}
+
+.moduleSwitchList{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px}
+.moduleSwitchRow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfcfe}
+.moduleSwitchText b{display:block;font-size:15px}
+.moduleSwitchText .small{margin-top:3px;line-height:1.35}
+.moduleSwitch{position:relative;display:inline-flex;width:52px;height:32px;flex:0 0 52px}
+.moduleSwitch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:2}
+.moduleSwitchTrack{position:absolute;inset:0;border-radius:999px;background:#c5ccd8;border:1px solid #b3bac8;transition:background .15s,border-color .15s}
+.moduleSwitchTrack::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .15s}
+.moduleSwitch input:checked+.moduleSwitchTrack{background:var(--nav);border-color:var(--nav)}
+.moduleSwitch input:checked+.moduleSwitchTrack::after{transform:translateX(20px)}
+.moduleSwitch input:focus-visible+.moduleSwitchTrack{outline:2px solid var(--nav);outline-offset:2px}
+@media(max-width:650px){.moduleSwitchRow{grid-template-columns:1fr auto;padding:12px}.moduleSwitch{width:52px;height:36px}.moduleSwitchTrack::after{top:5px;width:24px;height:24px}}
 .viewToggle{display:flex;gap:4px;justify-content:flex-end;margin-bottom:8px}.viewToggle button{font-size:13px}.viewToggle .activeView{background:var(--nav);color:#fff;border-color:var(--nav)}
 .matrixWrap{background:#fff;border-radius:12px;box-shadow:0 2px 8px #0000000c;overflow:auto;max-height:calc(100vh - 190px)}
 .matrix{width:100%;min-width:850px;border-collapse:separate;border-spacing:0;table-layout:fixed}.matrix th{position:sticky;top:0;background:#f5f7fb;z-index:2;font-size:12px;white-space:normal;text-align:center;vertical-align:middle}.matrix th span{font-weight:500;display:inline-block;line-height:1.15}.matrix td{text-align:center;padding:5px;vertical-align:middle}.matrixBtn{width:36px;height:34px;padding:4px;font-size:17px}
@@ -964,13 +977,14 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.13.2";
+const APP_VERSION="4.13.3";
+// V4.13.3: Settings switches for add-on modules (hide nav, pages, and in-page surfaces; saved data is kept).
 // V4.13.2: catch up lindsay-profile-split with main (trip forms, I.C.E. contacts, audit log, lesson-plan views).
 // V4.13.1: multiple I.C.E. contacts per student; contacts print on separate lines at a readable size.
 // V4.6.0: profiles and feature flags. "lindsay" (the default, everywhere) turns every module on, so her
 // dashboard is unchanged. "product" is the sellable starter: core pages plus add-on modules; PVAAS and
 // AI Accommodations are left out. The product profile can only be chosen on a local test server
-// (localhost / 127.0.0.1) with ?profile=product. Later jobs add the Settings switches and move her seeds.
+// (localhost / 127.0.0.1) with ?profile=product.
 const PROFILES={
   lindsay:{name:"lindsay",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:true,accommodations:true,calculators:true}},
   product:{name:"product",modules:{lessonPlans:true,masterSchedule:true,subPlans:true,bellSchedules:true,gradeCalc:true,forms:true,reports:true,quickButtons:true,pvaas:false,accommodations:false,calculators:false}}
@@ -994,8 +1008,50 @@ function currentProfile(){return PROFILE_OVERRIDE||(isLindsayDashboard()?PROFILE
 function teacherProfile(){const t=(()=>{try{return data.teacherProfile}catch(e){return null}})();return t&&typeof t==="object"?t:{};}
 // Core pages (always on): Live Class, Students & Classes, Calendar, Reminders & Announcements, Settings.
 const PAGE_MODULE={lessonplans:"lessonPlans",masterschedule:"masterSchedule",forms:"forms",accommodations:"accommodations",buttons:"quickButtons",grades:"gradeCalc",reports:"reports",pvaas:"pvaas",calculators:"calculators"};
-function moduleOn(id){return currentProfile().modules[id]!==false}
+// Add-on modules a teacher can turn off in Settings. Core pages (Live Class, Students &
+// Classes, Calendar, Reminders & Announcements, Settings) are always on and are not listed.
+const MODULE_SWITCHES=[
+  {id:"lessonPlans",icon:"📝",label:"Lesson Plans",help:"Weekly and monthly plans, the Student Calendar, and today's lesson on Live Class."},
+  {id:"masterSchedule",icon:"🗒️",label:"Master Schedule",help:"Year-at-a-glance course map, including the side-by-side view on Lesson Plans."},
+  {id:"subPlans",icon:"🖨",label:"Sub Plans",help:"Daily sub-plan generator and reusable defaults, from Lesson Plans."},
+  {id:"bellSchedules",icon:"🕐",label:"Bell Schedules",help:"Edit regular and alternate bell times on the Calendar. Live Class still uses the times you already have."},
+  {id:"gradeCalc",icon:"📚",label:"Grade Calculator",help:"Grade calculator, class scoring, and Google Classroom sync."},
+  {id:"forms",icon:"📋",label:"Forms & Records",help:"Permission forms, trip forms, and received-record tracking."},
+  {id:"reports",icon:"📊",label:"Reports",help:"Printable reports and summaries."},
+  {id:"quickButtons",icon:"⚡",label:"Quick Buttons",help:"Custom buttons on Live Class for sign-outs, tardies, and similar marks."},
+  {id:"pvaas",icon:"📈",label:"PVAAS Reporting",help:"Pennsylvania PVAAS cohorts and enrollment days."},
+  {id:"accommodations",icon:"🧩",label:"Accommodations",help:"IEP/SDI records, the Live Class marker, and the shortcut on Students & Classes."},
+  {id:"calculators",icon:"🧮",label:"Sign-Out",help:"Graphing calculator and other item sign-out."}
+];
+function modulePrefDefaults(){return currentProfile().modules||{}}
+function modulePrefs(){
+  try{
+    const raw=data&&data.modules;
+    return (raw&&typeof raw==="object"&&!Array.isArray(raw))?raw:{};
+  }catch(e){return {}}
+}
+function moduleOn(id){
+  const saved=modulePrefs()[id];
+  if(typeof saved==="boolean")return saved;
+  return modulePrefDefaults()[id]!==false;
+}
 function pageOn(id){const m=PAGE_MODULE[id];return !m||moduleOn(m)}
+function sanitizeModulePrefs(x){
+  if(!x||typeof x!=="object"||Array.isArray(x))return;
+  const known=new Set(MODULE_SWITCHES.map(m=>m.id)),out={};
+  Object.keys(x).forEach(k=>{if(known.has(k)&&typeof x[k]==="boolean")out[k]=x[k];});
+  return Object.keys(out).length?out:undefined;
+}
+window.setModuleOn=(id,on)=>{
+  if(!MODULE_SWITCHES.some(m=>m.id===id))return;
+  const def=modulePrefDefaults()[id]!==false, next=!!on;
+  const prefs={...modulePrefs()};
+  if(next===def)delete prefs[id]; else prefs[id]=next;
+  if(Object.keys(prefs).length)data.modules=prefs; else delete data.modules;
+  if(!pageOn(page))page="live";
+  save();render();
+};
+window.openPage=(id)=>{page=id;render();return page;};
 Object.defineProperty(window,"TD_PROFILE",{get:()=>currentProfile().name,configurable:true});
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
@@ -1577,6 +1633,8 @@ function normalizeLoadedDashboard(raw){
   // Versions before the setup wizard never stored setupComplete. A dashboard that
   // already has its own classes is set up, so don't pop the wizard open for it.
   if(!("setupComplete" in x)&&Array.isArray(x.classes)&&x.classes.some(c=>c&&c.id!=="c1"))out.setupComplete=true;
+  // Module switches: keep a saved map if the teacher set one; never invent one.
+  {const mods=sanitizeModulePrefs(out.modules);if(mods)out.modules=mods;else delete out.modules;}
   return out;
 }
 function loadLocalForUser(){
@@ -3842,20 +3900,21 @@ function live(){
   const tools=classroomToolsHTML(cls,block);
   const reminders=reminderHTML(cls,block);
   const outStrip=active.length?`<section class="liveOutStrip" id="liveOutStrip">${active.map(e=>{const st=data.students.find(x=>x.id===e.studentId);return `<div class="liveOutItem"><span class="liveOutWho">${esc(studentDisplayName(st||{}))}</span><span class="liveOutMeta">${e.icon} ${esc(e.label)} <span data-timer="${e.start}"></span></span><span class="liveOutActions"><button onclick="window.returnEvent('${e.id}','returned')">Return</button><button onclick="window.returnEvent('${e.id}','did-not-return')">DNR</button><button onclick="window.openEventModal('${e.id}')">Edit</button><button onclick="window.note('${e.studentId}','${e.id}')">Note</button></span></div>`}).join("")}</section>`:"";
-  const topDashboardCards=`<div class="dashboardTopCards">${dailyNotes}${currentLessonPlanHTML(cls)}</div>`;
+  const topDashboardCards=`<div class="dashboardTopCards">${dailyNotes}${moduleOn("lessonPlans")?currentLessonPlanHTML(cls):""}</div>`;
   const headerRight=`<div class="headerRight">${toggle}<div class="headerUtilities">${outChip}${tools}</div></div>`;
   const head=(title,sub)=>`<header class="liveHeader"><div><h2>${title}</h2><p>${sub}</p></div>${headerRight}</header>`;
   window.focusStudentsOut=()=>{const el=document.querySelector('#liveOutStrip');if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});};
   if(!cls)return `<div class="liveShell">${head("No class right now",`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}<section class="card noActiveClass"><b>${block?`No class is assigned to ${esc(block.label)}.`:"There is no active class during this time."}</b><p class="small">Add a class and choose its period(s), meeting days, and term in Students & Classes.</p></section></div>`;
   const roster=sortedStudents(data.students.filter(st=>cls.studentIds.includes(st.id)));
-  if(liveView==="matrix")return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Talking":b.label==="Out of Class (Other)"?"Out":b.label==="Disruptive Behavior"?"Disrupt":esc(b.label)}</span></th>`).join("")}<th title="Note">📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${accommodationMarkerHTML(st)}${out?'<small>Out</small>':""}</td>${data.buttons.map(b=>`<td><button type="button" class="matrixBtn quickButton" title="${esc(b.label)}" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}</button></td>`).join("")}<td><button class="matrixNoteBtn" onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div></div>`;
-  return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}${accommodationMarkerHTML(st)}</h3><div class="quick">${(data.buttons||[]).map(b=>`<button type="button" class="quickButton" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div><button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Note</button></article>`).join("")}</div></div>`;
+  if(liveView==="matrix")return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${moduleOn("quickButtons")?data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Talking":b.label==="Out of Class (Other)"?"Out":b.label==="Disruptive Behavior"?"Disrupt":esc(b.label)}</span></th>`).join(""):""}<th title="Note">📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${accommodationMarkerHTML(st)}${out?'<small>Out</small>':""}</td>${moduleOn("quickButtons")?data.buttons.map(b=>`<td><button type="button" class="matrixBtn quickButton" title="${esc(b.label)}" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}</button></td>`).join(""):""}<td><button class="matrixNoteBtn" onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div></div>`;
+  return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}${accommodationMarkerHTML(st)}</h3>${moduleOn("quickButtons")?`<div class="quick">${(data.buttons||[]).map(b=>`<button type="button" class="quickButton" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div>`:""}<button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Note</button></article>`).join("")}</div></div>`;
 }
 const DAY_NAMES=[[1,"Mon"],[2,"Tue"],[3,"Wed"],[4,"Thu"],[5,"Fri"]];
 const TERM_OPTIONS=[["fullYear","Full Year"],["q1","Quarter 1"],["q2","Quarter 2"],["q3","Quarter 3"],["q4","Quarter 4"],["t1","Trimester 1"],["t2","Trimester 2"],["t3","Trimester 3"],["s1","Semester 1"],["s2","Semester 2"]];
 // Small, private-looking marker on a student's Live Class card: no details are shown
 // on screen; tapping it opens that student's accommodations.
 function accommodationMarkerHTML(st){
+  if(!moduleOn("accommodations"))return "";
   const n=(data.accommodations||[]).filter(a=>a.studentId===st.id&&a.active!==false).length;
   if(!n)return "";
   return `<button type="button" class="accomMarker" onclick="event.stopPropagation();window.openAccommodationDrilldown('${esc(st.id)}','all')" title="Accommodations on file — tap to view" aria-label="View accommodations for ${esc(studentDisplayName(st))}">🧩</button>`;
@@ -4550,7 +4609,7 @@ function students(){
   const studentRows=sortedStudents(data.students).map(st=>`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0">
       <span>${esc(studentDisplayName(st))}${st.googleClassroomImported?` <span class="small">· Google Classroom</span>`:""}</span>
-      <span style="white-space:nowrap"><button onclick="window.openStudentModal('${st.id}')">Edit</button> <button onclick="window.openAddStudentNote('${st.id}')">📝 Note</button> <button onclick="window.openStudentLogModal('${st.id}')">🖨 Log</button> <button onclick="window.openStudentAccommodations('${st.id}')">Accommodations</button> <button onclick="window.deleteStudent('${st.id}')">Delete</button></span>
+      <span style="white-space:nowrap"><button onclick="window.openStudentModal('${st.id}')">Edit</button> <button onclick="window.openAddStudentNote('${st.id}')">📝 Note</button> <button onclick="window.openStudentLogModal('${st.id}')">🖨 Log</button> ${moduleOn("accommodations")?`<button onclick="window.openStudentAccommodations('${st.id}')">Accommodations</button> `:""}<button onclick="window.deleteStudent('${st.id}')">Delete</button></span>
     </div>`).join("")||"<p>No students yet.</p>";
   return `<header><h2>Students & Classes</h2></header>
   <div class="split">
@@ -4691,9 +4750,10 @@ window.exportAccommodationsCSV=()=>{
   const blob=new Blob(["\ufeff"+rows.map(r=>r.map(q).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=`accommodations-${todayISO()}.csv`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
-window.openStudentAccommodations=id=>{window.accommodationStudentFilter=id;window.accommodationKindFilter="all";window.accommodationCategoryFilter="all";window.accommodationClassFilter="all";window.accommodationQuery="";page="accommodations";render();};
+window.openStudentAccommodations=id=>{if(!moduleOn("accommodations"))return;window.accommodationStudentFilter=id;window.accommodationKindFilter="all";window.accommodationCategoryFilter="all";window.accommodationClassFilter="all";window.accommodationQuery="";page="accommodations";render();};
 
 window.openAccommodationDrilldown=(studentId,category="all")=>{
+  if(!moduleOn("accommodations"))return;
   ensureAccommodations();normalizeStudents();
   const st=data.students.find(s=>s.id===studentId);if(!st)return;
   const items=data.accommodations.filter(a=>a.studentId===studentId&&a.active!==false);
@@ -5523,6 +5583,12 @@ window.setReportStudent=v=>{window.reportStudent=v;render();}
 window.setReportClass=v=>{window.reportClassId=v;render();}
 window.setTimeReportRange=v=>{window.timeReportRange=v;render();}
 
+function moduleSwitchesHTML(){
+  return MODULE_SWITCHES.map(m=>{
+    const on=moduleOn(m.id);
+    return `<div class="moduleSwitchRow" data-module="${m.id}"><div class="moduleSwitchText"><b>${m.icon} ${esc(m.label)}</b><div class="small">${esc(m.help)}</div></div><label class="moduleSwitch" title="${on?"On":"Off"}"><input type="checkbox" role="switch" aria-checked="${on?"true":"false"}" aria-label="${esc(m.label)}" ${on?"checked":""} onchange="window.setModuleOn('${m.id}',this.checked)"><span class="moduleSwitchTrack"></span></label></div>`;
+  }).join("");
+}
 function sidebarSettingsHTML(){
   ensureSidebarSettings();
   const hidden=new Set(data.sidebarHidden||[]);
@@ -5961,10 +6027,11 @@ function settings(){
   <section class="card"><h3>Account</h3><div class="accountRow">${avatarHTML()}<div><b>${esc(userLabel)}</b><div class="small">${esc(currentUser?.email||"")}</div></div></div>
   <div class="avatarActions"><button type="button" onclick="document.getElementById('avatarFile').click()">📷 Upload a picture</button>${data.profileAvatar?`<button type="button" onclick="window.useGooglePhoto()">Use Google picture</button>`:""}</div>
   <input id="avatarFile" type="file" accept="image/*" style="display:none" onchange="window.uploadAvatar(this)"><button style="margin-top:12px" onclick="window.signOut()">Sign out</button></section>
+  <section class="card" id="modulesCard"><h3>Add-on modules</h3><p class="small">Turn off tools you do not use. They leave the sidebar and their pages. Your saved information stays on this dashboard and comes back if you turn a module on again.</p><div class="moduleSwitchList">${moduleSwitchesHTML()}</div></section>
   <section class="card"><h3>Sidebar Layout</h3><p class="small">Choose which sections appear in your sidebar and arrange them in the order you prefer.</p><div class="sidebarEditorList">${sidebarSettingsHTML()}</div><button type="button" onclick="window.resetSidebarLayout()">Reset to Default</button></section>
-  <section class="card"><h3>📅 Calendar & PVAAS</h3><div class="settingsGrid"><label>First Student Day<br><input type="date" value="${esc(cal.firstStudentDay||"")}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input type="date" value="${esc(cal.lastStudentDay||"")}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label><label>PVAAS End Date<br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label></div><p class="small">PVAAS uses this end date when it is set; otherwise it uses the last student day.</p></section>
-  <section class="card"><h3>🧮 Grade Calculator Defaults</h3><p class="small">Scoring is configured separately for each class from the Grade Calculator. Your existing JM defaults remain unchanged.</p></section>
-  <section class="card"><div class="setupCard"><div><h3 style="margin-bottom:4px">👩‍🎓 Google Classroom</h3><p class="small" style="margin:0 0 6px"><b>${googleClassroomSessionConnected()?"🟢 Connected":"⚪ Not connected"}</b></p><p class="small" style="margin:0">${googleClassroomSessionConnected()?`${(window.googleClassroomState.courses||[]).length||"Your"} active Classroom courses are available. Use Classroom only when you ask it to supply classes, rosters, or grades.`:(data.googleClassroom?.connectedAt?"Google Classroom was connected previously. Reconnect when you need to access it again.":"Connect Google Classroom to import classes, rosters, and — when configured — grade information.")}</p></div><button type="button" class="primary" onclick="window.gcRequestAccess()">${googleClassroomSessionConnected()?"Reconnect Google Classroom":"Connect Google Classroom"}</button></div></section>
+  <section class="card"><h3>📅 Calendar${moduleOn("pvaas")?" & PVAAS":""}</h3><div class="settingsGrid"><label>First Student Day<br><input type="date" value="${esc(cal.firstStudentDay||"")}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input type="date" value="${esc(cal.lastStudentDay||"")}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label>${moduleOn("pvaas")?`<label>PVAAS End Date<br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label>`:""}</div>${moduleOn("pvaas")?`<p class="small">PVAAS uses this end date when it is set; otherwise it uses the last student day.</p>`:""}</section>
+  ${moduleOn("gradeCalc")?`<section class="card"><h3>🧮 Grade Calculator Defaults</h3><p class="small">Scoring is configured separately for each class from the Grade Calculator. Your existing JM defaults remain unchanged.</p></section>`:""}
+  ${moduleOn("gradeCalc")?`<section class="card"><div class="setupCard"><div><h3 style="margin-bottom:4px">👩‍🎓 Google Classroom</h3><p class="small" style="margin:0 0 6px"><b>${googleClassroomSessionConnected()?"🟢 Connected":"⚪ Not connected"}</b></p><p class="small" style="margin:0">${googleClassroomSessionConnected()?`${(window.googleClassroomState.courses||[]).length||"Your"} active Classroom courses are available. Use Classroom only when you ask it to supply classes, rosters, or grades.`:(data.googleClassroom?.connectedAt?"Google Classroom was connected previously. Reconnect when you need to access it again.":"Connect Google Classroom to import classes, rosters, and — when configured — grade information.")}</p></div><button type="button" class="primary" onclick="window.gcRequestAccess()">${googleClassroomSessionConnected()?"Reconnect Google Classroom":"Connect Google Classroom"}</button></div></section>`:""}
   <section class="card"><h3>Data Storage</h3><p><b>☁️ ${esc(cloudStatus)}</b></p><div class="syncTime"><b>Last sync:</b> ${esc(formatSync(lastSyncAt))}${sync.localDirty?" · changes waiting to sync":""}</div>${currentUser&&localStorage.getItem("teacherDashboardV1:beforeSync:"+currentUser.uid)?`<p class="small">This device's copy from before the V4.2.0 sync update was kept. <button type="button" onclick="window.downloadBeforeSyncCopy()">Download it</button></p>`:""}<p class="small">Your dashboard is stored separately for each signed-in Google account.</p></section>
     <section class="card"><h3>Local Data Backup</h3><p class="small">Download a backup before major updates. You can also import it later.</p><button onclick="window.exportData()">Download backup</button> <button onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="window.importData(this)"></section>
   <section class="card"><button onclick="window.resetData()">Reset this dashboard to demo data</button></section>`;
