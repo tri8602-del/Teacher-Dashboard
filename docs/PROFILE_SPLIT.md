@@ -29,3 +29,8 @@ The switches are: Lesson Plans, Master Schedule, Sub Plans, Bell Schedules, Grad
 Turning a module off hides its sidebar item, its page (the app returns to Live Class if you were on that page), and related in-page surfaces (for example the Live Class accommodations marker, today's lesson card, Quick Buttons, the Calendar bell-schedule editor, and Grade Calculator / Google Classroom / PVAAS fields in Settings). Saved data is not deleted and comes back when the module is turned on again.
 
 A dashboard with no `data.modules` key uses the profile defaults (Lindsay: everything on; a new teacher: PVAAS, Accommodations, and Sign-Out off). The key is only written when a teacher changes a switch from that default, so Lindsay's existing data is unchanged until she flips one.
+
+## V4.14.0 — Separate product Firebase project + Sample Class
+See `docs/PRODUCT_FIREBASE.md`. Lindsay's build keeps `teacher-dashboard-b4441` exactly as before; the product build
+(only on the product's own address, or `localhost?build=product`) uses its own project with per-teacher rules in
+`firebase-product/firestore.rules`. New teachers can add or remove a practice Sample Class.

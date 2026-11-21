@@ -1,0 +1,7 @@
+{
+  "name": "teacher-dashboard-product-rules-test",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node rules.test.mjs" },
+  "devDependencies": { "firebase": "10.12.2", "@firebase/rules-unit-testing": "^3.0.0" }
+}
