@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Teacher Dashboard V4.13.3</title><meta name="theme-color" content="#2d3b59">
+<title>Teacher Dashboard V4.14.0</title><meta name="theme-color" content="#2d3b59">
 <script src="https://accounts.google.com/gsi/client"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -758,7 +758,7 @@ main:has(.lessonPlanCard){overflow:visible!important;}
 .lessonPushBtn{position:absolute;right:4px;bottom:4px;z-index:3;padding:0 5px;min-width:22px;height:18px;line-height:16px;font-size:12px;border-radius:6px;background:#fff;border:1px solid #d5dbe6;color:#4b5563;opacity:.55}
 .lessonPushBtn:hover{opacity:1;background:#eef3fb;color:#1e3a5f}
 .lessonDayHead{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
-.welcomeWizardModal{max-width:760px;width:min(760px,94vw)}.wzSteps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.wzDot{padding:6px 10px;border-radius:999px;background:#eef1f6;font-size:13px;color:#4b5563}.wzDot.on{background:#2d3b59;color:#fff}.wzDot.done{background:#dbe7d8}
+.welcomeWizardModal{max-width:760px;width:min(760px,94vw)}.wzSample{display:flex;gap:10px;align-items:flex-start;margin:12px 0;padding:10px 12px;border:1px dashed #b9a7d9;border-radius:10px;background:#f7f3fc;cursor:pointer}.wzSample input{margin-top:3px;width:18px;height:18px}.sampleBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#f7f3fc;border:1px dashed #b9a7d9;margin-bottom:12px}.sampleBar button{margin-left:auto}.wzSteps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.wzDot{padding:6px 10px;border-radius:999px;background:#eef1f6;font-size:13px;color:#4b5563}.wzDot.on{background:#2d3b59;color:#fff}.wzDot.done{background:#dbe7d8}
 .wzField{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px;margin:10px 0}.wzField input,.wzField select{font-size:16px;min-height:44px;padding:6px 10px;border:1px solid #cfd6e2;border-radius:8px}.wzField input[type=color]{padding:2px;width:56px}
 .wzTwo{display:flex;gap:12px;flex-wrap:wrap}.wzTwo .wzField{flex:1;min-width:200px}.wzClassRow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;border:1px solid #e3e7ee;border-radius:10px;padding:4px 10px;margin:8px 0}.wzGrow{flex:1;min-width:180px}.wzNarrow{width:auto}.wzNarrow input:not([type=color]),.wzNarrow select{width:110px}
 .wzRemove{min-height:44px;min-width:44px;margin:10px 0;font-size:20px}.wzAdd{min-height:44px;margin-top:6px}.wzImport{display:flex;flex-direction:column;gap:10px}.wzImport button{min-height:48px;text-align:left;padding:8px 14px}.wzActions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}.wzActions button{min-height:44px;min-width:96px}
@@ -960,15 +960,40 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase
 import {getFirestore,doc,getDoc,setDoc,deleteDoc,onSnapshot,runTransaction} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {getAuth,GoogleAuthProvider,onAuthStateChanged,signInWithPopup,signInWithRedirect,getRedirectResult,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-const firebaseConfig={
-  apiKey:"AIzaSyAum-USwVh7epu7X7gMuFjlGzszkPKPA7U",
-  authDomain:"teacher-dashboard-b4441.firebaseapp.com",
-  projectId:"teacher-dashboard-b4441",
-  storageBucket:"teacher-dashboard-b4441.firebasestorage.app",
-  messagingSenderId:"191461146682",
-  appId:"1:191461146682:web:c30279a76a586db32af503"
+// V4.14.0: two Firebase projects from one codebase.
+// "lindsay" is Lindsay's own project (the live dashboard). It is used everywhere unless this page is the product build.
+// "product" is a SEPARATE project for other teachers (strict per-teacher rules: rules/product.rules).
+// Fill in the product values from Firebase console → Project settings → Your apps → Web app (docs/PRODUCT_FIREBASE.md).
+const FIREBASE_PROJECTS={
+  lindsay:{
+    apiKey:"AIzaSyAum-USwVh7epu7X7gMuFjlGzszkPKPA7U",
+    authDomain:"teacher-dashboard-b4441.firebaseapp.com",
+    projectId:"teacher-dashboard-b4441",
+    storageBucket:"teacher-dashboard-b4441.firebasestorage.app",
+    messagingSenderId:"191461146682",
+    appId:"1:191461146682:web:c30279a76a586db32af503"
+  },
+  product:{
+    apiKey:"PRODUCT_API_KEY_GOES_HERE",
+    authDomain:"PRODUCT_PROJECT_ID.firebaseapp.com",
+    projectId:"PRODUCT_PROJECT_ID",
+    storageBucket:"PRODUCT_PROJECT_ID.firebasestorage.app",
+    messagingSenderId:"PRODUCT_SENDER_ID",
+    appId:"PRODUCT_APP_ID"
+  }
 };
-
+// Web addresses that serve the product build. The product project's own Firebase Hosting addresses are added
+// automatically; add a custom domain here if one is used later. Lindsay's GitHub Pages address is never on this list.
+const PRODUCT_HOSTS=[];
+function productConfigReady(){return !/PRODUCT_|_GOES_HERE/.test(Object.values(FIREBASE_PROJECTS.product).join(" "));}
+const TD_BUILD=(()=>{try{
+  const h=location.hostname,pid=FIREBASE_PROJECTS.product.projectId;
+  if(productConfigReady()&&(PRODUCT_HOSTS.includes(h)||h===pid+".web.app"||h===pid+".firebaseapp.com"))return "product";
+  // Local testing only (emulators): http://localhost/...?build=product
+  if(/^(localhost|127\.0\.0\.1)$/.test(h)&&new URLSearchParams(location.search).get("build")==="product")return "product";
+}catch(e){}return "lindsay";})();
+const IS_PRODUCT_BUILD=TD_BUILD==="product";
+const firebaseConfig=FIREBASE_PROJECTS[TD_BUILD];
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 const auth=getAuth(app);
@@ -977,7 +1002,10 @@ provider.setCustomParameters({prompt:"select_account"});
 
 const $=s=>document.querySelector(s);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-const APP_VERSION="4.13.3";
+const APP_VERSION="4.14.0";
+// V4.14.0: product build uses a SEPARATE Firebase project (FIREBASE_PROJECTS.product, strict per-teacher rules in
+// rules/product.rules); Lindsay's build keeps her project exactly as before. New teachers can add a practice
+// "Sample Class" (made-up students) from the welcome wizard or Settings, and remove it in one tap.
 // V4.13.3: Settings switches for add-on modules (hide nav, pages, and in-page surfaces; saved data is kept).
 // V4.13.2: catch up lindsay-profile-split with main (trip forms, I.C.E. contacts, audit log, lesson-plan views).
 // V4.13.1: multiple I.C.E. contacts per student; contacts print on separate lines at a readable size.
@@ -1003,7 +1031,7 @@ const LINDSAY_PROFILE={
   // and the class name → Calendar Code/Color defaults (ALG/A1 pink, APC purple, AB blue) in classCalDefaults.
 };
 const PROFILE_OVERRIDE=(()=>{try{const q=new URLSearchParams(location.search).get("profile");if(q&&PROFILES[q]&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return PROFILES[q];}catch(e){}return null})();
-function isLindsayDashboard(x){try{x=x||data;}catch(e){return true}return !(x&&x.profile==="teacher");}
+function isLindsayDashboard(x){if(IS_PRODUCT_BUILD)return false;try{x=x||data;}catch(e){return true}return !(x&&x.profile==="teacher");}
 function currentProfile(){return PROFILE_OVERRIDE||(isLindsayDashboard()?PROFILES.lindsay:PROFILES.teacher);}
 function teacherProfile(){const t=(()=>{try{return data.teacherProfile}catch(e){return null}})();return t&&typeof t==="object"?t:{};}
 // Core pages (always on): Live Class, Students & Classes, Calendar, Reminders & Announcements, Settings.
@@ -1053,6 +1081,7 @@ window.setModuleOn=(id,on)=>{
 };
 window.openPage=(id)=>{page=id;render();return page;};
 Object.defineProperty(window,"TD_PROFILE",{get:()=>currentProfile().name,configurable:true});
+Object.defineProperty(window,"TD_BUILD",{get:()=>({build:TD_BUILD,projectId:firebaseConfig.projectId,productConfigReady:productConfigReady()}),configurable:true});
 const LOCAL_PREFIX="teacherDashboardV1:user:";
 const CLOUD_SUBCOLLECTION="dashboards";
 const CLOUD_DOCUMENT="main";
@@ -1137,7 +1166,8 @@ const seed={
 // V4.13.0: a new teacher's dashboard: no sample class or students, no school's bell schedule, nothing of Lindsay's.
 function teacherSeed(){const x=structuredClone(seed);x.profile="teacher";x.teacherProfile={name:"",displayName:"",title:"",school:""};
   x.classes=[];x.students=[];x.bellSchedules=[{id:"regular",name:"Regular Bell Schedule",kind:"regular",periods:[]}];
-  x.masterSchedules={years:{},seeded:{}};x.lessonPlanRowCal={};x.lessonPlanRowCalMigrated=true;return x;}
+  x.masterSchedules={years:{},seeded:{}};x.lessonPlanRowCal={};x.lessonPlanRowCalMigrated=true;
+  if(IS_PRODUCT_BUILD)x.googleClassroom={...x.googleClassroom,clientId:GOOGLE_CLASSROOM_CLIENT_ID};return x;}
 function seedFor(x){return isLindsayDashboard(x)?seed:teacherSeed();}
 let data=structuredClone(seed);
 let page="live",selected=null;
@@ -1156,7 +1186,9 @@ function ensureBellSchedules(){
     data.bellSchedules.unshift(defaultBellSchedules().find(s=>s.id==="regular"));
   }
 }
-const ACCOMMODATION_AI_ENDPOINT="https://teacher-dashboard-ai.tri8602.workers.dev";
+// V4.14.0: the AI service and Google Classroom client belong to Lindsay's project; the product build has none yet.
+const ACCOMMODATION_AI_ENDPOINT=IS_PRODUCT_BUILD?"":"https://teacher-dashboard-ai.tri8602.workers.dev";
+const AI_OFF_MESSAGE="AI reading is not available in this version of Teacher Dashboard yet.";
 function ensureAccommodations(){
   if(!Array.isArray(data.accommodations))data.accommodations=[];
   if(!Array.isArray(data.accommodationSources))data.accommodationSources=[];
@@ -1635,12 +1667,14 @@ function normalizeLoadedDashboard(raw){
   if(!("setupComplete" in x)&&Array.isArray(x.classes)&&x.classes.some(c=>c&&c.id!=="c1"))out.setupComplete=true;
   // Module switches: keep a saved map if the teacher set one; never invent one.
   {const mods=sanitizeModulePrefs(out.modules);if(mods)out.modules=mods;else delete out.modules;}
+  // V4.14.0: in the product build every dashboard is a teacher's (never Lindsay's seeds or migrations).
+  if(IS_PRODUCT_BUILD){out.profile="teacher";if(!out.teacherProfile||typeof out.teacherProfile!=="object")out.teacherProfile={name:"",displayName:"",title:"",school:""};}
   return out;
 }
 function loadLocalForUser(){
   const key=localKey();
-  if(!key)return structuredClone(seed);
-  try{return normalizeLoadedDashboard(JSON.parse(localStorage.getItem(key)||"{}"))}catch{return structuredClone(seed)}
+  if(!key)return IS_PRODUCT_BUILD?teacherSeed():structuredClone(seed);
+  try{return normalizeLoadedDashboard(JSON.parse(localStorage.getItem(key)||"{}"))}catch{return IS_PRODUCT_BUILD?teacherSeed():structuredClone(seed)}
 }
 function saveLocal(){const key=localKey();if(key)localStorage.setItem(key,JSON.stringify(data))}
 function dashboardRef(){return currentUser?doc(db,"users",currentUser.uid,CLOUD_SUBCOLLECTION,CLOUD_DOCUMENT):null}
@@ -3891,7 +3925,8 @@ function currentLessonPlanHTML(cls){
   }catch(e){console.error('Current lesson card error:',e);return '';}
 }
 function live(){
-  const cls=currentClass(),active=activeEvents(),block=currentScheduleBlock();
+  const realCls=currentClass(),cls=realCls||samplePreviewClass(),active=activeEvents(),block=currentScheduleBlock();
+  const sampleBar=cls&&!realCls?`<section class="card sampleBar" id="samplePreviewBar">🧪 <b>Sample Class preview</b> <span class="small">Practice only, made-up students. Your real classes show here during their periods.</span> <button type="button" onclick="window.setSamplePreview(false)">Exit preview</button></section>`:"";
   const toggle=`<div class="viewToggle"><button class="${liveView==="cards"?"activeView":""}" onclick="window.setLiveView('cards')">▦ Cards</button><button class="${liveView==="matrix"?"activeView":""}" onclick="window.setLiveView('matrix')">▤ Matrix</button></div>`;
   const outChip=`<button type="button" class="liveOutChip${active.length?" hasOut":""}" onclick="window.focusStudentsOut()">${active.length?`🚪 ${active.length} out`:"🚪 0 out"}</button>`;
   const todaysNotes=calendarNotesFor(todayISO());
@@ -3904,10 +3939,10 @@ function live(){
   const headerRight=`<div class="headerRight">${toggle}<div class="headerUtilities">${outChip}${tools}</div></div>`;
   const head=(title,sub)=>`<header class="liveHeader"><div><h2>${title}</h2><p>${sub}</p></div>${headerRight}</header>`;
   window.focusStudentsOut=()=>{const el=document.querySelector('#liveOutStrip');if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});};
-  if(!cls)return `<div class="liveShell">${head("No class right now",`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}<section class="card noActiveClass"><b>${block?`No class is assigned to ${esc(block.label)}.`:"There is no active class during this time."}</b><p class="small">Add a class and choose its period(s), meeting days, and term in Students & Classes.</p></section></div>`;
+  if(!cls)return `<div class="liveShell">${head("No class right now",`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}<section class="card noActiveClass"><b>${block?`No class is assigned to ${esc(block.label)}.`:"There is no active class during this time."}</b><p class="small">Add a class and choose its period(s), meeting days, and term in Students & Classes.</p>${hasSampleClass()&&!isLindsayDashboard()?`<button type="button" id="samplePreviewBtn" onclick="window.setSamplePreview(true)">🧪 Try the Sample Class here</button>`:""}</section></div>`;
   const roster=sortedStudents(data.students.filter(st=>cls.studentIds.includes(st.id)));
-  if(liveView==="matrix")return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${moduleOn("quickButtons")?data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Talking":b.label==="Out of Class (Other)"?"Out":b.label==="Disruptive Behavior"?"Disrupt":esc(b.label)}</span></th>`).join(""):""}<th title="Note">📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${accommodationMarkerHTML(st)}${out?'<small>Out</small>':""}</td>${moduleOn("quickButtons")?data.buttons.map(b=>`<td><button type="button" class="matrixBtn quickButton" title="${esc(b.label)}" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}</button></td>`).join(""):""}<td><button class="matrixNoteBtn" onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div></div>`;
-  return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${topDashboardCards}${outStrip}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}${accommodationMarkerHTML(st)}</h3>${moduleOn("quickButtons")?`<div class="quick">${(data.buttons||[]).map(b=>`<button type="button" class="quickButton" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div>`:""}<button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Note</button></article>`).join("")}</div></div>`;
+  if(liveView==="matrix")return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${sampleBar}${topDashboardCards}${outStrip}${reminders}<div class="matrixWrap"><table class="matrix"><thead><tr><th class="stickyName">Student</th>${moduleOn("quickButtons")?data.buttons.map(b=>`<th title="${esc(b.label)}">${b.icon}<br><span>${b.label==="Excessive Talking"?"Talking":b.label==="Out of Class (Other)"?"Out":b.label==="Disruptive Behavior"?"Disrupt":esc(b.label)}</span></th>`).join(""):""}<th title="Note">📝<br><span>Note</span></th></tr></thead><tbody>${roster.map(st=>{const out=active.some(e=>e.studentId===st.id);return `<tr class="${out?"studentOut":""}"><td class="stickyName"><b>${esc(studentDisplayName(st))}</b>${accommodationMarkerHTML(st)}${out?'<small>Out</small>':""}</td>${moduleOn("quickButtons")?data.buttons.map(b=>`<td><button type="button" class="matrixBtn quickButton" title="${esc(b.label)}" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}</button></td>`).join(""):""}<td><button class="matrixNoteBtn" onclick="window.note('${st.id}',null)">📝</button></td></tr>`}).join("")}</tbody></table></div></div>`;
+  return `<div class="liveShell">${head(esc(cls.name),`${dateLine}${block?` · ${esc(block.label)}`:""}`)}${sampleBar}${topDashboardCards}${outStrip}${reminders}<div class="roster">${roster.map(st=>`<article class="student"><h3>${esc(studentDisplayName(st))}${accommodationMarkerHTML(st)}</h3>${moduleOn("quickButtons")?`<div class="quick">${(data.buttons||[]).map(b=>`<button type="button" class="quickButton" data-student-id="${esc(st.id)}" data-button-id="${esc(b.id)}">${b.icon}<span>${esc(b.label)}</span></button>`).join("")}</div>`:""}<button class="noteBtn" onclick="window.note('${st.id}',null)">📝 Note</button></article>`).join("")}</div></div>`;
 }
 const DAY_NAMES=[[1,"Mon"],[2,"Tue"],[3,"Wed"],[4,"Thu"],[5,"Fri"]];
 const TERM_OPTIONS=[["fullYear","Full Year"],["q1","Quarter 1"],["q2","Quarter 2"],["q3","Quarter 3"],["q4","Quarter 4"],["t1","Trimester 1"],["t2","Trimester 2"],["t3","Trimester 3"],["s1","Semester 1"],["s2","Semester 2"]];
@@ -3954,7 +3989,7 @@ normalizeGoogleClassroomSettings();
 const GOOGLE_CLASSROOM_SCOPES="https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.rosters.readonly https://www.googleapis.com/auth/classroom.course-work.readonly https://www.googleapis.com/auth/classroom.coursework.students.readonly https://www.googleapis.com/auth/classroom.student-submissions.students.readonly";
 window.googleClassroomState=window.googleClassroomState||{accessToken:"",expiresAt:0,tokenClient:null,courses:[],rosters:{},selected:new Set(),loading:false,status:"",gradeCatalogs:{},pendingClassModalId:"",pendingRosterMatchClassId:""};
 
-const GOOGLE_CLASSROOM_CLIENT_ID="191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com";
+const GOOGLE_CLASSROOM_CLIENT_ID=IS_PRODUCT_BUILD?"":"191461146682-39kdare6ds014j67t7bdl6e92u0g9auh.apps.googleusercontent.com";
 function googleClassroomClientId(){return GOOGLE_CLASSROOM_CLIENT_ID;}
 function googleClassroomSessionConnected(){const state=window.googleClassroomState||{};return !!state.accessToken&&Date.now()<Number(state.expiresAt||0);}
 function googleClassroomCourseLabel(course){return [String(course?.name||"Google Classroom Course").trim(),String(course?.section||"").trim()].filter(Boolean).join(" · ");}
@@ -3969,6 +4004,7 @@ function gcEscapeMessage(err){return err?.message||"Google Classroom could not b
 
 function gcRequestAccess(afterClassModalId=""){
   const clientId=googleClassroomClientId();
+  if(!clientId){alert("Google Classroom is not connected to this version of Teacher Dashboard yet.");return;}
   const state=window.googleClassroomState;
   if(afterClassModalId)state.pendingClassModalId=afterClassModalId;
   if(!window.google?.accounts?.oauth2){
@@ -4114,6 +4150,7 @@ window.gcRequestGradeAccess=(cid,next)=>{
   const state=window.googleClassroomState;const done=()=>next?next():window.gcLoadGradeSources(cid);
   if(state.accessToken&&Date.now()<state.expiresAt){done();return;}
   const clientId=googleClassroomClientId();
+  if(!clientId){alert("Google Classroom is not connected to this version of Teacher Dashboard yet.");return;}
   if(!window.google?.accounts?.oauth2){alert("Google authorization tools are not available yet. Please refresh the dashboard and try again.");return;}
   try{
     state.tokenClient=google.accounts.oauth2.initTokenClient({
@@ -4823,7 +4860,7 @@ async function getAccommodationSourceFile(id){const db=await accommodationFileDB
 window.extractAccommodationSource=async id=>{
   ensureAccommodations();const meta=data.accommodationSources.find(x=>x.id===id);if(!meta)return;
   const endpoint=ACCOMMODATION_AI_ENDPOINT;meta.extractionStatus="processing";meta.extractionError="";meta.status="AI extraction in progress";saveLocal();render();
-  try{const row=await getAccommodationSourceFile(id);if(!row?.file)throw new Error("The original document is no longer available on this device.");const form=new FormData();form.append("file",row.file,row.file.name||meta.name);form.append("studentName",studentDisplayName(data.students.find(s=>s.id===meta.studentId)||{}));form.append("sourceDate",meta.sourceDate||"");const idToken=currentUser?.getIdToken?await currentUser.getIdToken():"";if(!idToken)throw new Error("You must be signed in to use AI extraction.");const res=await fetch(endpoint,{method:"POST",headers:{Authorization:`Bearer ${idToken}`},body:form});const payload=await res.json().catch(()=>({}));if(!res.ok)throw new Error(payload.error||`AI service returned ${res.status}.`);const items=Array.isArray(payload.items)?payload.items:[];meta.extractionStatus="ready";meta.status="AI candidates ready for review";meta.candidateCount=items.length;meta.candidateTotal=items.length;meta.approvedCount=0;saveLocal();render();window.openAccommodationAIReview(id,items);}catch(err){console.error(err);meta.extractionStatus="error";meta.status="AI extraction failed";meta.extractionError=String(err.message||err);saveLocal();render();alert(`AI extraction failed: ${meta.extractionError}`);}
+  try{if(!endpoint)throw new Error(AI_OFF_MESSAGE);const row=await getAccommodationSourceFile(id);if(!row?.file)throw new Error("The original document is no longer available on this device.");const form=new FormData();form.append("file",row.file,row.file.name||meta.name);form.append("studentName",studentDisplayName(data.students.find(s=>s.id===meta.studentId)||{}));form.append("sourceDate",meta.sourceDate||"");const idToken=currentUser?.getIdToken?await currentUser.getIdToken():"";if(!idToken)throw new Error("You must be signed in to use AI extraction.");const res=await fetch(endpoint,{method:"POST",headers:{Authorization:`Bearer ${idToken}`},body:form});const payload=await res.json().catch(()=>({}));if(!res.ok)throw new Error(payload.error||`AI service returned ${res.status}.`);const items=Array.isArray(payload.items)?payload.items:[];meta.extractionStatus="ready";meta.status="AI candidates ready for review";meta.candidateCount=items.length;meta.candidateTotal=items.length;meta.approvedCount=0;saveLocal();render();window.openAccommodationAIReview(id,items);}catch(err){console.error(err);meta.extractionStatus="error";meta.status="AI extraction failed";meta.extractionError=String(err.message||err);saveLocal();render();alert(`AI extraction failed: ${meta.extractionError}`);}
 };
 window.openAccommodationAIReview=(sourceId,items)=>{
   ensureAccommodations();const meta=data.accommodationSources.find(x=>x.id===sourceId);if(!meta)return;
@@ -5879,6 +5916,7 @@ function wzCode(name){return String(name||"").replace(/\(.*?\)/g," ").split(/[^A
 function wzDraft(){const tp=teacherProfile(),cal=data.calendarSettings||{};return window.wzDraftState=window.wzDraftState||{step:1,name:tp.name||"",displayName:tp.displayName||"",title:tp.title||"",school:tp.school||"",first:cal.firstStudentDay||"",last:cal.lastStudentDay||"",classes:[{name:"",period:"1",start:"",end:"",code:"",color:WZ_COLORS[0]}]};}
 function wzReadForm(){const d=wzDraft(),v=id=>document.getElementById(id)?.value??null;
   [["wzName","name"],["wzDisplay","displayName"],["wzTitle","title"],["wzSchool","school"],["wzFirst","first"],["wzLast","last"]].forEach(([id,k])=>{const x=v(id);if(x!==null)d[k]=x.trim();});
+  {const sm=document.getElementById("wzSample");if(sm)d.sample=sm.checked;}
   const rows=[...document.querySelectorAll("#welcomeWizard .wzClassRow")];if(rows.length)d.classes=rows.map(r=>({name:r.querySelector(".wzCName").value.trim(),period:r.querySelector(".wzCPeriod").value,start:r.querySelector(".wzCStart").value,end:r.querySelector(".wzCEnd").value,code:r.querySelector(".wzCCode").value.trim(),color:r.querySelector(".wzCColor").value}));return d;}
 function wzStepHTML(d){
   const dots=["You","School year","Classes","Import"].map((t,i)=>`<span class="wzDot${d.step===i+1?" on":""}${d.step>i+1?" done":""}">${i+1}. ${t}</span>`).join("");
@@ -5900,9 +5938,48 @@ function wzStepHTML(d){
     <button type="button" class="wzAdd" onclick="window.wzAddClass()">＋ Add a class</button>`;
   else b=`<h4>Bring in what you have <span class="small">(optional)</span></h4><p class="small">You can start with an empty dashboard and add students later.</p>
     <div class="wzImport"><button type="button" onclick="document.getElementById('wzImportFile').click()">📂 Import a Teacher Dashboard backup</button><input id="wzImportFile" type="file" accept=".json,application/json" style="display:none" onchange="document.querySelector('#welcomeWizard')?.remove();window.importData(this)"><button type="button" onclick="window.finishWelcomeWizard(true)">🏫 Finish, then import a district calendar, bell schedule or Google Classroom rosters</button></div>
+    <label class="wzSample"><input type="checkbox" id="wzSample" ${d.sample?"checked":""}> <span><b>🧪 Add a practice Sample Class</b><br><span class="small">10 made-up students, a reminder and a few lessons to try things out. Remove it any time in Settings.</span></span></label>
     <p class="small">${d.classes.filter(c=>c.name).length} class${d.classes.filter(c=>c.name).length===1?"":"es"} ready · ${esc(d.school||"No school yet")} · ${d.first&&d.last?esc(d.first+" to "+d.last):"School year not set"}</p>`;
   return `<div class="wzSteps">${dots}</div><div class="wzBody">${b}</div>`;}
 window.wzCode=wzCode;
+// V4.14.0: a practice Sample Class for new teachers (never on Lindsay's dashboard). Made-up names only, nothing real.
+// Every id starts with "sample_", so "Remove sample class" takes out exactly what was added and nothing else.
+const SAMPLE_PREFIX="sample_";
+const SAMPLE_STUDENT_NAMES=[["Avery","Brooks"],["Jordan","Castillo"],["Riley","Chen"],["Morgan","Dawson"],["Casey","Ellison"],["Taylor","Fischer"],["Quinn","Garza"],["Skyler","Hughes"],["Reese","Ibarra"],["Parker","Jensen"]];
+const SAMPLE_LESSONS=["Welcome! Practice lesson: get to know the class (sample)","Warm-up, notes, and an exit ticket (sample)","Group work and review (sample)"];
+const isSampleId=id=>String(id||"").startsWith(SAMPLE_PREFIX);
+function hasSampleClass(){return (data.classes||[]).some(c=>isSampleId(c.id));}
+function sampleWeekdays(n){const out=[],d=new Date();d.setHours(12,0,0,0);while(out.length<n){if(d.getDay()>=1&&d.getDay()<=5)out.push(localDateKey(d));d.setDate(d.getDate()+1);}return out;}
+function addSampleClassData(){
+  if(hasSampleClass())return false;
+  const used=new Set((data.classes||[]).flatMap(c=>c.periods||[]).map(Number));let p=1;while(used.has(p)&&p<12)p++;
+  const id=SAMPLE_PREFIX+"class",color="#8e6bbf",code="SMP";
+  const students=SAMPLE_STUDENT_NAMES.map(([firstName,lastName],i)=>({id:`${SAMPLE_PREFIX}s${i+1}`,firstName,lastName,name:`${firstName} ${lastName}`}));
+  data.students=[...(data.students||[]),...students];
+  data.classes=[...(data.classes||[]),{id,name:"Sample Class",studentIds:students.map(x=>x.id),periods:[p],days:[1,2,3,4,5],terms:["fullYear"],rules:[{id:"rule-0",periods:[p],days:[1,2,3,4,5]}],calCode:code,calColor:color}];
+  data.lessonPlanRowCal=data.lessonPlanRowCal&&typeof data.lessonPlanRowCal==="object"?data.lessonPlanRowCal:{};data.lessonPlanRowCal["class:"+id]={code,color};
+  data.lessonPlans=data.lessonPlans&&typeof data.lessonPlans==="object"?data.lessonPlans:{entries:{}};data.lessonPlans.entries=data.lessonPlans.entries||{};
+  const rows=data.lessonPlans.entries["class:"+id]=data.lessonPlans.entries["class:"+id]||{};sampleWeekdays(3).forEach((d,i)=>{if(!rows[d])rows[d]={text:SAMPLE_LESSONS[i],done:false};});
+  data.announcements=Array.isArray(data.announcements)?data.announcements:[];
+  data.announcements.push({id:SAMPLE_PREFIX+"reminder",text:"Sample reminder: take attendance and collect exit tickets.",classIds:[id],timing:"start",offset:0,duration:5,display:"static",priority:"normal",color:"#385b9d",enabled:true,recurrence:"recurring",oneTimeDate:""});
+  ensureClassFields();return true;}
+function removeSampleClassData(){
+  const ids=new Set((data.students||[]).filter(x=>isSampleId(x.id)).map(x=>x.id)),cls=(data.classes||[]).filter(c=>isSampleId(c.id)).map(c=>c.id);
+  data.students=(data.students||[]).filter(x=>!ids.has(x.id));data.classes=(data.classes||[]).filter(c=>!isSampleId(c.id));
+  (data.classes||[]).forEach(c=>{c.studentIds=(c.studentIds||[]).filter(sid=>!ids.has(sid));if(Array.isArray(c.enrollmentPeriods))c.enrollmentPeriods=c.enrollmentPeriods.filter(e=>!ids.has(e.studentId));});
+  (data.groups||[]).forEach(g=>{if(Array.isArray(g.studentIds))g.studentIds=g.studentIds.filter(sid=>!ids.has(sid));});
+  data.events=(data.events||[]).filter(e=>!ids.has(e.studentId));data.notes=(data.notes||[]).filter(n=>!ids.has(n.studentId));
+  (data.gradeCourses||[]).forEach(c=>{if(c.grades)ids.forEach(sid=>delete c.grades[sid]);});
+  data.announcements=(data.announcements||[]).filter(a=>!isSampleId(a.id)).map(a=>({...a,classIds:(a.classIds||[]).filter(cid=>!cls.includes(cid))}));
+  cls.forEach(cid=>{if(data.lessonPlans?.entries)delete data.lessonPlans.entries["class:"+cid];if(data.lessonPlanRowCal)delete data.lessonPlanRowCal["class:"+cid];});
+  return cls.length>0;}
+let samplePreviewOn=false;
+function samplePreviewClass(){if(!samplePreviewOn||isLindsayDashboard())return null;return (data.classes||[]).find(c=>c.id===SAMPLE_PREFIX+"class")||null;}
+window.setSamplePreview=on=>{samplePreviewOn=!!on;page="live";render();};
+window.addSampleClass=()=>{if(isLindsayDashboard())return;if(addSampleClassData()){save();toast="Sample Class added with 10 made-up students. Remove it any time in Settings.";}render();};
+window.removeSampleClass=()=>{if(!hasSampleClass())return;if(!confirm("Remove the Sample Class, its 10 made-up students, and their practice notes, events and lessons? Your own classes are not touched."))return;removeSampleClassData();samplePreviewOn=false;save();toast="Sample Class removed.";render();};
+function sampleClassCardHTML(){if(isLindsayDashboard())return "";
+  return `<section class="card" id="sampleClassCard"><h3>🧪 Sample Class</h3><p class="small">A practice class with 10 made-up students, a reminder and a few lessons, so you can try Live Class, Lesson Plans and Reports before adding your real students.</p>${hasSampleClass()?`<button type="button" onclick="window.removeSampleClass()">Remove sample class</button>`:`<button type="button" onclick="window.addSampleClass()">＋ Add sample class</button>`}</section>`;}
 window.openWelcomeWizard=()=>{document.querySelector('#welcomeWizard')?.remove();const d=wzDraft();
   document.body.insertAdjacentHTML('beforeend',`<div id="welcomeWizard" class="modalbg"><div class="modal welcomeWizardModal"><div id="wzContent"></div><div class="wzActions"><button type="button" id="wzBack" onclick="window.wzGo(-1)">← Back</button><button type="button" class="setupSkipButton" onclick="window.wzSkip()">Skip for now</button><button type="button" class="primary" id="wzNext" onclick="window.wzGo(1)">Next →</button></div></div></div>`);window.wzRender();};
 window.wzRender=()=>{const d=wzDraft(),h=document.getElementById('wzContent');if(!h)return;h.innerHTML=wzStepHTML(d);document.getElementById('wzBack').disabled=d.step===1;document.getElementById('wzNext').textContent=d.step===4?'Finish':'Next →';};
@@ -5923,6 +6000,7 @@ window.finishWelcomeWizard=openSchoolSetup=>{const d=wzReadForm();
     data.lessonPlanRowCal["class:"+id]={code,color:c.color};made.push({p,start:c.start,end:c.end});});
   const reg=(data.bellSchedules||[]).find(x=>x.id==="regular");
   if(reg&&!(reg.periods||[]).length){const timed=made.filter(m=>m.start&&m.end).sort((a,b)=>a.start<b.start?-1:1);const seen=new Set();reg.periods=timed.filter(m=>!seen.has(m.p)&&seen.add(m.p)).map(m=>[`${wzOrdinal(m.p)} Period`,wzTime12(m.start),wzTime12(m.end)]);}
+  if(d.sample)addSampleClassData();
   ensureClassFields();data.setupComplete=true;window.wzDraftState=null;save();document.querySelector('#welcomeWizard')?.remove();
   toast=`Welcome${d.name?", "+d.name.split(/\s+/)[0]:""}! Your dashboard is ready.`;render();if(openSchoolSetup)setTimeout(()=>window.openSetupWizard(),100);};
 window.openSetupWizard=()=>{
@@ -5971,6 +6049,7 @@ window.extractSetupDocument=async kind=>{
     const token=currentUser?.getIdToken?await currentUser.getIdToken():'';
     if(!token)throw new Error('You must be signed in.');
     const form=new FormData();form.append('file',file,file.name||`${kind}.pdf`);form.append('mode',`setup_${kind}`);
+    if(!ACCOMMODATION_AI_ENDPOINT)throw new Error(AI_OFF_MESSAGE);
     const res=await fetch(ACCOMMODATION_AI_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
     const payload=await res.json().catch(()=>({}));
     if(!res.ok)throw new Error(payload.error||`Setup import failed (${res.status}).`);
@@ -6028,6 +6107,7 @@ function settings(){
   <div class="avatarActions"><button type="button" onclick="document.getElementById('avatarFile').click()">📷 Upload a picture</button>${data.profileAvatar?`<button type="button" onclick="window.useGooglePhoto()">Use Google picture</button>`:""}</div>
   <input id="avatarFile" type="file" accept="image/*" style="display:none" onchange="window.uploadAvatar(this)"><button style="margin-top:12px" onclick="window.signOut()">Sign out</button></section>
   <section class="card" id="modulesCard"><h3>Add-on modules</h3><p class="small">Turn off tools you do not use. They leave the sidebar and their pages. Your saved information stays on this dashboard and comes back if you turn a module on again.</p><div class="moduleSwitchList">${moduleSwitchesHTML()}</div></section>
+  ${sampleClassCardHTML()}
   <section class="card"><h3>Sidebar Layout</h3><p class="small">Choose which sections appear in your sidebar and arrange them in the order you prefer.</p><div class="sidebarEditorList">${sidebarSettingsHTML()}</div><button type="button" onclick="window.resetSidebarLayout()">Reset to Default</button></section>
   <section class="card"><h3>📅 Calendar${moduleOn("pvaas")?" & PVAAS":""}</h3><div class="settingsGrid"><label>First Student Day<br><input type="date" value="${esc(cal.firstStudentDay||"")}" onchange="window.setCalendarBoundary('firstStudentDay',this.value)"></label><label>Last Student Day<br><input type="date" value="${esc(cal.lastStudentDay||"")}" onchange="window.setCalendarBoundary('lastStudentDay',this.value)"></label>${moduleOn("pvaas")?`<label>PVAAS End Date<br><input type="date" value="${esc(data.pvaasSettings?.customEndDate||"")}" onchange="window.setPvaasEndDate(this.value)"></label>`:""}</div>${moduleOn("pvaas")?`<p class="small">PVAAS uses this end date when it is set; otherwise it uses the last student day.</p>`:""}</section>
   ${moduleOn("gradeCalc")?`<section class="card"><h3>🧮 Grade Calculator Defaults</h3><p class="small">Scoring is configured separately for each class from the Grade Calculator. Your existing JM defaults remain unchanged.</p></section>`:""}
@@ -6224,7 +6304,7 @@ function bind(){
 window.setLiveView=v=>{liveView=v;localStorage.teacherDashboardLiveView=v;render()}
 window.record=(sid,bid)=>{
   ensureClassroomTools();ensureClassFields();
-  const s=data.students.find(x=>x.id===sid),b=data.buttons.find(x=>x.id===bid),cls=currentClass();
+  const s=data.students.find(x=>x.id===sid),b=data.buttons.find(x=>x.id===bid),cls=currentClass()||(isSampleId(sid)?samplePreviewClass():null);
   if(!s||!b){toast="That Quick Button is no longer available.";render();return;}
   if(!cls){toast="There is no active class right now.";render();return;}
   const now=auditNow(),e={id:uid(),studentId:sid,classId:cls.id,buttonId:bid,label:b.label,icon:b.icon,type:b.type,start:now,end:null,createdAt:now,createdSource:"live",history:[]};
@@ -6950,7 +7030,7 @@ function calcContractState(c){const o=c.out;if(!o)return ["none","—"];if(calcI
 function calcMoney(n){return "$"+Number(n).toFixed(Number(n)%1?2:0)}
 function calcContractParagraphs(c,st){const L=calcLetter(c,st);return [L.greeting,...L.body,...L.bullets.map(b=>"• "+b),...L.after,`${L.closing.valediction}\n${L.closing.name}${L.closing.title?`\n${L.closing.title}`:""}`];}
 function calcNewToken(){const a=new Uint8Array(20);crypto.getRandomValues(a);return [...a].map(x=>x.toString(16).padStart(2,"0")).join("");}
-function calcSignUrl(token){return new URL("sign.html?t="+token,location.href.split("?")[0].split("#")[0]).href;}
+function calcSignUrl(token){return new URL("sign.html?t="+token+(IS_PRODUCT_BUILD&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?"&build=product":""),location.href.split("?")[0].split("#")[0]).href;}
 function calcQrSvg(text,cell=3){try{const q=qrcode(0,"M");q.addData(text);q.make();return q.createSvgTag({cellSize:cell,margin:2,scalable:false});}catch(e){return "";}}
 function calcAckRecord(c){const o=c.out,st=calcHolder(c),s=calcSettings();
   return {ownerUid:currentUser.uid,calculatorId:c.id,outId:o.id,createdAt:new Date().toISOString(),

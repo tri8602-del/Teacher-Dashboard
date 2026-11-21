@@ -1,0 +1,70 @@
+rules_version = '2';
+// Teacher Dashboard PRODUCT project rules (V4.14.0). NOT for Lindsay's project (teacher-dashboard-b4441).
+// Deploy only to the separate product project:  firebase deploy --only firestore:rules --project <product-project-id>
+//
+// Each teacher can read and write ONLY their own data under users/{their uid}/dashboards/...
+// No teacher can read, list, or write another teacher's data. Signed-out visitors get nothing,
+// except the one-contract parent signing link (calcAcks), which needs the exact 32+ character secret token.
+// Everything not matched below is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.uid != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // The dashboard itself: users/{uid}/dashboards/main = {dataJson, ownerUid, updatedAt, appVersion, revision}
+    function validDashboard(uid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['dataJson', 'ownerUid', 'updatedAt', 'appVersion', 'revision'])
+        && d.keys().hasAll(['dataJson', 'ownerUid'])
+        && d.ownerUid == uid
+        && d.dataJson is string
+        && (!('revision' in d) || d.revision is int);
+    }
+    // Calculator sign-out scans: users/{uid}/dashboards/calcScan_<id>
+    function validScan(uid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['dataUrl', 'type', 'name', 'calculatorId', 'ownerUid', 'updatedAt'])
+        && d.ownerUid == uid
+        && d.dataUrl is string;
+    }
+
+    match /users/{uid}/dashboards/{docId} {
+      allow get, list: if isOwner(uid);
+      allow delete: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && ((docId == 'main' && validDashboard(uid))
+            || (docId.matches('calcScan_[A-Za-z0-9_-]{1,80}') && validScan(uid)));
+    }
+
+    // Online calculator contracts (same design as rules/calcAcks.rules).
+    match /calcAcks/{token} {
+      // Only someone holding the exact secret link can open that one contract. Nobody can list or search them.
+      allow get: if token.size() >= 32;
+      allow list: if false;
+      // Only a signed-in teacher can create a contract, as her own, unsigned.
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.signed == false
+        && token.size() >= 32;
+      // The teacher who owns it may re-issue or delete it, but never hand it to another account.
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow update: if (signedIn()
+            && resource.data.ownerUid == request.auth.uid
+            && request.resource.data.ownerUid == resource.data.ownerUid)
+        // A parent (no sign-in) may sign once: only the four signature fields change.
+        || (resource.data.signed == false
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signed', 'agreed', 'signerName', 'signedAt'])
+            && request.resource.data.signed == true
+            && request.resource.data.agreed == true
+            && request.resource.data.signerName is string
+            && request.resource.data.signerName.size() >= 2
+            && request.resource.data.signerName.size() <= 100
+            && request.resource.data.signedAt == request.time);
+    }
+
+    // Anything else (other collections, users/{uid} itself, other teachers' folders): denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
